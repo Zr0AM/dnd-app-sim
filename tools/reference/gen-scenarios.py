@@ -429,6 +429,106 @@ for n in range(60):
     sc["plans"] = {m[0]["id"]: POL for m in members}
     sweep.append(sc)
 
+# ===== Build sweep: fights populated from the REAL compilers and seed database in both engines ==========
+# Combatants are given as recipes ("martial", "caster", "filler", "monster") that each engine resolves with its own
+# content layer (seed DB -> compilers -> combatants), so this sweep exercises the content port end to end.
+WEAPONS = ["Greataxe", "Greatsword", "Longsword", "Rapier", "Shortsword", "Handaxe", "Longbow", "Shortbow"]
+ARMORS = ["Studded Leather Armor", "Chain Shirt", "Breastplate", "Chain Mail"]
+SUBCLASS = {"fighter": "champion", "barbarian": "path-of-the-berserker", "rogue": "thief", "ranger": "hunter",
+            "paladin": "oath-of-devotion", "monk": "warrior-of-the-open-hand", "wizard": "evoker", "cleric": "life-domain",
+            "bard": "college-of-lore", "sorcerer": "draconic-sorcery", "warlock": "fiend-patron", "druid": "circle-of-the-land"}
+STD = [15, 14, 13, 12, 10, 8]
+CASTERS = {  # mirrors CASTER_SPECS in sim/src/opt/catalog.ts
+    "wizard": dict(spellAbility="int", cantrips=["fire-bolt"], spells=["burning-hands", "scorching-ray", "fireball", "hold-person", "hypnotic-pattern"], weapon="Dagger", armor=None, shield=False),
+    "cleric": dict(spellAbility="wis", cantrips=["sacred-flame"], spells=["cure-wounds", "healing-word", "guiding-bolt"], weapon="Mace", armor="Scale Mail", shield=True),
+    "bard": dict(spellAbility="cha", cantrips=[], spells=["bless", "haste"], weapon="Rapier", armor="Leather Armor", shield=False),
+    "sorcerer": dict(spellAbility="cha", cantrips=["fire-bolt"], spells=["burning-hands", "scorching-ray", "fireball", "hold-person"], weapon="Dagger", armor=None, shield=False,
+                     resources=[{"id": "sorcery", "max": "level", "rechargeLong": "all"}], extraHpPerLevel=1, unarmoredAcAbility="cha"),
+    "warlock": dict(spellAbility="cha", cantrips=["eldritch-blast"], spells=["hold-person"], weapon="Dagger", armor="Leather Armor", shield=False,
+                    shortRestSlots=True, features=["dark-ones-blessing"]),
+    "druid": dict(spellAbility="wis", cantrips=["produce-flame"], spells=["cure-wounds", "moonbeam"], weapon="Mace", armor="Leather Armor", shield=False,
+                  resources=[{"id": "wild-shape", "max": 2, "rechargeShort": "all", "rechargeLong": "all"}], wildShape=True),
+}
+MARTIALS = ["fighter", "barbarian", "rogue", "ranger", "paladin", "monk"]
+POOLS = {
+    "low": ["animated-armor", "blood-hawk", "constrictor-snake", "draft-horse", "giant-badger", "giant-lizard", "giant-vulture",
+            "goblin-warrior", "goblin-minion", "ice-mephit", "mastiff", "pteranodon", "scout", "steam-mephit", "tough", "bugbear-warrior",
+            "hobgoblin-warrior", "gnoll-warrior"],
+    "mid": ["air-elemental", "bandit-captain", "bronze-dragon-wyrmling", "druid", "gelatinous-cube", "giant-shark", "griffon", "incubus",
+            "minotaur-skeleton", "owlbear", "roper", "swarm-of-venomous-snakes", "water-elemental", "wererat-hybrid", "troll", "winter-wolf"],
+    "high": ["aboleth", "behir", "chimera", "cloud-giant", "drider", "fire-giant", "glabrezu", "horned-devil", "mage", "oni", "roc",
+             "spirit-naga", "treant", "wyvern", "hezrou", "tyrannosaurus-rex", "young-red-dragon"],
+    "boss": ["adult-black-dragon", "adult-brass-dragon", "adult-copper-dragon", "adult-green-dragon", "adult-silver-dragon",
+             "ancient-black-dragon", "ancient-brass-dragon", "ancient-copper-dragon", "ancient-green-dragon", "ancient-silver-dragon",
+             "balor", "ice-devil", "kraken", "marilith", "adult-red-dragon"],
+}
+LEVEL_POOLS = {3: ["low", "low", "mid"], 5: ["low", "mid", "mid"], 11: ["mid", "high", "high"], 17: ["high", "boss", "boss"]}
+
+def std_abilities():
+    perm = list(range(6)); rnd.shuffle(perm)
+    return [STD[i] for i in perm]
+
+def martial_recipe(cls, L):
+    weapon = rnd.choice(WEAPONS)
+    two_handed = weapon in ("Greataxe", "Greatsword") or (weapon == "Longsword" and rnd.random() < 0.5)
+    ranged = weapon in ("Longbow", "Shortbow")
+    r = {"class": cls, "subclass": SUBCLASS[cls], "level": L, "abilities": std_abilities(), "weapon": weapon, "twoHanded": two_handed,
+         "armor": rnd.choice(ARMORS), "shield": (not two_handed and not ranged and rnd.random() < 0.6), "fightingStyle": None, "unarmoredDefense": None}
+    if cls == "fighter":
+        r["fightingStyle"] = rnd.choice(["archery", "defense", "great-weapon", "two-weapon"])
+    if cls == "paladin":
+        r["fightingStyle"] = "defense"; r["gish"] = True
+    if cls == "barbarian":
+        r["armor"] = None; r["unarmoredDefense"] = "barbarian"; r["shield"] = False
+    if cls == "monk":
+        sides = 10 if L >= 17 else 8 if L >= 11 else 6 if L >= 5 else 4
+        r["weapon"] = {"name": "Unarmed Strike", "category": "simple", "range": "melee", "diceCount": 1, "diceSides": sides,
+                       "damageType": "bludgeoning", "properties": ["finesse"]}
+        r["armor"] = None; r["unarmoredDefense"] = "monk"; r["shield"] = False; r["twoHanded"] = False
+    return r
+
+def caster_recipe(cls, L):
+    r = {"class": cls, "subclass": SUBCLASS[cls], "level": L, "abilities": std_abilities()}
+    r.update(CASTERS[cls])
+    return r
+
+def pick_cells(n, xlo, xhi, taken):
+    out = []
+    while len(out) < n:
+        c = [rnd.randint(xlo, xhi), rnd.randint(1, 10)]
+        if c not in taken and c not in out:
+            out.append(c)
+    return out
+
+build_fights = []
+for n in range(220):
+    L = rnd.choice([3, 5, 11, 17])
+    k = rnd.randint(1, 4)
+    taken = []
+    members = []
+    for i, pos in enumerate(pick_cells(k, 1, 4, taken)):
+        taken.append(pos)
+        roll = rnd.random()
+        base = {"id": "p%d" % i, "name": "p%d" % i, "side": "party", "position": pos}
+        if roll < 0.35:
+            base["martial"] = martial_recipe(rnd.choice(MARTIALS), L)
+        elif roll < 0.75:
+            base["caster"] = caster_recipe(rnd.choice(list(CASTERS)), L)
+        else:
+            base["filler"] = rnd.choice(["tank", "sustained-dps", "burst", "healer", "controller", "buffer"]); base["level"] = L
+        if rnd.random() < 0.15:
+            base["startHp"] = rnd.choice([0, 1, 5, 12])
+        members.append(base)
+    for i, pos in enumerate(pick_cells(rnd.randint(1, 4), 8, 20, taken)):
+        taken.append(pos)
+        band = rnd.choice(LEVEL_POOLS[L])
+        slug = rnd.choice(POOLS[band])
+        members.append({"id": "e%d" % i, "name": "e%d" % i, "side": "enemy", "position": pos, "monster": slug})
+    sc = {"name": "build-%03d" % n, "seed": rnd.randint(1, 2**31), "roundCap": 4, "grid": open_grid(24, 12),
+          "combatants": members, "plans": {m["id"]: POL for m in members}}
+    build_fights.append(sc)
+
+
 out = {
   "$comment": "Shared by tools/reference/gen-encounters.mts (TypeScript) and EncounterParityTest (Java). Dice are [count, sides, bonus]. See gen-encounters.mts for the plan intent grammar.",
   "spells": spells,
@@ -441,4 +541,9 @@ raw = (json.dumps(sweep_doc, separators=(",", ":")) + "\n").encode()
 with open(REF / "sweep.json.gz", "wb") as fh:
     with gzip.GzipFile(filename="", mode="wb", fileobj=fh, mtime=0, compresslevel=9) as gz:
         gz.write(raw)
+raw2 = (json.dumps({"$comment": "Generated by tools/reference/gen-scenarios.py; combatants are recipes resolved by each engine's content layer.", "scenarios": build_fights}, separators=(",", ":")) + "\n").encode()
+with open(REF / "build-sweep.json.gz", "wb") as fh:
+    with gzip.GzipFile(filename="", mode="wb", fileobj=fh, mtime=0, compresslevel=9) as gz:
+        gz.write(raw2)
+print("wrote build-sweep.json.gz (%d fights, %d bytes raw)" % (len(build_fights), len(raw2)))
 print("wrote scenarios.json (%d scenarios) and sweep.json.gz (%d fights, %d bytes raw)" % (len(out["scenarios"]), len(sweep), len(raw)))

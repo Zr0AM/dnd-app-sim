@@ -2,7 +2,6 @@ package org.omnomnom.dnd.sim.testsupport;
 
 import java.util.Comparator;
 import java.util.Locale;
-import java.util.Map;
 import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
@@ -150,10 +149,5 @@ public final class ContentJson {
         ArrayNode saves = n.putArray("saveProficiencies");
         c.saveProficiencies().forEach(a -> saves.add(a.code()));
         return n;
-    }
-
-    /** Convenience for tests that need a plain map view. */
-    public static Map<String, Object> asMap(ObjectNode n) {
-        return TestJson.MAPPER.convertValue(n, Map.class);
     }
 }

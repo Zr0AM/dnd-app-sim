@@ -46,7 +46,15 @@ final class ScenarioRunner {
         }
     }
 
+    private final RecipeFactory recipes;
+
     ScenarioRunner(JsonNode spellDefs) {
+        this(spellDefs, null);
+    }
+
+    /** With a recipe factory, combatants may be given as build recipes instead of explicit stat blocks. */
+    ScenarioRunner(JsonNode spellDefs, RecipeFactory recipes) {
+        this.recipes = recipes;
         spellDefs.properties().forEach(e -> spells.put(e.getKey(), makeSpell(e.getKey(), e.getValue())));
     }
 
@@ -432,7 +440,7 @@ final class ScenarioRunner {
 
     Outcome run(JsonNode sc) {
         List<Combatant> combatants = new ArrayList<>();
-        sc.get("combatants").forEach(c -> combatants.add(makeCombatant(c)));
+        sc.get("combatants").forEach(c -> combatants.add(RecipeFactory.isRecipe(c) ? recipes.make(c) : makeCombatant(c)));
         Map<String, List<String>> plans = new LinkedHashMap<>();
         sc.get("plans").properties().forEach(e -> {
             List<String> plan = new ArrayList<>();

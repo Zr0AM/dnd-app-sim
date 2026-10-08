@@ -3,7 +3,7 @@
 //   - every weapon and armor, every class, class progression and spell slots for all 12 classes at levels 1-19
 //   - the XP-by-challenge-rating table
 //
-//   DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types --import ./tools/reference/register-ts.mjs \
+//   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types --import ./tools/reference/register-ts.mjs \
 //     tools/reference/gen-content.mts
 //
 // Upstream baseline: Zr0AM/dnd-app @ 8db9df32179604057009203c9effa5bc91c9dd6f.

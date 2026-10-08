@@ -2,9 +2,12 @@
 // engine and writes the resulting event logs and final states to src/test/resources/reference/encounters.json.
 // The Java EncounterParityTest builds the same scenarios and must reproduce this output exactly.
 //
-//   DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types tools/reference/gen-encounters.mts
+//   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types tools/reference/gen-encounters.mts
 //
 // Upstream baseline: Zr0AM/dnd-app @ 8db9df32179604057009203c9effa5bc91c9dd6f.
+//
+// Combatants may be content recipes (martial, caster, filler, monster) resolved through the real seed loaders and
+// compilers; build-sweep.json.gz is made entirely of those, so it checks the whole content layer end to end.
 //
 // The generated sweep (sweep.json.gz) is compared by hash: a SHA-256 of the canonical JSON of each fight's events and
 // final states. Use DUMP=<name> to print one fight's events when a hash mismatches.
@@ -32,6 +35,15 @@ const { dice } = await load('dice/dice.ts');
 const { Combatant } = await load('combat/actor.ts');
 const { Encounter } = await load('combat/encounter.ts');
 const { tacticalPolicy } = await load('ai/policy.ts');
+const contentDbModule = await load('content/load-db.ts');
+const { compileMonster, spawnMonster } = await load('content/monster.ts');
+const { multiattackFor } = await load('content/multiattack.ts');
+const { loadFillers } = await load('content/fillers.ts');
+const { compileBuild } = await load('content/character.ts');
+const { compileCaster } = await load('content/caster.ts');
+const spellsModule = await load('content/spells.ts');
+const { DarkOnesBlessingFeature, WildShapeFeature } = await load('content/martial-features.ts');
+const { proficiencyBonus } = await load('core/types.ts');
 
 const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
 const input = JSON.parse(readFileSync(join(root, 'scenarios.json'), 'utf8'));
@@ -232,6 +244,115 @@ function makeCombatant(c: any) {
   return combatant;
 }
 
+// ---- content recipes: combatants built by the real seed loaders and compilers ----------------------
+const seedDb = contentDbModule.buildSeedDatabase();
+const monsterTemplates = new Map<string, any>();
+for (const src of contentDbModule.loadMonsterSources(seedDb)) {
+  monsterTemplates.set(src.monster.monsterSlug, compileMonster(src, multiattackFor(src.monster.monsterSlug)));
+}
+const fillerCache = new Map<number, any>();
+const fillersFor = (level: number) => {
+  if (!fillerCache.has(level)) fillerCache.set(level, loadFillers(seedDb, level));
+  return fillerCache.get(level);
+};
+const spellById: Record<string, any> = {};
+for (const v of Object.values(spellsModule) as any[]) {
+  if (v && typeof v === 'object' && !Array.isArray(v) && 'kind' in v && 'id' in v) spellById[v.id] = v;
+}
+const abilityRecord = (a: number[]) => Object.fromEntries(ABILITY.map((k, i) => [k, a[i]]));
+const resolveWeapon = (w: any) =>
+  typeof w === 'string'
+    ? contentDbModule.loadWeapon(seedDb, w)
+    : { name: w.name, category: w.category, range: w.range, diceCount: w.diceCount, diceSides: w.diceSides, damageType: w.damageType, properties: w.properties };
+
+function makeMartial(c: any) {
+  const b = c.martial;
+  const spec: any = {
+    id: c.id,
+    name: `${b.class} hero`,
+    side: c.side,
+    class: contentDbModule.loadClass(seedDb, b.class),
+    subclass: b.subclass,
+    level: b.level,
+    abilities: abilityRecord(b.abilities),
+    weapon: resolveWeapon(b.weapon),
+    twoHanded: b.twoHanded,
+    armor: b.armor ? contentDbModule.loadArmor(seedDb, b.armor) : null,
+    shield: b.shield,
+    fightingStyle: b.fightingStyle ?? undefined,
+    unarmoredDefense: b.unarmoredDefense ?? null,
+    progression: contentDbModule.loadProgression(seedDb, b.class, b.level),
+    position: cell(c.position[0], c.position[1]),
+  };
+  if (b.gish) {
+    spec.spellcasting = {
+      ability: 'cha',
+      slots: contentDbModule.loadSpellSlots(seedDb, b.class, b.level),
+      cantrips: [],
+      spells: [spellById['bless'], spellById['cure-wounds']],
+    };
+  }
+  return compileBuild(spec);
+}
+
+function makeCasterBuild(c: any) {
+  const b = c.caster;
+  const resources = (b.resources ?? []).map((r: any) => ({
+    id: r.id,
+    max: r.max === 'level' ? b.level : r.max,
+    rechargeShort: r.rechargeShort,
+    rechargeLong: r.rechargeLong,
+  }));
+  const features: any[] = (b.features ?? []).map((id: string) => {
+    if (id === 'dark-ones-blessing') return new DarkOnesBlessingFeature();
+    throw new Error('caster feature ' + id);
+  });
+  if (b.wildShape) {
+    features.push(
+      new WildShapeFeature({
+        hp: 2 * b.level,
+        ac: 13,
+        attack: { name: 'Bite', kind: 'melee', reachFt: 5, attackBonus: 2 + proficiencyBonus(b.level), damage: dice(2, 6, 2), damageType: 'piercing' },
+      }),
+    );
+  }
+  return compileCaster({
+    id: c.id,
+    name: `${b.class} hero`,
+    side: c.side,
+    class: contentDbModule.loadClass(seedDb, b.class),
+    subclass: b.subclass,
+    level: b.level,
+    abilities: abilityRecord(b.abilities),
+    weapon: contentDbModule.loadWeapon(seedDb, b.weapon),
+    armor: b.armor ? contentDbModule.loadArmor(seedDb, b.armor) : null,
+    shield: b.shield,
+    spellAbility: b.spellAbility,
+    cantrips: b.cantrips.map((id: string) => spellById[id]),
+    spells: b.spells.map((id: string) => spellById[id]),
+    slots: contentDbModule.loadSpellSlots(seedDb, b.class, b.level),
+    position: cell(c.position[0], c.position[1]),
+    resources: resources.length ? resources : undefined,
+    features: features.length ? features : undefined,
+    shortRestSlots: b.shortRestSlots,
+    extraHp: b.extraHpPerLevel ? b.extraHpPerLevel * b.level : undefined,
+    unarmoredAcAbility: b.unarmoredAcAbility,
+  });
+}
+
+/** Builds a combatant from a recipe (martial, caster, filler or monster) via the real content layer. */
+function makeFromRecipe(c: any) {
+  let combatant: any;
+  if (c.martial) combatant = makeMartial(c);
+  else if (c.caster) combatant = makeCasterBuild(c);
+  else if (c.filler) combatant = fillersFor(c.level)[c.filler].make(c.id, c.side, cell(c.position[0], c.position[1]));
+  else combatant = spawnMonster(monsterTemplates.get(c.monster), { id: c.id, side: c.side, position: cell(c.position[0], c.position[1]) });
+  if (c.startHp !== undefined) combatant.hp = c.startHp;
+  for (const cond of c.conditions ?? []) combatant.addCondition(cond);
+  return combatant;
+}
+const isRecipe = (c: any) => c.martial || c.caster || c.filler || c.monster;
+
 function makeGrid(g: any) {
   const grid = new Grid(g.width, g.height, g.cellFt ?? 5);
   for (const [x, y] of g.walls ?? []) grid.setTerrain(cell(x, y), { wall: true });
@@ -350,7 +471,7 @@ function runIntent(intent: string, api: any) {
 
 // ---- run -------------------------------------------------------------------------------------------
 function runOne(sc: any) {
-  const combatants = sc.combatants.map(makeCombatant);
+  const combatants = sc.combatants.map((c: any) => (isRecipe(c) ? makeFromRecipe(c) : makeCombatant(c)));
   const e = new Encounter({
     grid: makeGrid(sc.grid),
     combatants,
@@ -394,7 +515,8 @@ const sweepInput = JSON.parse(gunzipSync(readFileSync(join(root, 'sweep.json.gz'
 
 // DUMP=<scenario name> prints that scenario's events as JSON and exits (for debugging a parity mismatch).
 if (process.env.DUMP) {
-  const sc = [...input.scenarios, ...sweepInput.scenarios].find((s: any) => s.name === process.env.DUMP);
+  const buildForDump = JSON.parse(gunzipSync(readFileSync(join(root, 'build-sweep.json.gz'))).toString('utf8'));
+  const sc = [...input.scenarios, ...sweepInput.scenarios, ...buildForDump.scenarios].find((s: any) => s.name === process.env.DUMP);
   if (!sc) throw new Error('no scenario named ' + process.env.DUMP);
   const out = runOne(sc);
   console.log(JSON.stringify(out.events, null, 1));
@@ -408,8 +530,16 @@ const sweep = sweepInput.scenarios.map((sc: any) => {
   return { name: sc.name, rounds: r.rounds, winner: r.winner, events: r.events.length, sha256: sha256(text) };
 });
 
+const buildInput = JSON.parse(gunzipSync(readFileSync(join(root, 'build-sweep.json.gz'))).toString('utf8'));
+const buildSweep = buildInput.scenarios.map((sc: any) => {
+  const r = runOne(sc);
+  const text = canon({ events: r.events, final: r.final, rounds: r.rounds, winner: r.winner });
+  return { name: sc.name, rounds: r.rounds, winner: r.winner, events: r.events.length, sha256: sha256(text) };
+});
+
 const dest = join(root, 'encounters.json');
 writeFileSync(dest, JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', results }, null, 1) + '\n');
+writeFileSync(join(root, 'build-sweep-expected.json'), JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', sweep: buildSweep }) + '\n');
 writeFileSync(join(root, 'sweep-expected.json'), JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', sweep }) + '\n');
 for (const r of results) {
   const kinds: Record<string, number> = {};
@@ -419,4 +549,6 @@ for (const r of results) {
 const total = sweep.reduce((n: number, s: any) => n + s.events, 0);
 const wins = sweep.reduce((m: Record<string, number>, s: any) => ((m[String(s.winner)] = (m[String(s.winner)] ?? 0) + 1), m), {});
 console.log('sweep:', sweep.length, 'fights,', total, 'events, winners', JSON.stringify(wins));
+const buildEvents = buildSweep.reduce((n: number, x: any) => n + x.events, 0);
+console.log('build sweep:', buildSweep.length, 'fights,', buildEvents, 'events');
 console.log('wrote', dest);

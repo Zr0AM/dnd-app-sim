@@ -1,7 +1,7 @@
 // Generates src/test/resources/reference/rng.json from the TypeScript sim, so the Java
 // RNG/dice port can be checked against real output of the original implementation.
 //
-//   DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types tools/reference/gen-rng.mts
+//   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types tools/reference/gen-rng.mts
 //
 // Upstream baseline: Zr0AM/dnd-app @ 8db9df32179604057009203c9effa5bc91c9dd6f.
 import { writeFileSync } from 'node:fs';

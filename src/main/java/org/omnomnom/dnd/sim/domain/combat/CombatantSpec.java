@@ -73,13 +73,13 @@ public record CombatantSpec(
     }
 
     public static final class Builder {
-        private final String id;
-        private final String name;
-        private final Side side;
-        private final int level;
-        private final AbilityScores abilities;
-        private final int ac;
-        private final int maxHp;
+        private String id;
+        private String name;
+        private Side side;
+        private int level;
+        private AbilityScores abilities;
+        private int ac;
+        private int maxHp;
         private Size size = Size.MEDIUM;
         private int speedFt = 30;
         private Set<Ability> saveProficiencies = Set.of();
@@ -101,6 +101,36 @@ public record CombatantSpec(
             this.abilities = abilities;
             this.ac = ac;
             this.maxHp = maxHp;
+        }
+
+        public Builder name(String v) {
+            this.name = v;
+            return this;
+        }
+
+        public Builder side(Side v) {
+            this.side = v;
+            return this;
+        }
+
+        public Builder level(int v) {
+            this.level = v;
+            return this;
+        }
+
+        public Builder abilities(AbilityScores v) {
+            this.abilities = v;
+            return this;
+        }
+
+        public Builder ac(int v) {
+            this.ac = v;
+            return this;
+        }
+
+        public Builder maxHp(int v) {
+            this.maxHp = v;
+            return this;
         }
 
         public Builder size(Size v) {

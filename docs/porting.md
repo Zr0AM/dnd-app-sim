@@ -56,21 +56,22 @@ Each PR targets the previous PR's branch; merge bottom-up.
 
 ## Reference values from the TypeScript sim
 
-Scripts under `tools/reference/` run the original TypeScript (Node 22 with `--experimental-strip-types`, no
+Scripts under `tools/reference/` run the original TypeScript (Node 22 with `--experimental-transform-types`, no
 install needed) and write expected output into `src/test/resources/reference/`. Regenerate after changing the
 baseline SHA or the scenarios:
 
 ```bash
 export DND_APP_DIR=/path/to/dnd-app
-RUN="node --experimental-strip-types --import ./tools/reference/register-ts.mjs"
-python3 tools/reference/gen-scenarios.py   # scenarios.json + sweep.json.gz (inputs shared by both engines)
+RUN="node --experimental-transform-types --import ./tools/reference/register-ts.mjs"
+python3 tools/reference/gen-scenarios.py   # scenarios.json + sweep.json.gz + build-sweep.json.gz (inputs shared by both engines)
 $RUN tools/reference/gen-rng.mts           # rng.json: seeds, streams, d20 and dice rolls
-$RUN tools/reference/gen-encounters.mts    # encounters.json + sweep-expected.json (TypeScript's answers)
+$RUN tools/reference/gen-encounters.mts    # encounters.json + sweep-expected.json + build-sweep-expected.json (TypeScript's answers)
 $RUN tools/reference/gen-content.mts       # content.json: all 341 monster templates (hashed), equipment, classes, slots
 DUMP=sweep-042 $RUN tools/reference/gen-encounters.mts   # print one fight's events, to debug a mismatch
 ```
 
-`register-ts.mjs` is a tiny resolve hook: the upstream sources use extensionless imports (bundler-style), which
+`--experimental-transform-types` (not just strip) is needed because the class-feature sources use TypeScript
+parameter properties. `register-ts.mjs` is a tiny resolve hook: the upstream sources use extensionless imports (bundler-style), which
 Node's ESM loader cannot follow on its own. `gen-scenarios.py` is deterministic (fixed seed, timestamp-free gzip);
 a different Python minor version may draw different `random` sequences, in which case regenerate all of the above
 together.
@@ -87,6 +88,12 @@ together.
   function of state, so hundreds of varied states probe its decision boundaries far better than a few set pieces.
   Compared by SHA-256 of each fight's canonical JSON (14325 events); on a mismatch the Java
   events are written to `build/parity/<name>.json`.
+- **Build sweep** (`build-sweep.json.gz`, `BuildSweepParityTest`): 220 seeded fights whose combatants are *recipes*
+  (class, subclass, level, abilities, gear, spells) built through the content layer on both sides: the seed data, the
+  character and caster compilers, every class feature (rage, reckless attack, sneak attack, divine smite, martial
+  arts, stunning strike, Wild Shape, Dark One's Blessing, Hunter's Mark, aura, Colossus Slayer), the spell catalog,
+  the six reference fillers and compiled SRD monsters, driven by the tactical AI. Same SHA-256 comparison; a wrong AC,
+  hit-point total, slot count or feature rider anywhere diverges the fight.
 - Because RNG streams are addressed by combatant/spell/target labels, any change to a rule, a label or an AI
   decision shows up as a divergence. The rest of the engine (content, optimizer) is held to statistical equivalence.
 
@@ -111,6 +118,14 @@ real catalog: the `max(1, rangeFt/5)` clamp in `approach` (the shortest upstream
 buff-cast result check (the cast cannot fail once slot, range and action are validated), and the quickened-cantrip
 range pre-check (the engine's `castSpell` re-validates range with no side effects).
 
+Phase 7 (content builds) was mutation-checked by a **sample** only: a seeded random subset of mutants of
+`CharacterCompiler` (about 20 of 75 tried before the run was cut short; the full run at about 20 s per mutant was too
+slow). It exposed real unit-test gaps (plain unarmored AC, the hit-point floor, class gating of Sneak Attack, Divine
+Smite and Aura of Protection, the level boundaries for Aura, Focus Points, Stunning Strike and Reckless Attack, Rage's
+short-rest recharge), now covered in `CharacterCompilerTest`. The tie in `weaponAbility` (STR and DEX modifiers equal)
+is an equivalent mutant. `CasterCompiler`, the feature classes and `SpellCatalog` were **not** mutation-sampled; they
+are covered by the build sweep and unit tests only. Finishing that is tracked for the hardening phase.
+
 ## Port progress
 
 | Area | Status |
@@ -120,8 +135,9 @@ range pre-check (the engine's `castSpell` re-validates range with no side effect
 | `combat`: `Encounter` loop, `CombatEvent`, casting and weapon resolution | done (Phase 4) |
 | `ai` (tactical policy) | done (Phase 5) |
 | `content`: seed data, `ContentSource` + SQLite adapter, monster compiler | done (Phase 6) |
-| `content`: character/caster compilers, spell catalog, class features, fillers | next |
-| `scenario`, `opt`, REST | not started |
+| `content`: character/caster compilers, spell catalog, class features, fillers | done (Phase 7) |
+| `scenario`, evaluators | next |
+| `opt`, REST | not started |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover
