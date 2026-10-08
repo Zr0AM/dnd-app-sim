@@ -89,9 +89,11 @@ These are details a straight translation would get wrong.
    hold per-turn state", but `opt/catalog.ts` builds `DarkOnesBlessingFeature` and `WildShapeFeature` once
    per catalog and `buildFromGenome` passes the same instances to every hero. That is harmless when
    evaluation is sequential and the features are stateless or reset in `onTurnStart`, but it is a data
-   race under parallel evaluation. Java must construct features per combatant (factories / `Supplier`),
-   and I need to read `martial-features.ts` to confirm which ones carry state.
-2. **Shared `Grid` and `MonsterTemplate`.** Scenarios share one `Grid` across runs and `Grid.setTerrain`
+   race under parallel evaluation. **Resolved in Phase 3**: `CombatantSpec` carries `FeatureFactory`s and each
+   `Combatant` builds its own instances, so sharing is impossible by construction (`FeatureFactory.shared` exists
+   for provably stateless features). Still to do when `martial-features.ts` is ported: read which features carry
+   state and make their factories create new instances.
+2. **Shared `Grid` and `MonsterTemplate`.** (`Grid` resolved in Phase 2: immutable once built.) Scenarios share one `Grid` across runs and `Grid.setTerrain`
    mutates. Terrain is read-only during fights, so make `Grid` immutable after construction in Java.
    Templates and `Spell` definitions (which hold function-valued scaling fields) must be immutable.
 3. **Seeding by label.** Streams are addressed by labels built from combatant ids, weapon and spell names,

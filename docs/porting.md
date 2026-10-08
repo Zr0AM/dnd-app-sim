@@ -64,3 +64,16 @@ DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types tools/reference/gen
 
 The RNG (xmur3 + mulberry32) is ported bit-exact, so `ReferenceParityTest` and the dice parity test compare
 exactly. The rest of the engine is held to statistical equivalence (see the engine inventory).
+
+## Port progress
+
+| Area | Status |
+| --- | --- |
+| `rng`, `dice`, `core`, `grid` | done (Phase 2) |
+| `combat`: `Combatant`, attack/damage/conditions/spell types, `Feature` interface | done (Phase 3) |
+| `combat`: `Encounter` loop, `CombatEvent`, casting and weapon resolution | next |
+| `ai`, `content`, `scenario`, `opt`, REST | not started |
+
+Phase 3 tests that live elsewhere upstream and move with later ports: the "casting in the engine" block of
+`spell.spec.ts` (needs `Encounter` and the spell catalog), and `aura`, `buff`, `control`, `legendary`,
+`metamagic`, `encounter` specs.
