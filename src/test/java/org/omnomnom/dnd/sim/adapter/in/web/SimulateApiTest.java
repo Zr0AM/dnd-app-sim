@@ -345,4 +345,57 @@ class SimulateApiTest {
         send("/api/v1/simulate/campaign", "{\"level\":5,\"genome\":{\"classSlug\":\"barbarian\"},\"days\":0}").andExpect(status().isBadRequest());
         send("/api/v1/simulate/campaign", "{\"level\":5,\"genome\":{\"classSlug\":\"barbarian\"},\"shortRestHealFrac\":1.5}").andExpect(status().isBadRequest());
     }
+
+    // ---- defaults and problem bodies (found by mutation testing) ---------------------------------
+
+    @Test
+    void omittedOptionsTakeTheirDefaults() throws Exception {
+        JsonNode enc = json(send("/api/v1/simulate/encounter",
+                "{\"level\":3,\"party\":[{\"type\":\"build\",\"genome\":{\"classSlug\":\"fighter\"}}],"
+                        + "\"enemies\":[{\"monsterSlug\":\"goblin-warrior\",\"count\":1}],\"seed\":1,\"includeLog\":true}").andExpect(status().isOk()));
+        assertThat(enc.get("runs").asInt()).isEqualTo(1);
+        assertThat(enc.get("roundCap").asInt()).isEqualTo(50);
+        // With a single run, the averages are that run's own values.
+        JsonNode events = enc.get("log").get("events");
+        int endRound = events.get(events.size() - 1).get("round").asInt();
+        assertThat(enc.get("avgRounds").asDouble()).isEqualTo(endRound).isEqualTo(enc.get("log").get("rounds").asInt());
+        JsonNode day = json(send("/api/v1/simulate/campaign", "{\"level\":3,\"genome\":{\"classSlug\":\"fighter\"},\"seed\":1}").andExpect(status().isOk()));
+        assertThat(day.get("days").asInt()).isEqualTo(16);
+    }
+
+    @Test
+    void aFullMapIsNotOverCapacity() throws Exception {
+        send("/api/v1/simulate/encounter", "{\"level\":3,\"party\":[" + FIGHTER + "],\"enemies\":[{\"monsterSlug\":\"goblin-warrior\",\"count\":6}],"
+                + "\"map\":\"open-field\",\"seed\":1}").andExpect(status().isOk());
+        send("/api/v1/simulate/encounter", "{\"level\":3,\"party\":[" + FIGHTER + "],\"enemies\":[{\"monsterSlug\":\"goblin-warrior\",\"count\":6}],"
+                + "\"map\":\"corridor-chokepoint\",\"seed\":1}").andExpect(status().isOk());
+    }
+
+    @Test
+    void problemBodiesCarryTheirTypeAndCode() throws Exception {
+        send("/api/v1/simulate/encounter", "{\"level\":3,\"party\":[" + FIGHTER + "],\"enemies\":[{\"monsterSlug\":\"nope\",\"count\":1}]}")
+                .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:unknown-monster"))
+                .andExpect(jsonPath("$.title").value("Unprocessable request"))
+                .andExpect(jsonPath("$.errors[0].field").value("enemies"));
+        send("/api/v1/simulate/encounter", "{\"level\":3,\"party\":[" + FIGHTER + "]}")
+                .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:invalid-request"))
+                .andExpect(jsonPath("$.code").value("invalid-request"))
+                .andExpect(jsonPath("$.title").value("Invalid request"));
+        send("/api/v1/simulate/encounter", "{oops")
+                .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:malformed-json"));
+        // Parameter problems name the constraint, not the controller method.
+        for (var probe : new String[][] {
+            {"/api/v1/content/monsters?limit=0", "limit", "Min"},
+            {"/api/v1/content/classes?level=4", "level", "ValidLevel"},
+            {"/api/v1/content/classes?level=abc", "level", "type-mismatch"},
+            {"/api/v1/content/classes", "level", "required"}
+        }) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(probe[0]))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:invalid-request"))
+                    .andExpect(jsonPath("$.code").value("invalid-request"))
+                    .andExpect(jsonPath("$.errors[0].field").value(probe[1]))
+                    .andExpect(jsonPath("$.errors[0].code").value(probe[2]));
+        }
+    }
 }
