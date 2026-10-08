@@ -19,3 +19,14 @@ Requires JDK 21.
 The `local` profile (`src/main/resources/application-local.yaml`) stores reports on disk under `out/reports`
 and needs no Cloudflare credentials. To try the D1 adapter, set `CF_ACCOUNT_ID`, `CF_D1_DATABASE_ID` and
 `CF_API_TOKEN` and enable it as described in that file; use a scratch D1 database, not production.
+
+## Seed data
+
+The service reads the SRD reference data (monsters, classes, equipment, spell slots) from SQL bundled in
+`src/main/resources/db`, copied from `Zr0AM/dnd-app` by `scripts/sync-seeds.sh` (which records the upstream commit and
+checksums in `db/SOURCE`). It is loaded into an in-memory SQLite database at startup (about half a second), read once
+into immutable catalogs, and then closed. See [NOTICE](NOTICE) for the SRD attribution.
+
+```bash
+DND_APP_DIR=/path/to/dnd-app scripts/sync-seeds.sh
+```

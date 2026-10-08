@@ -47,11 +47,12 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 4 | `claude/phase-3-combat` | `Combatant`, attack/damage/conditions/spell resolvers |
 | 5 | `claude/phase-4-encounter` | `Encounter` loop, `CombatEvent`, event sinks, cross-language scenario parity |
 | 6 | `claude/phase-5-ai` | tactical AI (`policy.ts`) |
-| 7 | `claude/phase-6-content` | seed catalog, content compilers, fillers, spell catalog, class features |
-| 8 | `claude/phase-7-scenarios-eval` | scenarios, party harness, evaluators, statistical conformance tests |
-| 9 | `claude/phase-8-optimizer` | NSGA-II, reports, roles, campaign |
-| 10 | `claude/phase-9-rest` | controllers, jobs, report stores (filesystem, D1) |
-| 11 | `claude/phase-10-hardening` | limits, auth/rate limiting, profiling |
+| 7 | `claude/phase-6-content` | seed data + sync script, `ContentSource` port, SQLite adapter, monster compiler, multiattack data |
+| 8 | `claude/phase-7-builds` | character and caster compilers, spell catalog, class features, fillers |
+| 9 | `claude/phase-8-scenarios-eval` | scenarios, party harness, evaluators, statistical conformance tests |
+| 10 | `claude/phase-9-optimizer` | NSGA-II, reports, roles, campaign |
+| 11 | `claude/phase-10-rest` | controllers, jobs, report stores (filesystem, D1) |
+| 12 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
 
 ## Reference values from the TypeScript sim
 
@@ -65,6 +66,7 @@ RUN="node --experimental-strip-types --import ./tools/reference/register-ts.mjs"
 python3 tools/reference/gen-scenarios.py   # scenarios.json + sweep.json.gz (inputs shared by both engines)
 $RUN tools/reference/gen-rng.mts           # rng.json: seeds, streams, d20 and dice rolls
 $RUN tools/reference/gen-encounters.mts    # encounters.json + sweep-expected.json (TypeScript's answers)
+$RUN tools/reference/gen-content.mts       # content.json: all 341 monster templates (hashed), equipment, classes, slots
 DUMP=sweep-042 $RUN tools/reference/gen-encounters.mts   # print one fight's events, to debug a mismatch
 ```
 
@@ -88,6 +90,17 @@ together.
 - Because RNG streams are addressed by combatant/spell/target labels, any change to a rule, a label or an AI
   decision shows up as a divergence. The rest of the engine (content, optimizer) is held to statistical equivalence.
 
+### Content parity
+
+`gen-content.mts` runs the TypeScript loaders and compilers over the same seed database and
+`SqliteContentSourceTest` compares: a SHA-256 of **every one of the 341 compiled monster templates**, three readable
+templates, every weapon (38) and armor (13), the 12 classes, and class progression and spell slots for every class at
+levels 1-19. The seeds are copied, not rebuilt: `scripts/sync-seeds.sh` pins the upstream commit in
+`src/main/resources/db/SOURCE`.
+
+Known upstream quirk carried over: flat-damage weapons (the Blowgun) have no dice in the seeds and upstream ignores
+their `damageFlat`, so they deal only the ability modifier; the Java port behaves the same (0 dice).
+
 ### Mutation checking the harness
 
 The harness is only as good as the changes it can detect, so each engine/AI port was mutation-tested: introduce a
@@ -106,7 +119,8 @@ range pre-check (the engine's `castSpell` re-validates range with no side effect
 | `combat`: `Combatant`, attack/damage/conditions/spell types, `Feature` interface | done (Phase 3) |
 | `combat`: `Encounter` loop, `CombatEvent`, casting and weapon resolution | done (Phase 4) |
 | `ai` (tactical policy) | done (Phase 5) |
-| `content` (seed catalog, compilers, spells, class features) | next |
+| `content`: seed data, `ContentSource` + SQLite adapter, monster compiler | done (Phase 6) |
+| `content`: character/caster compilers, spell catalog, class features, fillers | next |
 | `scenario`, `opt`, REST | not started |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`

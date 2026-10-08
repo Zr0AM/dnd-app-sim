@@ -3,16 +3,13 @@ package org.omnomnom.dnd.sim.domain.combat;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.Test;
+import org.omnomnom.dnd.sim.testsupport.TestJson;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -27,39 +24,6 @@ import tools.jackson.databind.node.ObjectNode;
  * {@code build/parity/<name>.json}; print the expected ones with {@code DUMP=<name> node ... gen-encounters.mts}.
  */
 class SweepParityTest {
-
-    /** JSON with recursively sorted keys and no whitespace; identical to {@code canon} in the TypeScript generator. */
-    static String canonical(JsonNode n) {
-        if (n.isObject()) {
-            TreeMap<String, JsonNode> sorted = new TreeMap<>();
-            n.properties().forEach(e -> sorted.put(e.getKey(), e.getValue()));
-            StringBuilder sb = new StringBuilder("{");
-            boolean first = true;
-            for (var e : sorted.entrySet()) {
-                if (!first) {
-                    sb.append(',');
-                }
-                first = false;
-                sb.append(ScenarioRunner.MAPPER.valueToTree(e.getKey()).toString()).append(':').append(canonical(e.getValue()));
-            }
-            return sb.append('}').toString();
-        }
-        if (n.isArray()) {
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < n.size(); i++) {
-                if (i > 0) {
-                    sb.append(',');
-                }
-                sb.append(canonical(n.get(i)));
-            }
-            return sb.append(']').toString();
-        }
-        return n.toString();
-    }
-
-    static String sha256(String text) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
-    }
 
     static ObjectNode fightDocument(ScenarioRunner.Outcome o) {
         ObjectNode doc = ScenarioRunner.MAPPER.createObjectNode();
@@ -96,7 +60,7 @@ class SweepParityTest {
             ObjectNode doc = fightDocument(got);
             boolean same = got.events().size() == want.get("events").asInt()
                     && got.rounds() == want.get("rounds").asInt()
-                    && sha256(canonical(doc)).equals(want.get("sha256").asString());
+                    && TestJson.sha256(TestJson.canonical(doc)).equals(want.get("sha256").asString());
             if (!same) {
                 mismatches.add(want.get("name").asString());
                 Path dir = Path.of("build", "parity");
