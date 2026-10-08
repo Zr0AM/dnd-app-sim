@@ -12,9 +12,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.omnomnom.dnd.sim.application.EncounterCommand;
 import org.omnomnom.dnd.sim.application.EvaluationService;
 import org.omnomnom.dnd.sim.application.GenomeInput;
+import org.omnomnom.dnd.sim.application.OptimizeCommand;
 import org.omnomnom.dnd.sim.application.PartyMemberSpec;
 import org.omnomnom.dnd.sim.application.SimException.FieldError;
 import org.omnomnom.dnd.sim.domain.content.FightingStyle;
@@ -131,4 +133,38 @@ final class Requests {
                     shortRestHealFrac != null ? shortRestHealFrac : 0.5, seed);
         }
     }
+
+    record GaBody(
+            @Min(2) @Max(128) Integer populationSize,
+            @Min(0) @Max(100) Integer generations,
+            @Min(1) @Max(64) Integer evalRuns,
+            @DecimalMin("0") @DecimalMax("1") Double mutationRate) {}
+
+    record OptimizeBody(
+            @NotNull @ValidLevel Integer level,
+            String role,
+            List<@NotNull BuildClass> classes,
+            @Pattern(regexp = "solo|party") String context,
+            @Pattern(regexp = "quick|standard|thorough") String preset,
+            @Valid GaBody ga,
+            Boolean campaign,
+            @Min(0) @Max(MAX_SEED) Long seed) {
+
+        OptimizeCommand toCommand() {
+            return new OptimizeCommand(level, role, classes, preset,
+                    ga == null ? null : new OptimizeCommand.GaParams(ga.populationSize(), ga.generations(), ga.evalRuns(), ga.mutationRate()),
+                    "party".equals(context), campaign != null && campaign, seed);
+        }
+    }
+
+    record RescoreBody(String role, Map<String, @NotNull @DecimalMin("0") Double> weights, Boolean save) {
+
+        void check() {
+            if ((role == null) == (weights == null)) {
+                throw new RequestValidationException(List.of(new FieldError("role", "give exactly one of role or weights", "invalid-weighting")));
+            }
+        }
+    }
+
+    record ReportCampaignBody(@Min(1) @Max(100) Integer days, @Min(0) @Max(MAX_SEED) Long seed) {}
 }

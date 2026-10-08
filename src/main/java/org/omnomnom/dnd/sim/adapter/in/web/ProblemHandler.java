@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import org.omnomnom.dnd.sim.application.BusyException;
+import org.omnomnom.dnd.sim.application.ConflictException;
 import org.omnomnom.dnd.sim.application.NotFoundException;
 import org.omnomnom.dnd.sim.application.SimException;
 import org.omnomnom.dnd.sim.application.SimException.FieldError;
@@ -86,6 +87,11 @@ class ProblemHandler {
     @ExceptionHandler(NotFoundException.class)
     ResponseEntity<ProblemDetail> notFound(NotFoundException e) {
         return problem(HttpStatus.NOT_FOUND, e.code(), "Not found", e.getMessage(), e.errors());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<ProblemDetail> conflict(ConflictException e) {
+        return problem(HttpStatus.CONFLICT, e.code(), "Conflict", e.getMessage(), e.errors());
     }
 
     @ExceptionHandler(BusyException.class)

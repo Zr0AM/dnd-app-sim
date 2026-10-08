@@ -4,6 +4,9 @@ import jakarta.validation.Valid;
 import org.omnomnom.dnd.sim.application.EncounterResult;
 import org.omnomnom.dnd.sim.application.EncounterService;
 import org.omnomnom.dnd.sim.application.EvaluationService;
+import org.omnomnom.dnd.sim.application.JobService;
+import org.omnomnom.dnd.sim.application.JobView;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,10 +19,12 @@ class SimulateController {
 
     private final EncounterService encounters;
     private final EvaluationService evaluations;
+    private final JobService jobs;
 
-    SimulateController(EncounterService encounters, EvaluationService evaluations) {
+    SimulateController(EncounterService encounters, EvaluationService evaluations, JobService jobs) {
         this.encounters = encounters;
         this.evaluations = evaluations;
+        this.jobs = jobs;
     }
 
     @PostMapping("/encounter")
@@ -35,5 +40,10 @@ class SimulateController {
     @PostMapping("/campaign")
     EvaluationService.CampaignOutcome campaign(@Valid @RequestBody Requests.CampaignBody body) {
         return evaluations.campaign(body.toCommand());
+    }
+
+    @PostMapping("/optimize")
+    ResponseEntity<JobView> optimize(@Valid @RequestBody Requests.OptimizeBody body) {
+        return JobController.accepted(jobs.startOptimization(body.toCommand()));
     }
 }

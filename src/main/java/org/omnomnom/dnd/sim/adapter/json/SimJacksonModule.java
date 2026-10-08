@@ -1,4 +1,4 @@
-package org.omnomnom.dnd.sim.adapter.in.web;
+package org.omnomnom.dnd.sim.adapter.json;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -15,6 +15,8 @@ import java.util.function.Function;
 import org.omnomnom.dnd.sim.application.ContentService;
 import org.omnomnom.dnd.sim.application.EncounterResult;
 import org.omnomnom.dnd.sim.application.EvaluationService;
+import org.omnomnom.dnd.sim.application.JobView;
+import org.omnomnom.dnd.sim.application.ReportStore;
 import org.omnomnom.dnd.sim.domain.combat.CombatEvent;
 import org.omnomnom.dnd.sim.domain.content.FightingStyle;
 import org.omnomnom.dnd.sim.domain.content.Role;
@@ -22,6 +24,7 @@ import org.omnomnom.dnd.sim.domain.core.Coded;
 import org.omnomnom.dnd.sim.domain.opt.BuildClass;
 import org.omnomnom.dnd.sim.domain.opt.Genome;
 import org.omnomnom.dnd.sim.domain.opt.Interval;
+import org.omnomnom.dnd.sim.domain.opt.Reports;
 
 /**
  * JSON wiring for the domain types, so the domain itself stays free of Jackson: enums travel as their lowercase codes,
@@ -58,6 +61,9 @@ public final class SimJacksonModule extends SimpleModule {
         setMixInAnnotation(EvaluationService.EvalOutcome.class, OmitNulls.class);
         setMixInAnnotation(EncounterResult.MemberStats.class, OmitNulls.class);
         setMixInAnnotation(Genome.class, GenomeMixin.class);
+        setMixInAnnotation(JobView.class, OmitNulls.class);
+        setMixInAnnotation(Reports.Entry.class, OmitNulls.class);
+        setMixInAnnotation(ReportStore.Summary.class, OmitNulls.class);
         setMixInAnnotation(ContentService.EnemyView.class, OmitNulls.class);
         setMixInAnnotation(ContentService.ScenarioView.class, OmitNulls.class);
     }

@@ -134,6 +134,18 @@ security scheme yet.
   `EvalResponse.ci` and the optional scenario fields are omitted when unset.
 - **Contract check**: `OpenApiConformanceTest` validates real responses (every event kind seen, all content lists,
   problem bodies) against `openapi.yaml`, so the document and the service cannot drift unnoticed.
+- **Jobs** (`optimize`, `reports/{id}/campaign`) run on the bounded simulation executor; a full queue is `429` with
+  `Retry-After`. Cancelling a queued job is immediate; a running job stops at the next generation boundary and reports
+  `cancelled` once it has. Cancelling a finished job is `409 job-finished`. Jobs are in memory (a restart loses them);
+  the 200 most recent finished jobs are remembered. An optimization with `campaign: true` annotates with 12 days.
+- **Reports** are stored by run key. A report's `config` is the effective request (level, role, classes, resolved `ga`
+  numbers, campaign, seed), so the same request yields the same key and overwrites. The key hashes the config's JSON, so
+  it is stable but not equal to the TypeScript key.
+- **Report stores**: `filesystem` (default; `<runKey>.json`, written atomically, in `sim.report-store.directory`) or `d1`
+  (table `sim_report`, created on first use, over Cloudflare's HTTP query API with the token from `CF_API_TOKEN`; asking
+  for `d1` without all of `CF_ACCOUNT_ID`, `CF_D1_DATABASE_ID`, `CF_API_TOKEN` fails at startup). The D1 table is this
+  service's own; mapping reports into the app's planned `SimRun`/`SimResult` tables is a separate integration.
+- **Rescore** takes exactly one of `role` and `weights` (`400` otherwise); unknown role or objective names are `422`.
 - **Deferred to hardening**: configurable `sim.limits.*` (the schema maxima are enforced as 400s today), authentication
   and rate limiting.
 

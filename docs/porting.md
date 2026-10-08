@@ -180,7 +180,8 @@ vanishingly rare.
 | `scenario` (maps, library, party harness), `opt/stats`, solo and party evaluators | done (Phase 8) |
 | `opt`: genome, catalog, NSGA-II, reports, role presets, campaign, anchor | done (Phase 9) |
 | `application` use cases and REST: encounter, eval, campaign, content, errors | done (Phase 10) |
-| jobs, reports, report stores (filesystem, D1) | next (Phase 10b) |
+| jobs (optimize, report campaign), report endpoints, report stores (filesystem, Cloudflare D1) | done (Phase 10b) |
+| hardening: configurable limits, auth and rate limiting, profiling, parallel evaluation | next (Phase 11) |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover

@@ -1,13 +1,17 @@
 package org.omnomnom.dnd.sim.config;
 
-import org.omnomnom.dnd.sim.adapter.in.web.SimJacksonModule;
+import org.omnomnom.dnd.sim.adapter.json.SimJacksonModule;
 import org.omnomnom.dnd.sim.adapter.out.SimProperties;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
 import org.omnomnom.dnd.sim.application.ContentCatalogs;
 import org.omnomnom.dnd.sim.application.ContentService;
 import org.omnomnom.dnd.sim.application.EncounterService;
 import org.omnomnom.dnd.sim.application.EvaluationService;
+import org.omnomnom.dnd.sim.application.JobService;
+import org.omnomnom.dnd.sim.application.ReportService;
+import org.omnomnom.dnd.sim.application.ReportStore;
 import org.omnomnom.dnd.sim.application.SimulationExecutor;
+import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -39,6 +43,16 @@ class SimConfig {
     @Bean
     EvaluationService evaluationService(ContentCatalogs catalogs, SimulationExecutor executor) {
         return new EvaluationService(catalogs, executor);
+    }
+
+    @Bean
+    ReportService reportService(ReportStore store) {
+        return new ReportService(store);
+    }
+
+    @Bean
+    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock) {
+        return new JobService(catalogs, executor, store, clock);
     }
 
     @Bean
