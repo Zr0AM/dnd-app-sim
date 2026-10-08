@@ -51,3 +51,16 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 8 | `claude/phase-7-optimizer` | NSGA-II, reports, roles, campaign |
 | 9 | `claude/phase-8-rest` | controllers, jobs, report stores (filesystem, D1) |
 | 10 | `claude/phase-9-hardening` | limits, auth/rate limiting, profiling |
+
+## Reference values from the TypeScript sim
+
+`tools/reference/gen-rng.mts` runs the original `rng.ts` and `dice.ts` (Node 22 with
+`--experimental-strip-types`, no install needed) and writes `src/test/resources/reference/rng.json`.
+Regenerate after changing the baseline SHA:
+
+```bash
+DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types tools/reference/gen-rng.mts
+```
+
+The RNG (xmur3 + mulberry32) is ported bit-exact, so `ReferenceParityTest` and the dice parity test compare
+exactly. The rest of the engine is held to statistical equivalence (see the engine inventory).
