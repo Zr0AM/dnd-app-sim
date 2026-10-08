@@ -4453,6 +4453,3028 @@
      "y": 4
     }
    ]
+  },
+  {
+   "name": "ai-martial-skirmish",
+   "rounds": 6,
+   "winner": "party",
+   "events": [
+    {
+     "kind": "initiative",
+     "order": [
+      {
+       "id": "ftr",
+       "total": 22
+      },
+      {
+       "id": "g1",
+       "total": 22
+      },
+      {
+       "id": "g2",
+       "total": 21
+      },
+      {
+       "id": "rog",
+       "total": 20
+      },
+      {
+       "id": "g3",
+       "total": 17
+      },
+      {
+       "id": "rgr",
+       "total": 11
+      },
+      {
+       "id": "a2",
+       "total": 8
+      },
+      {
+       "id": "a1",
+       "total": 6
+      },
+      {
+       "id": "brute",
+       "total": 3
+      }
+     ]
+    },
+    {
+     "kind": "round",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "ftr",
+     "from": {
+      "x": 1,
+      "y": 6
+     },
+     "to": {
+      "x": 7,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "g1",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "g1",
+     "from": {
+      "x": 14,
+      "y": 4
+     },
+     "to": {
+      "x": 8,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "g1",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 12,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "g2",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "g2",
+     "from": {
+      "x": 14,
+      "y": 6
+     },
+     "to": {
+      "x": 8,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "g2",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 11,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "rog",
+     "from": {
+      "x": 2,
+      "y": 5
+     },
+     "to": {
+      "x": 8,
+      "y": 7
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "g3",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "g3",
+     "from": {
+      "x": 14,
+      "y": 8
+     },
+     "to": {
+      "x": 8,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "g3",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 16,
+     "hit": true,
+     "crit": false,
+     "damage": 2
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 1
+    },
+    {
+     "kind": "marked",
+     "source": "rgr",
+     "target": "brute"
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "brute",
+     "weapon": "longbow",
+     "d20": 6,
+     "hit": true,
+     "crit": false,
+     "damage": 8
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "brute",
+     "weapon": "longbow",
+     "d20": 15,
+     "hit": true,
+     "crit": false,
+     "damage": 12
+    },
+    {
+     "kind": "turn",
+     "id": "a2",
+     "round": 1
+    },
+    {
+     "kind": "attack",
+     "attacker": "a2",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 2
+    },
+    {
+     "kind": "turn",
+     "id": "a1",
+     "round": 1
+    },
+    {
+     "kind": "attack",
+     "attacker": "a1",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 8,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "brute",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "brute",
+     "from": {
+      "x": 15,
+      "y": 7
+     },
+     "to": {
+      "x": 9,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "round",
+     "round": 2
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "ftr",
+     "target": "g1",
+     "weapon": "greatsword",
+     "d20": 7,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "ftr",
+     "target": "g1",
+     "weapon": "greatsword",
+     "d20": 13,
+     "hit": true,
+     "crit": false,
+     "damage": 15
+    },
+    {
+     "kind": "down",
+     "id": "g1"
+    },
+    {
+     "kind": "deathSave",
+     "id": "g1",
+     "d20": 18,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "g2",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "g2",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 3
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "rog",
+     "from": {
+      "x": 8,
+      "y": 7
+     },
+     "to": {
+      "x": 9,
+      "y": 5
+     },
+     "costFt": 10
+    },
+    {
+     "kind": "attack",
+     "attacker": "rog",
+     "target": "brute",
+     "weapon": "rapier",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 12
+    },
+    {
+     "kind": "turn",
+     "id": "g3",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "g3",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 15,
+     "hit": true,
+     "crit": false,
+     "damage": 4
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "brute",
+     "weapon": "longbow",
+     "d20": 6,
+     "hit": true,
+     "crit": false,
+     "damage": 14
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "brute",
+     "weapon": "longbow",
+     "d20": 11,
+     "hit": true,
+     "crit": false,
+     "damage": 8
+    },
+    {
+     "kind": "turn",
+     "id": "a2",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "a2",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 2
+    },
+    {
+     "kind": "turn",
+     "id": "a1",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "a1",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 10,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "brute",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "brute",
+     "from": {
+      "x": 9,
+      "y": 4
+     },
+     "to": {
+      "x": 8,
+      "y": 4
+     },
+     "costFt": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "brute",
+     "target": "ftr",
+     "weapon": "flaming-axe",
+     "d20": 3,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "brute",
+     "target": "ftr",
+     "weapon": "flaming-axe",
+     "d20": 16,
+     "hit": true,
+     "crit": false,
+     "damage": 3
+    },
+    {
+     "kind": "round",
+     "round": 3
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "ftr",
+     "target": "brute",
+     "weapon": "greatsword",
+     "d20": 16,
+     "hit": true,
+     "crit": false,
+     "damage": 7
+    },
+    {
+     "kind": "down",
+     "id": "brute"
+    },
+    {
+     "kind": "deathSave",
+     "id": "g1",
+     "d20": 3,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "g2",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "g2",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 17,
+     "hit": true,
+     "crit": false,
+     "damage": 3
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "rog",
+     "target": "g2",
+     "weapon": "rapier",
+     "d20": 6,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "g3",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "g3",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 17,
+     "hit": true,
+     "crit": false,
+     "damage": 2
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g2",
+     "weapon": "longbow",
+     "d20": 15,
+     "hit": true,
+     "crit": false,
+     "damage": 9
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g2",
+     "weapon": "longbow",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 4
+    },
+    {
+     "kind": "down",
+     "id": "g2"
+    },
+    {
+     "kind": "turn",
+     "id": "a2",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "a2",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 5,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "a1",
+     "round": 3
+    },
+    {
+     "kind": "attack",
+     "attacker": "a1",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 17,
+     "hit": true,
+     "crit": false,
+     "damage": 3
+    },
+    {
+     "kind": "deathSave",
+     "id": "brute",
+     "d20": 20,
+     "success": true
+    },
+    {
+     "kind": "round",
+     "round": 4
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "ftr",
+     "target": "brute",
+     "weapon": "greatsword",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 7
+    },
+    {
+     "kind": "down",
+     "id": "brute"
+    },
+    {
+     "kind": "deathSave",
+     "id": "g1",
+     "d20": 4,
+     "success": false
+    },
+    {
+     "kind": "deathSave",
+     "id": "g2",
+     "d20": 7,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "rog",
+     "target": "g3",
+     "weapon": "rapier",
+     "d20": 5,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "g3",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "g3",
+     "target": "ftr",
+     "weapon": "scimitar",
+     "d20": 7,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g3",
+     "weapon": "longbow",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g3",
+     "weapon": "longbow",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 11
+    },
+    {
+     "kind": "down",
+     "id": "g3"
+    },
+    {
+     "kind": "turn",
+     "id": "a2",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "a2",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 20,
+     "hit": true,
+     "crit": true,
+     "damage": 3
+    },
+    {
+     "kind": "turn",
+     "id": "a1",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "a1",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 2
+    },
+    {
+     "kind": "deathSave",
+     "id": "brute",
+     "d20": 15,
+     "success": true
+    },
+    {
+     "kind": "round",
+     "round": 5
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 5
+    },
+    {
+     "kind": "move",
+     "id": "ftr",
+     "from": {
+      "x": 7,
+      "y": 4
+     },
+     "to": {
+      "x": 13,
+      "y": 5
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "deathSave",
+     "id": "g1",
+     "d20": 15,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "g2",
+     "d20": 15,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 5
+    },
+    {
+     "kind": "move",
+     "id": "rog",
+     "from": {
+      "x": 9,
+      "y": 5
+     },
+     "to": {
+      "x": 15,
+      "y": 5
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "deathSave",
+     "id": "g3",
+     "d20": 20,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g3",
+     "weapon": "longbow",
+     "d20": 6,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "g3",
+     "weapon": "longbow",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 5
+    },
+    {
+     "kind": "down",
+     "id": "g3"
+    },
+    {
+     "kind": "turn",
+     "id": "a2",
+     "round": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "a2",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 5,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "a1",
+     "round": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "a1",
+     "target": "ftr",
+     "weapon": "shortbow",
+     "d20": 20,
+     "hit": true,
+     "crit": true,
+     "damage": 2
+    },
+    {
+     "kind": "deathSave",
+     "id": "brute",
+     "d20": 4,
+     "success": false
+    },
+    {
+     "kind": "round",
+     "round": 6
+    },
+    {
+     "kind": "turn",
+     "id": "ftr",
+     "round": 6
+    },
+    {
+     "kind": "move",
+     "id": "ftr",
+     "from": {
+      "x": 13,
+      "y": 5
+     },
+     "to": {
+      "x": 16,
+      "y": 5
+     },
+     "costFt": 15
+    },
+    {
+     "kind": "attack",
+     "attacker": "ftr",
+     "target": "a1",
+     "weapon": "greatsword",
+     "d20": 14,
+     "hit": true,
+     "crit": false,
+     "damage": 15
+    },
+    {
+     "kind": "down",
+     "id": "a1"
+    },
+    {
+     "kind": "deathSave",
+     "id": "g1",
+     "d20": 14,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "g2",
+     "d20": 10,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 6
+    },
+    {
+     "kind": "move",
+     "id": "rog",
+     "from": {
+      "x": 15,
+      "y": 5
+     },
+     "to": {
+      "x": 17,
+      "y": 8
+     },
+     "costFt": 15
+    },
+    {
+     "kind": "attack",
+     "attacker": "rog",
+     "target": "a2",
+     "weapon": "rapier",
+     "d20": 11,
+     "hit": true,
+     "crit": false,
+     "damage": 10
+    },
+    {
+     "kind": "deathSave",
+     "id": "g3",
+     "d20": 19,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "rgr",
+     "round": 6
+    },
+    {
+     "kind": "attack",
+     "attacker": "rgr",
+     "target": "a2",
+     "weapon": "longbow",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 6
+    },
+    {
+     "kind": "down",
+     "id": "a2"
+    },
+    {
+     "kind": "end",
+     "round": 6,
+     "winner": "party"
+    }
+   ],
+   "final": [
+    {
+     "id": "ftr",
+     "hp": 36,
+     "tempHp": 5,
+     "dead": false,
+     "stable": false,
+     "x": 16,
+     "y": 5
+    },
+    {
+     "id": "rgr",
+     "hp": 40,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 1,
+     "y": 8
+    },
+    {
+     "id": "rog",
+     "hp": 34,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 17,
+     "y": 8
+    },
+    {
+     "id": "g1",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": true,
+     "x": 8,
+     "y": 4
+    },
+    {
+     "id": "g2",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 8,
+     "y": 4
+    },
+    {
+     "id": "g3",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 8,
+     "y": 4
+    },
+    {
+     "id": "a1",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 17,
+     "y": 5
+    },
+    {
+     "id": "a2",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 17,
+     "y": 9
+    },
+    {
+     "id": "brute",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 8,
+     "y": 4
+    }
+   ]
+  },
+  {
+   "name": "ai-spellcasters",
+   "rounds": 3,
+   "winner": "party",
+   "events": [
+    {
+     "kind": "initiative",
+     "order": [
+      {
+       "id": "wiz",
+       "total": 20
+      },
+      {
+       "id": "o4",
+       "total": 20
+      },
+      {
+       "id": "bard",
+       "total": 19
+      },
+      {
+       "id": "mage",
+       "total": 19
+      },
+      {
+       "id": "sorc",
+       "total": 17
+      },
+      {
+       "id": "o2",
+       "total": 16
+      },
+      {
+       "id": "clr",
+       "total": 16
+      },
+      {
+       "id": "o1",
+       "total": 15
+      },
+      {
+       "id": "ogre",
+       "total": 15
+      },
+      {
+       "id": "o3",
+       "total": 11
+      },
+      {
+       "id": "acolyte",
+       "total": 10
+      },
+      {
+       "id": "tnk",
+       "total": 7
+      },
+      {
+       "id": "o5",
+       "total": 5
+      }
+     ]
+    },
+    {
+     "kind": "round",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "wiz",
+     "round": 1
+    },
+    {
+     "kind": "spell",
+     "caster": "wiz",
+     "spell": "Fireball",
+     "slotLevel": 4,
+     "targets": 8,
+     "damage": 188,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "o4",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "o4",
+     "from": {
+      "x": 13,
+      "y": 5
+     },
+     "to": {
+      "x": 7,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "bard",
+     "round": 1
+    },
+    {
+     "kind": "buffApplied",
+     "source": "bard",
+     "buff": "haste",
+     "target": "tnk"
+    },
+    {
+     "kind": "spell",
+     "caster": "bard",
+     "spell": "Haste",
+     "slotLevel": 3,
+     "targets": 1,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "mage",
+     "round": 1
+    },
+    {
+     "kind": "spell",
+     "caster": "mage",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 5,
+     "damage": 135,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "sorc",
+     "round": 1
+    },
+    {
+     "kind": "spell",
+     "caster": "sorc",
+     "spell": "Hold Person",
+     "slotLevel": 2,
+     "targets": 1,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "spell",
+     "caster": "sorc",
+     "spell": "Fire Bolt",
+     "slotLevel": 0,
+     "targets": 0,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "o2",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "o2",
+     "from": {
+      "x": 12,
+      "y": 6
+     },
+     "to": {
+      "x": 6,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "clr",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "o1",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "o1",
+     "from": {
+      "x": 12,
+      "y": 4
+     },
+     "to": {
+      "x": 6,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "controlDenied",
+     "victim": "ogre",
+     "source": "sorc"
+    },
+    {
+     "kind": "turn",
+     "id": "o3",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "o3",
+     "from": {
+      "x": 12,
+      "y": 8
+     },
+     "to": {
+      "x": 6,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "acolyte",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "tnk",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "tnk",
+     "from": {
+      "x": 3,
+      "y": 6
+     },
+     "to": {
+      "x": 5,
+      "y": 6
+     },
+     "costFt": 10
+    },
+    {
+     "kind": "attack",
+     "attacker": "tnk",
+     "target": "o2",
+     "weapon": "longsword",
+     "d20": 14,
+     "hit": true,
+     "crit": false,
+     "damage": 8
+    },
+    {
+     "kind": "down",
+     "id": "o2"
+    },
+    {
+     "kind": "turn",
+     "id": "o5",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "o5",
+     "from": {
+      "x": 13,
+      "y": 7
+     },
+     "to": {
+      "x": 7,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "round",
+     "round": 2
+    },
+    {
+     "kind": "turn",
+     "id": "wiz",
+     "round": 2
+    },
+    {
+     "kind": "down",
+     "id": "o1"
+    },
+    {
+     "kind": "down",
+     "id": "o3"
+    },
+    {
+     "kind": "death",
+     "id": "o3"
+    },
+    {
+     "kind": "down",
+     "id": "o4"
+    },
+    {
+     "kind": "death",
+     "id": "o4"
+    },
+    {
+     "kind": "down",
+     "id": "o5"
+    },
+    {
+     "kind": "spell",
+     "caster": "wiz",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 4,
+     "damage": 116,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "bard",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "bard",
+     "from": {
+      "x": 1,
+      "y": 8
+     },
+     "to": {
+      "x": 7,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "mage",
+     "round": 2
+    },
+    {
+     "kind": "down",
+     "id": "wiz"
+    },
+    {
+     "kind": "down",
+     "id": "bard"
+    },
+    {
+     "kind": "down",
+     "id": "sorc"
+    },
+    {
+     "kind": "spell",
+     "caster": "mage",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 5,
+     "damage": 144,
+     "healing": 0
+    },
+    {
+     "kind": "deathSave",
+     "id": "sorc",
+     "d20": 10,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "o2",
+     "d20": 12,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "clr",
+     "round": 2
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Healing Word",
+     "slotLevel": 1,
+     "targets": 1,
+     "damage": 0,
+     "healing": 6
+    },
+    {
+     "kind": "buffApplied",
+     "source": "clr",
+     "buff": "bless",
+     "target": "tnk"
+    },
+    {
+     "kind": "buffApplied",
+     "source": "clr",
+     "buff": "bless",
+     "target": "wiz"
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Bless",
+     "slotLevel": 1,
+     "targets": 2,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "deathSave",
+     "id": "o1",
+     "d20": 8,
+     "success": false
+    },
+    {
+     "kind": "controlDenied",
+     "victim": "ogre",
+     "source": "sorc"
+    },
+    {
+     "kind": "turn",
+     "id": "acolyte",
+     "round": 2
+    },
+    {
+     "kind": "spell",
+     "caster": "acolyte",
+     "spell": "Healing Word",
+     "slotLevel": 1,
+     "targets": 1,
+     "damage": 0,
+     "healing": 6
+    },
+    {
+     "kind": "buffApplied",
+     "source": "acolyte",
+     "buff": "bless",
+     "target": "ogre"
+    },
+    {
+     "kind": "buffApplied",
+     "source": "acolyte",
+     "buff": "bless",
+     "target": "mage"
+    },
+    {
+     "kind": "spell",
+     "caster": "acolyte",
+     "spell": "Bless",
+     "slotLevel": 1,
+     "targets": 2,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "tnk",
+     "round": 2
+    },
+    {
+     "kind": "buffBoost",
+     "source": "clr",
+     "buff": "bless",
+     "beneficiary": "tnk",
+     "amount": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "tnk",
+     "target": "o1",
+     "weapon": "longsword",
+     "d20": 20,
+     "hit": true,
+     "crit": true,
+     "damage": 9
+    },
+    {
+     "kind": "down",
+     "id": "o1"
+    },
+    {
+     "kind": "deathSave",
+     "id": "o5",
+     "d20": 10,
+     "success": true
+    },
+    {
+     "kind": "round",
+     "round": 3
+    },
+    {
+     "kind": "turn",
+     "id": "wiz",
+     "round": 3
+    },
+    {
+     "kind": "down",
+     "id": "mage"
+    },
+    {
+     "kind": "down",
+     "id": "acolyte"
+    },
+    {
+     "kind": "spell",
+     "caster": "wiz",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 3,
+     "damage": 57,
+     "healing": 0
+    },
+    {
+     "kind": "deathSave",
+     "id": "bard",
+     "d20": 13,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "mage",
+     "d20": 13,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "sorc",
+     "d20": 3,
+     "success": false
+    },
+    {
+     "kind": "deathSave",
+     "id": "o2",
+     "d20": 1,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "clr",
+     "round": 3
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Healing Word",
+     "slotLevel": 1,
+     "targets": 1,
+     "damage": 0,
+     "healing": 4
+    },
+    {
+     "kind": "down",
+     "id": "ogre"
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Sacred Flame",
+     "slotLevel": 0,
+     "targets": 1,
+     "damage": 14,
+     "healing": 0
+    },
+    {
+     "kind": "end",
+     "round": 3,
+     "winner": "party"
+    }
+   ],
+   "final": [
+    {
+     "id": "wiz",
+     "hp": 6,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 1,
+     "y": 6
+    },
+    {
+     "id": "clr",
+     "hp": 5,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 2,
+     "y": 5
+    },
+    {
+     "id": "bard",
+     "hp": 4,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 7,
+     "y": 6
+    },
+    {
+     "id": "sorc",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 2,
+     "y": 7
+    },
+    {
+     "id": "tnk",
+     "hp": 8,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 5,
+     "y": 6
+    },
+    {
+     "id": "o1",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 6,
+     "y": 6
+    },
+    {
+     "id": "o2",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 6,
+     "y": 6
+    },
+    {
+     "id": "o3",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": true,
+     "stable": false,
+     "x": 6,
+     "y": 6
+    },
+    {
+     "id": "o4",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": true,
+     "stable": false,
+     "x": 7,
+     "y": 6
+    },
+    {
+     "id": "o5",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 7,
+     "y": 6
+    },
+    {
+     "id": "ogre",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 14,
+     "y": 6
+    },
+    {
+     "id": "mage",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 18,
+     "y": 6
+    },
+    {
+     "id": "acolyte",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 18,
+     "y": 8
+    }
+   ]
+  },
+  {
+   "name": "ai-boss-and-healing",
+   "rounds": 4,
+   "winner": "enemy",
+   "events": [
+    {
+     "kind": "initiative",
+     "order": [
+      {
+       "id": "rog",
+       "total": 20
+      },
+      {
+       "id": "clr",
+       "total": 18
+      },
+      {
+       "id": "lock",
+       "total": 16
+      },
+      {
+       "id": "add1",
+       "total": 10
+      },
+      {
+       "id": "add2",
+       "total": 9
+      },
+      {
+       "id": "boss",
+       "total": 8
+      },
+      {
+       "id": "pal",
+       "total": 6
+      }
+     ]
+    },
+    {
+     "kind": "round",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "rog",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "rog",
+     "from": {
+      "x": 3,
+      "y": 4
+     },
+     "to": {
+      "x": 9,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "down",
+     "id": "rog"
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "rog",
+     "damage": 20
+    },
+    {
+     "kind": "deathSave",
+     "id": "clr",
+     "d20": 9,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "lock",
+     "round": 1
+    },
+    {
+     "kind": "spell",
+     "caster": "lock",
+     "spell": "Eldritch Blast",
+     "slotLevel": 0,
+     "targets": 1,
+     "damage": 8,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add1",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "add1",
+     "from": {
+      "x": 10,
+      "y": 3
+     },
+     "to": {
+      "x": 4,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "add1",
+     "target": "pal",
+     "weapon": "rusty-sword",
+     "d20": 15,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add2",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "add2",
+     "from": {
+      "x": 10,
+      "y": 9
+     },
+     "to": {
+      "x": 4,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "add2",
+     "target": "pal",
+     "weapon": "rusty-sword",
+     "d20": 10,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "boss",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "boss",
+     "from": {
+      "x": 11,
+      "y": 6
+     },
+     "to": {
+      "x": 5,
+      "y": 6
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "pal",
+     "weapon": "tail",
+     "d20": 3,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "pal",
+     "weapon": "tail",
+     "d20": 3,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "pal",
+     "round": 1
+    },
+    {
+     "kind": "heal",
+     "source": "pal",
+     "target": "clr",
+     "amount": 35
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "pal",
+     "damage": 0
+    },
+    {
+     "kind": "round",
+     "round": 2
+    },
+    {
+     "kind": "deathSave",
+     "id": "rog",
+     "d20": 13,
+     "success": true
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "pal",
+     "damage": 23
+    },
+    {
+     "kind": "turn",
+     "id": "clr",
+     "round": 2
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Healing Word",
+     "slotLevel": 1,
+     "targets": 1,
+     "damage": 0,
+     "healing": 5
+    },
+    {
+     "kind": "spell",
+     "caster": "clr",
+     "spell": "Sacred Flame",
+     "slotLevel": 0,
+     "targets": 1,
+     "damage": 10,
+     "healing": 0
+    },
+    {
+     "kind": "down",
+     "id": "pal"
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "pal",
+     "damage": 46
+    },
+    {
+     "kind": "turn",
+     "id": "lock",
+     "round": 2
+    },
+    {
+     "kind": "spell",
+     "caster": "lock",
+     "spell": "Eldritch Blast",
+     "slotLevel": 0,
+     "targets": 1,
+     "damage": 12,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add1",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "add1",
+     "from": {
+      "x": 4,
+      "y": 6
+     },
+     "to": {
+      "x": 8,
+      "y": 6
+     },
+     "costFt": 20
+    },
+    {
+     "kind": "attack",
+     "attacker": "add1",
+     "target": "rog",
+     "weapon": "rusty-sword",
+     "d20": 14,
+     "hit": true,
+     "crit": false,
+     "damage": 6
+    },
+    {
+     "kind": "down",
+     "id": "rog"
+    },
+    {
+     "kind": "turn",
+     "id": "add2",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "add2",
+     "from": {
+      "x": 4,
+      "y": 6
+     },
+     "to": {
+      "x": 3,
+      "y": 5
+     },
+     "costFt": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "add2",
+     "target": "clr",
+     "weapon": "rusty-sword",
+     "d20": 18,
+     "hit": true,
+     "crit": false,
+     "damage": 5
+    },
+    {
+     "kind": "turn",
+     "id": "boss",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "boss",
+     "from": {
+      "x": 5,
+      "y": 6
+     },
+     "to": {
+      "x": 4,
+      "y": 5
+     },
+     "costFt": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "clr",
+     "weapon": "tail",
+     "d20": 8,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "clr",
+     "weapon": "tail",
+     "d20": 10,
+     "hit": true,
+     "crit": false,
+     "damage": 24
+    },
+    {
+     "kind": "deathSave",
+     "id": "pal",
+     "d20": 7,
+     "success": false
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "clr",
+     "damage": 0
+    },
+    {
+     "kind": "round",
+     "round": 3
+    },
+    {
+     "kind": "deathSave",
+     "id": "rog",
+     "d20": 10,
+     "success": true
+    },
+    {
+     "kind": "down",
+     "id": "clr"
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "clr",
+     "damage": 29
+    },
+    {
+     "kind": "deathSave",
+     "id": "clr",
+     "d20": 1,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "lock",
+     "round": 3
+    },
+    {
+     "kind": "spell",
+     "caster": "lock",
+     "spell": "Eldritch Blast",
+     "slotLevel": 0,
+     "targets": 1,
+     "damage": 8,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add1",
+     "round": 3
+    },
+    {
+     "kind": "move",
+     "id": "add1",
+     "from": {
+      "x": 8,
+      "y": 6
+     },
+     "to": {
+      "x": 3,
+      "y": 8
+     },
+     "costFt": 25
+    },
+    {
+     "kind": "attack",
+     "attacker": "add1",
+     "target": "lock",
+     "weapon": "rusty-sword",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 1
+    },
+    {
+     "kind": "turn",
+     "id": "add2",
+     "round": 3
+    },
+    {
+     "kind": "move",
+     "id": "add2",
+     "from": {
+      "x": 3,
+      "y": 5
+     },
+     "to": {
+      "x": 2,
+      "y": 7
+     },
+     "costFt": 10
+    },
+    {
+     "kind": "attack",
+     "attacker": "add2",
+     "target": "lock",
+     "weapon": "rusty-sword",
+     "d20": 2,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "boss",
+     "round": 3
+    },
+    {
+     "kind": "move",
+     "id": "boss",
+     "from": {
+      "x": 4,
+      "y": 5
+     },
+     "to": {
+      "x": 3,
+      "y": 6
+     },
+     "costFt": 5
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "lock",
+     "weapon": "tail",
+     "d20": 15,
+     "hit": true,
+     "crit": false,
+     "damage": 11
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "lock",
+     "weapon": "tail",
+     "d20": 14,
+     "hit": true,
+     "crit": false,
+     "damage": 13
+    },
+    {
+     "kind": "deathSave",
+     "id": "pal",
+     "d20": 5,
+     "success": false
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "lock",
+     "damage": 0
+    },
+    {
+     "kind": "round",
+     "round": 4
+    },
+    {
+     "kind": "deathSave",
+     "id": "rog",
+     "d20": 18,
+     "success": true
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "lock",
+     "damage": 9
+    },
+    {
+     "kind": "deathSave",
+     "id": "clr",
+     "d20": 13,
+     "success": true
+    },
+    {
+     "kind": "legendary",
+     "source": "boss",
+     "target": "lock",
+     "damage": 9
+    },
+    {
+     "kind": "turn",
+     "id": "lock",
+     "round": 4
+    },
+    {
+     "kind": "spell",
+     "caster": "lock",
+     "spell": "Eldritch Blast",
+     "slotLevel": 0,
+     "targets": 0,
+     "damage": 0,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add1",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "add1",
+     "target": "lock",
+     "weapon": "rusty-sword",
+     "d20": 2,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "add2",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "add2",
+     "target": "lock",
+     "weapon": "rusty-sword",
+     "d20": 7,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "boss",
+     "round": 4
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "lock",
+     "weapon": "tail",
+     "d20": 2,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "attack",
+     "attacker": "boss",
+     "target": "lock",
+     "weapon": "tail",
+     "d20": 19,
+     "hit": true,
+     "crit": false,
+     "damage": 14
+    },
+    {
+     "kind": "down",
+     "id": "lock"
+    },
+    {
+     "kind": "end",
+     "round": 4,
+     "winner": "enemy"
+    }
+   ],
+   "final": [
+    {
+     "id": "pal",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 3,
+     "y": 6
+    },
+    {
+     "id": "lock",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 2,
+     "y": 8
+    },
+    {
+     "id": "clr",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 2,
+     "y": 4
+    },
+    {
+     "id": "rog",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 9,
+     "y": 6
+    },
+    {
+     "id": "boss",
+     "hp": 152,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 3,
+     "y": 6
+    },
+    {
+     "id": "add1",
+     "hp": 20,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 3,
+     "y": 8
+    },
+    {
+     "id": "add2",
+     "hp": 8,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 2,
+     "y": 7
+    }
+   ]
+  },
+  {
+   "name": "ai-crowd-control",
+   "rounds": 2,
+   "winner": "party",
+   "events": [
+    {
+     "kind": "initiative",
+     "order": [
+      {
+       "id": "w0",
+       "total": 22
+      },
+      {
+       "id": "x1",
+       "total": 22
+      },
+      {
+       "id": "w6",
+       "total": 20
+      },
+      {
+       "id": "w4",
+       "total": 19
+      },
+      {
+       "id": "w1",
+       "total": 15
+      },
+      {
+       "id": "w3",
+       "total": 15
+      },
+      {
+       "id": "w7",
+       "total": 12
+      },
+      {
+       "id": "w2",
+       "total": 10
+      },
+      {
+       "id": "w5",
+       "total": 8
+      },
+      {
+       "id": "f3",
+       "total": 8
+      },
+      {
+       "id": "wiz",
+       "total": 6
+      },
+      {
+       "id": "x2",
+       "total": 6
+      },
+      {
+       "id": "f1",
+       "total": 6
+      },
+      {
+       "id": "f2",
+       "total": 6
+      }
+     ]
+    },
+    {
+     "kind": "round",
+     "round": 1
+    },
+    {
+     "kind": "turn",
+     "id": "w0",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w0",
+     "from": {
+      "x": 10,
+      "y": 2
+     },
+     "to": {
+      "x": 4,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "x1",
+     "round": 1
+    },
+    {
+     "kind": "attack",
+     "attacker": "x1",
+     "target": "f1",
+     "weapon": "shortbow",
+     "d20": 8,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "turn",
+     "id": "w6",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w6",
+     "from": {
+      "x": 10,
+      "y": 8
+     },
+     "to": {
+      "x": 4,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w4",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w4",
+     "from": {
+      "x": 11,
+      "y": 6
+     },
+     "to": {
+      "x": 5,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w1",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w1",
+     "from": {
+      "x": 11,
+      "y": 3
+     },
+     "to": {
+      "x": 5,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w3",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w3",
+     "from": {
+      "x": 10,
+      "y": 5
+     },
+     "to": {
+      "x": 4,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w7",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w7",
+     "from": {
+      "x": 11,
+      "y": 9
+     },
+     "to": {
+      "x": 5,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w2",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w2",
+     "from": {
+      "x": 12,
+      "y": 4
+     },
+     "to": {
+      "x": 6,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "w5",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "w5",
+     "from": {
+      "x": 12,
+      "y": 7
+     },
+     "to": {
+      "x": 6,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "f3",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "f3",
+     "from": {
+      "x": 2,
+      "y": 8
+     },
+     "to": {
+      "x": 4,
+      "y": 5
+     },
+     "costFt": 15
+    },
+    {
+     "kind": "attack",
+     "attacker": "f3",
+     "target": "w0",
+     "weapon": "longsword",
+     "d20": 13,
+     "hit": true,
+     "crit": false,
+     "damage": 6
+    },
+    {
+     "kind": "attack",
+     "attacker": "f3",
+     "target": "w0",
+     "weapon": "longsword",
+     "d20": 16,
+     "hit": true,
+     "crit": false,
+     "damage": 11
+    },
+    {
+     "kind": "down",
+     "id": "w0"
+    },
+    {
+     "kind": "turn",
+     "id": "wiz",
+     "round": 1
+    },
+    {
+     "kind": "down",
+     "id": "w1"
+    },
+    {
+     "kind": "down",
+     "id": "w3"
+    },
+    {
+     "kind": "down",
+     "id": "w4"
+    },
+    {
+     "kind": "down",
+     "id": "w5"
+    },
+    {
+     "kind": "down",
+     "id": "w6"
+    },
+    {
+     "kind": "down",
+     "id": "w7"
+    },
+    {
+     "kind": "spell",
+     "caster": "wiz",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 7,
+     "damage": 149,
+     "healing": 0
+    },
+    {
+     "kind": "turn",
+     "id": "x2",
+     "round": 1
+    },
+    {
+     "kind": "attack",
+     "attacker": "x2",
+     "target": "f3",
+     "weapon": "shortbow",
+     "d20": 16,
+     "hit": true,
+     "crit": false,
+     "damage": 7
+    },
+    {
+     "kind": "turn",
+     "id": "f1",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "f1",
+     "from": {
+      "x": 2,
+      "y": 4
+     },
+     "to": {
+      "x": 5,
+      "y": 4
+     },
+     "costFt": 15
+    },
+    {
+     "kind": "attack",
+     "attacker": "f1",
+     "target": "w2",
+     "weapon": "longsword",
+     "d20": 14,
+     "hit": true,
+     "crit": false,
+     "damage": 11
+    },
+    {
+     "kind": "down",
+     "id": "w2"
+    },
+    {
+     "kind": "turn",
+     "id": "f2",
+     "round": 1
+    },
+    {
+     "kind": "move",
+     "id": "f2",
+     "from": {
+      "x": 2,
+      "y": 6
+     },
+     "to": {
+      "x": 8,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "round",
+     "round": 2
+    },
+    {
+     "kind": "deathSave",
+     "id": "w0",
+     "d20": 3,
+     "success": false
+    },
+    {
+     "kind": "turn",
+     "id": "x1",
+     "round": 2
+    },
+    {
+     "kind": "attack",
+     "attacker": "x1",
+     "target": "f2",
+     "weapon": "shortbow",
+     "d20": 7,
+     "hit": false,
+     "crit": false,
+     "damage": 0
+    },
+    {
+     "kind": "deathSave",
+     "id": "w6",
+     "d20": 17,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "w4",
+     "d20": 16,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "w1",
+     "d20": 1,
+     "success": false
+    },
+    {
+     "kind": "deathSave",
+     "id": "w3",
+     "d20": 4,
+     "success": false
+    },
+    {
+     "kind": "deathSave",
+     "id": "w7",
+     "d20": 2,
+     "success": false
+    },
+    {
+     "kind": "deathSave",
+     "id": "w2",
+     "d20": 13,
+     "success": true
+    },
+    {
+     "kind": "deathSave",
+     "id": "w5",
+     "d20": 18,
+     "success": true
+    },
+    {
+     "kind": "turn",
+     "id": "f3",
+     "round": 2
+    },
+    {
+     "kind": "move",
+     "id": "f3",
+     "from": {
+      "x": 4,
+      "y": 5
+     },
+     "to": {
+      "x": 10,
+      "y": 4
+     },
+     "costFt": 30
+    },
+    {
+     "kind": "turn",
+     "id": "wiz",
+     "round": 2
+    },
+    {
+     "kind": "down",
+     "id": "x1"
+    },
+    {
+     "kind": "death",
+     "id": "x1"
+    },
+    {
+     "kind": "down",
+     "id": "x2"
+    },
+    {
+     "kind": "spell",
+     "caster": "wiz",
+     "spell": "Fireball",
+     "slotLevel": 3,
+     "targets": 2,
+     "damage": 45,
+     "healing": 0
+    },
+    {
+     "kind": "end",
+     "round": 2,
+     "winner": "party"
+    }
+   ],
+   "final": [
+    {
+     "id": "wiz",
+     "hp": 32,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 1,
+     "y": 6
+    },
+    {
+     "id": "f1",
+     "hp": 50,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 5,
+     "y": 4
+    },
+    {
+     "id": "f2",
+     "hp": 50,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 8,
+     "y": 4
+    },
+    {
+     "id": "f3",
+     "hp": 43,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 10,
+     "y": 4
+    },
+    {
+     "id": "w0",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 4,
+     "y": 4
+    },
+    {
+     "id": "w1",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 5,
+     "y": 4
+    },
+    {
+     "id": "w2",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 6,
+     "y": 4
+    },
+    {
+     "id": "w3",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 4,
+     "y": 4
+    },
+    {
+     "id": "w4",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 5,
+     "y": 4
+    },
+    {
+     "id": "w5",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 6,
+     "y": 4
+    },
+    {
+     "id": "w6",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 4,
+     "y": 4
+    },
+    {
+     "id": "w7",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 5,
+     "y": 4
+    },
+    {
+     "id": "x1",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": true,
+     "stable": false,
+     "x": 16,
+     "y": 4
+    },
+    {
+     "id": "x2",
+     "hp": 0,
+     "tempHp": 0,
+     "dead": false,
+     "stable": false,
+     "x": 16,
+     "y": 8
+    }
+   ]
   }
  ]
 }

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntUnaryOperator;
+import org.omnomnom.dnd.sim.domain.ai.TacticalPolicy;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.Condition;
@@ -205,11 +206,26 @@ final class ScenarioRunner {
         }
     }
 
+    private static final class HuntersMark implements Feature {
+        @Override
+        public String id() {
+            return "hunters-mark";
+        }
+
+        @Override
+        public List<ExtraDamage> onHit(OnHitContext ctx) {
+            return ctx.target().id().equals(ctx.self().markedTarget())
+                    ? List.of(new ExtraDamage(Dice.of(1, 6), DamageType.FORCE))
+                    : List.of();
+        }
+    }
+
     private static FeatureFactory featureFactory(String id) {
         return switch (id) {
             case "berserk" -> Berserk::new;
             case "reckless" -> Reckless::new;
             case "flurry" -> Flurry::new;
+            case "hunters-mark" -> HuntersMark::new;
             case "aura-of-protection" -> () -> () -> "aura-of-protection";
             default -> throw new IllegalArgumentException("feature " + id);
         };
@@ -407,6 +423,7 @@ final class ScenarioRunner {
                 Combatant t = pick("nearest", api);
                 if (t != null) api.markTarget(t);
             }
+            case "policy" -> TacticalPolicy.DEFAULT.act(api);
             default -> throw new IllegalArgumentException("intent " + p[0]);
         }
     }

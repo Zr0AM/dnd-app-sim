@@ -6,6 +6,9 @@
 //
 // Upstream baseline: Zr0AM/dnd-app @ 8db9df32179604057009203c9effa5bc91c9dd6f.
 //
+// The generated sweep (sweep.json.gz) is compared by hash: a SHA-256 of the canonical JSON of each fight's events and
+// final states. Use DUMP=<name> to print one fight's events when a hash mismatches.
+//
 // Plan intent grammar (one string per intent, tried in order every turn; failed actions are ignored):
 //   approach:<rangeFt>                 move toward the nearest enemy until within rangeFt (as far as movement allows)
 //   retreat:<cells>                    move <cells> straight away from the nearest enemy
@@ -13,8 +16,11 @@
 //   cast:<spell>:<slot|->:<rule>:<q|-> cast a spell; slot '-' = spell's own level; 'q' = Quickened Spell
 //   lay                                Lay on Hands on the weakest wounded ally
 //   mark                               Hunter's Mark on the nearest enemy
+//   policy                             run the real tactical AI for this turn (sim/src/ai/policy.ts)
 // Target rules: nearest | farthest | strongest (highest max HP) | weakest-ally (lowest HP fraction) | nearest-ally.
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -25,6 +31,7 @@ const { Grid, cell, distanceFt } = await load('grid/grid.ts');
 const { dice } = await load('dice/dice.ts');
 const { Combatant } = await load('combat/actor.ts');
 const { Encounter } = await load('combat/encounter.ts');
+const { tacticalPolicy } = await load('ai/policy.ts');
 
 const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
 const input = JSON.parse(readFileSync(join(root, 'scenarios.json'), 'utf8'));
@@ -160,6 +167,13 @@ function makeFeature(id: string): any {
         id,
         bonusAttackActions() {
           return 1;
+        },
+      };
+    case 'hunters-mark':
+      return {
+        id,
+        onHit(ctx: any) {
+          return ctx.self.markedTarget === ctx.target.id ? [{ damage: dice(1, 6, 0), type: 'force' }] : [];
         },
       };
     case 'aura-of-protection':
@@ -326,13 +340,16 @@ function runIntent(intent: string, api: any) {
       if (t) api.markTarget(t);
       return;
     }
+    case 'policy':
+      tacticalPolicy(api);
+      return;
     default:
       throw new Error('intent ' + kind);
   }
 }
 
 // ---- run -------------------------------------------------------------------------------------------
-const results = input.scenarios.map((sc: any) => {
+function runOne(sc: any) {
   const combatants = sc.combatants.map(makeCombatant);
   const e = new Encounter({
     grid: makeGrid(sc.grid),
@@ -361,13 +378,45 @@ const results = input.scenarios.map((sc: any) => {
       y: c.position.y,
     })),
   };
+}
+
+/** JSON with recursively sorted keys and no whitespace; the Java test builds the identical string. */
+function canon(v: any): string {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  if (typeof v === 'object')
+    return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+const sweepInput = JSON.parse(gunzipSync(readFileSync(join(root, 'sweep.json.gz'))).toString('utf8'));
+
+// DUMP=<scenario name> prints that scenario's events as JSON and exits (for debugging a parity mismatch).
+if (process.env.DUMP) {
+  const sc = [...input.scenarios, ...sweepInput.scenarios].find((s: any) => s.name === process.env.DUMP);
+  if (!sc) throw new Error('no scenario named ' + process.env.DUMP);
+  const out = runOne(sc);
+  console.log(JSON.stringify(out.events, null, 1));
+  process.exit(0);
+}
+
+const results = input.scenarios.map(runOne);
+const sweep = sweepInput.scenarios.map((sc: any) => {
+  const r = runOne(sc);
+  const text = canon({ events: r.events, final: r.final, rounds: r.rounds, winner: r.winner });
+  return { name: sc.name, rounds: r.rounds, winner: r.winner, events: r.events.length, sha256: sha256(text) };
 });
 
 const dest = join(root, 'encounters.json');
 writeFileSync(dest, JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', results }, null, 1) + '\n');
+writeFileSync(join(root, 'sweep-expected.json'), JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', sweep }) + '\n');
 for (const r of results) {
   const kinds: Record<string, number> = {};
   for (const ev of r.events) kinds[ev.kind] = (kinds[ev.kind] ?? 0) + 1;
   console.log(r.name.padEnd(24), 'rounds', r.rounds, 'winner', r.winner, JSON.stringify(kinds));
 }
+const total = sweep.reduce((n: number, s: any) => n + s.events, 0);
+const wins = sweep.reduce((m: Record<string, number>, s: any) => ((m[String(s.winner)] = (m[String(s.winner)] ?? 0) + 1), m), {});
+console.log('sweep:', sweep.length, 'fights,', total, 'events, winners', JSON.stringify(wins));
 console.log('wrote', dest);
