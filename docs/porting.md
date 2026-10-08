@@ -34,3 +34,20 @@ tracked automatically; diff `sim/` and `docs/sim/` against it before each phase.
 | `opt` (genome, catalog, evaluate, party-evaluate, nsga2, anchor, stats, roles, reports, campaign; `ga` last) | `domain.opt` |
 | `cli/config`, `cli/engine`, `cli/report-io` | `adapter.in.web` DTOs, `application` ports |
 | `cli/prompt*`, `cli/flows`, `cli/main` | dropped |
+
+## Stacked PR plan
+
+Each PR targets the previous PR's branch; merge bottom-up.
+
+| PR | Branch | Content |
+| --- | --- | --- |
+| 1 | `claude/stoic-turing-gwooy9` | Phase 0: scaffold, hexagonal layout, D1 and local config |
+| 2 | `claude/phase-1-contracts` | Phase 1: [REST contract](api/openapi.yaml), [API conventions](api/README.md), [engine inventory](discovery/engine-inventory.md) |
+| 3 | `claude/phase-2-foundations` | `rng`, `dice`, `core`, `grid` |
+| 4 | `claude/phase-3-combat` | `Combatant`, attack/damage/conditions/spell resolvers |
+| 5 | `claude/phase-4-encounter` | `Feature`, `Encounter` loop, `CombatEvent`, tactical AI |
+| 6 | `claude/phase-5-content` | seed catalog, content compilers, fillers |
+| 7 | `claude/phase-6-scenarios-eval` | scenarios, party harness, evaluators, statistical conformance tests |
+| 8 | `claude/phase-7-optimizer` | NSGA-II, reports, roles, campaign |
+| 9 | `claude/phase-8-rest` | controllers, jobs, report stores (filesystem, D1) |
+| 10 | `claude/phase-9-hardening` | limits, auth/rate limiting, profiling |
