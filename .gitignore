@@ -29,7 +29,7 @@ replay_pid*
 # Gradle / build output
 .gradle/
 build/
-out/
+/out/
 
 # IDEs
 .idea/
