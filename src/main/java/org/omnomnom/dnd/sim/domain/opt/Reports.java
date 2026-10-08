@@ -171,7 +171,7 @@ public final class Reports {
         }
         front.sort(byScore);
 
-        return new Report(VERSION, runKey(configJson(config)), config, Objectives.NAMES, bounds, weights, List.copyOf(front), board);
+        return new Report(VERSION, runKey(canonicalJson(config)), config, Objectives.NAMES, bounds, weights, List.copyOf(front), board);
     }
 
     private static int signOf(double d) {
@@ -187,8 +187,11 @@ public final class Reports {
         return "0".repeat(Math.max(0, 8 - hex.length())) + hex;
     }
 
-    private static String configJson(Map<String, Object> config) {
-        // Insertion-ordered, compact; only scalars, lists and nested maps are expected in a run configuration.
+    /**
+     * Compact JSON text for a run configuration: keys in insertion order, whole numbers without a fraction (as
+     * JavaScript prints them). Only scalars, lists and nested maps are expected in a run configuration.
+     */
+    public static String canonicalJson(Map<String, Object> config) {
         StringBuilder sb = new StringBuilder();
         appendJson(sb, config);
         return sb.toString();

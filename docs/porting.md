@@ -157,6 +157,15 @@ Deliberate differences in the optimizer port:
 - Evaluation inside a run is single-threaded and cached by genome key; parallelism belongs to the job layer (one run per
   executor thread), because results must not depend on thread timing.
 
+Phase 9 (optimizer) was mutation-sampled on seven files (14 mutants each): 28 survivors. The real gaps (default
+options and campaign constants, the default leaderboard size, run-key serialization of lists, nested maps and strings,
+the catalog's subclass and caster-package data, the pinned role weights, the zero-day and one-day campaign edges, the
+benchmark genome) are covered by `OptimizerDetailsTest`; run keys are pinned to values produced by the TypeScript
+`runKey`. Equivalent mutants: `<` to `<=` on a continuous random draw in crossover, and the `i > 0` short rest before
+the first fight (a fresh hero is already at full HP and resources). Not killable with real content: `||` for `&&` in
+the day-clear test, because a solo party win with an unconscious hero cannot happen and the 50-round cap draw is
+vanishingly rare.
+
 ## Port progress
 
 | Area | Status |
