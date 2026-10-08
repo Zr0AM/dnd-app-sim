@@ -118,6 +118,25 @@ Not designed in Phase 1. The endpoints are CPU-expensive, so authentication or r
 before any public deployment; this is tracked for the hardening phase. The OpenAPI document declares no
 security scheme yet.
 
+## Implementation notes (Phase 10)
+
+- **Status codes**: `400` covers anything the schema forbids (types, bounds, enums, `exactly one of enemies or scenarioId`,
+  a build without a genome); `422` covers well-formed requests that cannot be honored. The 422 `code` values in use are
+  `unsupported-level`, `unknown-monster`, `monster-has-no-attacks`, `over-capacity`, `unknown-scenario`, `unknown-map`,
+  `map-mismatch`, `duplicate-id`, `invalid-log-run`, `unknown-weapon`, `unknown-armor`, `invalid-ability-assignment`
+  and `unknown-role`. The 400 codes are `invalid-request` (with `errors[]`) and `malformed-json`.
+- **`seed` on `eval` and `campaign`** only completes an under-specified genome (as the CLI's per-seed random genome did).
+  The evaluators' own seeds depend on the scenario and run index alone (common random numbers), so the numbers for a
+  fully specified genome do not depend on `seed`. The effective genome is echoed; sending it back reproduces the result.
+- **Encounter seeding**: run `i` uses `(seed, map + enemy slugs, i)`, never the party, so two parties facing the same
+  enemies under one seed get identical enemy rolls.
+- **Null policy**: `Genome.armorName` is always present (null means unarmored); `fightingStyle`, `MemberStats.genome`,
+  `EvalResponse.ci` and the optional scenario fields are omitted when unset.
+- **Contract check**: `OpenApiConformanceTest` validates real responses (every event kind seen, all content lists,
+  problem bodies) against `openapi.yaml`, so the document and the service cannot drift unnoticed.
+- **Deferred to hardening**: configurable `sim.limits.*` (the schema maxima are enforced as 400s today), authentication
+  and rate limiting.
+
 ## Open questions
 
 1. **Report versioning**: overwrite by `runKey` (CLI behavior, current draft) or keep immutable versions

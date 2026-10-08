@@ -10,7 +10,6 @@ import org.omnomnom.dnd.sim.domain.content.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.content.MonsterTemplate;
 import org.omnomnom.dnd.sim.domain.content.Role;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
-import org.omnomnom.dnd.sim.domain.grid.Grid;
 
 /**
  * The reference-party harness: party-scaled encounters and party assembly with the hero substituted into its role
@@ -21,23 +20,7 @@ public final class PartyScenarios {
 
     private PartyScenarios() {}
 
-    /** Party deployment (left) and enemy (right) cells of the shared 22 x 14 party map. */
-    private static final Grid GRID = Grid.open(22, 14);
-
-    private static final List<Cell> PARTY_CELLS = List.of(
-            Cell.of(1, 5), Cell.of(1, 7), Cell.of(1, 9), Cell.of(2, 6), Cell.of(2, 8), Cell.of(2, 4));
-
-    private static final List<Cell> ENEMY_CELLS = enemyCells();
-
-    private static List<Cell> enemyCells() {
-        List<Cell> cells = new ArrayList<>();
-        for (int x = 18; x <= 20; x++) {
-            for (int y = 2; y <= 11; y++) {
-                cells.add(Cell.of(x, y));
-            }
-        }
-        return List.copyOf(cells);
-    }
+    private static final MapLayout MAP = Maps.PARTY_FIELD;
 
     /** Enemy group: {@code perMember} scales with party size, {@code count} is fixed (for example a lone boss). */
     private record Group(String slug, int perMember, int count) {}
@@ -77,6 +60,20 @@ public final class PartyScenarios {
         return LEVEL_5;
     }
 
+    /** An enemy group of a party encounter: {@code perMember} scales with party size, {@code count} is fixed. */
+    public record GroupDescription(String monsterSlug, int perMember, int count) {}
+
+    /** The authored shape of a party encounter, before it is scaled to a party size. */
+    public record Description(String id, List<GroupDescription> enemies) {}
+
+    /** The party encounters authored for a hero level (nearest checkpoint at or below). */
+    public static List<Description> describe(int level) {
+        return specsForLevel(level).stream()
+                .map(spec -> new Description(spec.id(),
+                        spec.enemies().stream().map(g -> new GroupDescription(g.slug(), g.perMember(), g.count())).toList()))
+                .toList();
+    }
+
     /** Party scenarios for a party of {@code partySize} at {@code level} (nearest checkpoint at or below). */
     public static List<PartyScenario> load(MonsterCatalog monsters, int partySize, int level) {
         List<PartyScenario> out = new ArrayList<>();
@@ -92,8 +89,8 @@ public final class PartyScenarios {
                     plan.add(template);
                 }
             }
-            int size = Math.min(plan.size(), ENEMY_CELLS.size());
-            out.add(new PartyScenario(spec.id(), partySize, GRID, PARTY_CELLS, plan.subList(0, size), ENEMY_CELLS.subList(0, size)));
+            int size = Math.min(plan.size(), MAP.enemyStarts().size());
+            out.add(new PartyScenario(spec.id(), partySize, MAP.grid(), MAP.partyStarts(), plan.subList(0, size), MAP.enemyStarts().subList(0, size)));
         }
         return List.copyOf(out);
     }

@@ -37,19 +37,16 @@ class MapsTest {
     @Test
     void partyMapLayout() {
         // 22 x 14, six party cells on the left, 30 enemy cells (x 18-20, y 2-11) on the right.
-        var monsters = org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource.open();
-        try {
-            var catalog = org.omnomnom.dnd.sim.domain.content.MonsterCatalog.load(monsters);
-            PartyScenario horde = PartyScenarios.load(catalog, 6, 5).get(0);
-            assertThat(horde.grid().width()).isEqualTo(22);
-            assertThat(horde.grid().height()).isEqualTo(14);
-            assertThat(horde.partyCells()).containsExactly(
-                    Cell.of(1, 5), Cell.of(1, 7), Cell.of(1, 9), Cell.of(2, 6), Cell.of(2, 8), Cell.of(2, 4));
-            List<Cell> expected = IntStream.rangeClosed(18, 20).boxed()
-                    .flatMap(x -> IntStream.rangeClosed(2, 11).mapToObj(y -> Cell.of(x, y))).toList();
-            assertThat(horde.enemyCells()).containsExactlyElementsOf(expected).hasSize(30);
-        } finally {
-            monsters.close();
-        }
+        MapLayout m = Maps.PARTY_FIELD;
+        assertThat(m.id()).isEqualTo("party-field");
+        assertThat(m.grid().width()).isEqualTo(22);
+        assertThat(m.grid().height()).isEqualTo(14);
+        assertThat(m.partyStarts()).containsExactly(
+                Cell.of(1, 5), Cell.of(1, 7), Cell.of(1, 9), Cell.of(2, 6), Cell.of(2, 8), Cell.of(2, 4));
+        List<Cell> expected = IntStream.rangeClosed(18, 20).boxed()
+                .flatMap(x -> IntStream.rangeClosed(2, 11).mapToObj(y -> Cell.of(x, y))).toList();
+        assertThat(m.enemyStarts()).containsExactlyElementsOf(expected).hasSize(30);
+        assertThat(Maps.byId("party-field")).isSameAs(m);
+        assertThat(Maps.all()).hasSize(3);
     }
 }

@@ -51,8 +51,9 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 8 | `claude/phase-7-builds` | character and caster compilers, spell catalog, class features, fillers |
 | 9 | `claude/phase-8-scenarios-eval` | scenario library, maps, reference-party harness, `Stats`, solo and party evaluators (take a hero factory; the genome and catalog arrive with the optimizer) |
 | 10 | `claude/phase-9-optimizer` | genome and catalog, NSGA-II (with progress and cancel hooks), reports, role presets, adventuring-day campaign, anchor |
-| 11 | `claude/phase-10-rest` | controllers, jobs, report stores (filesystem, D1) |
-| 12 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
+| 11 | `claude/phase-10-rest` | startup catalogs, bounded executor, encounter, eval and campaign use cases, content endpoints, problem+json errors, OpenAPI conformance test |
+| 12 | `claude/phase-10b-jobs-reports` | optimize and report-campaign jobs, report store port with filesystem and D1 adapters, report endpoints |
+| 13 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
 
 ## Reference values from the TypeScript sim
 
@@ -178,7 +179,8 @@ vanishingly rare.
 | `content`: character/caster compilers, spell catalog, class features, fillers | done (Phase 7) |
 | `scenario` (maps, library, party harness), `opt/stats`, solo and party evaluators | done (Phase 8) |
 | `opt`: genome, catalog, NSGA-II, reports, role presets, campaign, anchor | done (Phase 9) |
-| `application` use cases, REST, jobs, report stores (filesystem, D1) | next |
+| `application` use cases and REST: encounter, eval, campaign, content, errors | done (Phase 10) |
+| jobs, reports, report stores (filesystem, D1) | next (Phase 10b) |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover

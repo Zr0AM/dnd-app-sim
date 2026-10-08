@@ -30,4 +30,22 @@ class ArchitectureTest {
             .that().resideInAPackage(ROOT + ".application..")
             .should().dependOnClassesThat().resideInAPackage(ROOT + ".adapter..")
             .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule inboundAdaptersDoNotDependOnOutboundAdapters = noClasses()
+            .that().resideInAPackage(ROOT + ".adapter.in..")
+            .should().dependOnClassesThat().resideInAPackage(ROOT + ".adapter.out..")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule outboundAdaptersDoNotDependOnInboundAdapters = noClasses()
+            .that().resideInAPackage(ROOT + ".adapter.out..")
+            .should().dependOnClassesThat().resideInAPackage(ROOT + ".adapter.in..")
+            .allowEmptyShould(true);
+
+    @ArchTest
+    static final ArchRule applicationIsFrameworkFree = noClasses()
+            .that().resideInAPackage(ROOT + ".application..")
+            .should().dependOnClassesThat().resideInAnyPackage("org.springframework..", "jakarta..", "tools.jackson..", "com.fasterxml..")
+            .allowEmptyShould(true);
 }
