@@ -1,6 +1,13 @@
+server:
+  shutdown: graceful # finish in-flight requests on SIGTERM
+  tomcat:
+    max-swallow-size: 1MB
+
 spring:
   application:
     name: dnd-app-sim
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   threads:
     virtual:
       enabled: false # simulation work is CPU-bound; it runs on a dedicated bounded executor
@@ -10,6 +17,10 @@ management:
     web:
       exposure:
         include: health,info
+
+springdoc:
+  swagger-ui:
+    enabled: false # a browser cannot send the API key header; the local profile turns it on
 
 sim:
   # Where finished RunReports are persisted: "filesystem" or "d1".
@@ -29,3 +40,23 @@ sim:
   executor:
     threads: 0
     queue-capacity: 64
+  # Ceilings on how much work one request may ask for (422 limit-exceeded). Lower them to protect a small host; the API
+  # schema's own maxima (400) are fixed.
+  limits:
+    encounter-runs: 2000
+    eval-runs-per-scenario: 200
+    campaign-days: 100
+    optimize-population: 128
+    optimize-generations: 100
+    optimize-eval-runs: 64
+    optimize-max-fights: 2000000
+  # The service is closed unless told otherwise: with mode api-key (the default) at least one key is required and
+  # startup fails without it. The local profile switches this off.
+  security:
+    mode: api-key
+    api-keys: ${SIM_API_KEYS:}
+  # Per-client token buckets (a client is an API key, or the remote address when authentication is off).
+  rate-limit:
+    enabled: true
+    requests-per-minute: 600
+    simulations-per-minute: 60

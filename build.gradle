@@ -41,6 +41,9 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // The service is closed by default; most tests exercise it open. The security tests set their own mode.
+    systemProperty 'sim.security.mode', 'none'
+    systemProperty 'sim.rate-limit.enabled', 'false'
     finalizedBy tasks.named('jacocoTestReport')
 }
 

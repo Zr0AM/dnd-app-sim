@@ -53,7 +53,7 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 10 | `claude/phase-9-optimizer` | genome and catalog, NSGA-II (with progress and cancel hooks), reports, role presets, adventuring-day campaign, anchor |
 | 11 | `claude/phase-10-rest` | startup catalogs, bounded executor, encounter, eval and campaign use cases, content endpoints, problem+json errors, OpenAPI conformance test |
 | 12 | `claude/phase-10b-jobs-reports` | optimize and report-campaign jobs, report store port with filesystem and D1 adapters, report endpoints |
-| 13 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
+| 13 | `claude/phase-11-hardening` | operator limits, API-key authentication, per-client rate limiting, graceful shutdown, executor metric, profiling notes |
 
 ## Reference values from the TypeScript sim
 
@@ -189,7 +189,7 @@ been mutation-sampled.
 | `opt`: genome, catalog, NSGA-II, reports, role presets, campaign, anchor | done (Phase 9) |
 | `application` use cases and REST: encounter, eval, campaign, content, errors | done (Phase 10) |
 | jobs (optimize, report campaign), report endpoints, report stores (filesystem, Cloudflare D1) | done (Phase 10b) |
-| hardening: configurable limits, auth and rate limiting, profiling, parallel evaluation | next (Phase 11) |
+| hardening: operator limits, API-key authentication, rate limiting, profiling | done (Phase 11) |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover

@@ -114,9 +114,38 @@ well-formed but invalid, `409` cancelling a finished job, `429` queue full.
 
 ## Security
 
-Not designed in Phase 1. The endpoints are CPU-expensive, so authentication or rate limiting is needed
-before any public deployment; this is tracked for the hardening phase. The OpenAPI document declares no
-security scheme yet.
+The service is **closed by default**.
+
+- **API keys**: every request except `/actuator/health` and `/actuator/info` needs a key, sent as `X-API-Key: <key>` or
+  `Authorization: Bearer <key>`. Keys come from `SIM_API_KEYS` (comma separated, so a key can be rotated by listing the
+  new one beside the old). They are held as SHA-256 digests, compared in constant time, and never logged or echoed. A
+  missing or wrong key is `401` with `WWW-Authenticate: Bearer`.
+- **Fail closed**: with the default `sim.security.mode=api-key` and no key configured, startup fails. Authentication is
+  switched off only by the `local` profile (or an explicit `sim.security.mode=none`), which logs a warning; never expose
+  such an instance beyond localhost.
+- **Rate limiting**: per client (the key, or the remote address when authentication is off), a token bucket holds one
+  minute of budget and refills continuously. Ordinary requests default to 600 per minute and the expensive ones
+  (`POST simulate/*` and a report's `campaign`) to 60 per minute. Refusals are `429 rate-limited` with `Retry-After`.
+  Buckets are in memory and per instance, so behind N instances each enforces its own budget. Requests refused for a bad
+  key never reach the limiter. Behind a reverse proxy set `server.forward-headers-strategy` so the remote address is the
+  client's, not the proxy's.
+- **Work limits** (`sim.limits.*`): a request that asks for too much is `422 limit-exceeded` before anything is queued.
+  Besides the per-field ceilings (runs, days, population, generations, evaluation runs) an optimization is bounded by
+  `optimize-max-fights`, an upper bound on the fights it can simulate (population x (generations + 1) x evaluation runs x
+  scenarios; repeated genomes are cached, so real work is usually far less).
+- **Not provided**: per-key authorization (all keys are equal), user identity, TLS (terminate it at the proxy) and
+  request signing. Swagger UI is off outside the `local` profile because a browser cannot send the key header; the
+  OpenAPI document is generated at `/v3/api-docs` behind the key.
+
+## Performance
+
+Measured on 4 cores in the development container after JIT warm-up, one thread, as an order of magnitude and not a
+promise: about 14,000 solo fights per second (a level-3 evaluation of 1,000 fights takes about 70 ms), a standard
+level-3 optimization (population 32, 12 generations, 12 runs) about 0.6 s, a thorough level-11 one (population 64, 24
+generations, 20 runs) about 1 s, and catalog loading at startup about 0.5 s. The largest request the defaults allow
+(about 2 million fights) is therefore minutes at most. Because a single optimization is this fast, evaluation inside a run
+stays single-threaded; parallelism comes from running several jobs on the executor, which also keeps results independent
+of thread timing.
 
 ## Implementation notes (Phase 10)
 

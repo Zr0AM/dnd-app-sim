@@ -30,3 +30,7 @@ sim:
   executor:
     threads: 2
     queue-capacity: 8
+  security:
+    mode: none # local development only; the default profile requires SIM_API_KEYS
+  rate-limit:
+    enabled: false

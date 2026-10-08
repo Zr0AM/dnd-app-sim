@@ -14,6 +14,12 @@ servers:
   - url: http://localhost:8080
     description: Local development (`local` profile)
 
+# Every operation needs an API key except /actuator/health and /actuator/info (see docs/api/README.md, Security).
+# The `local` profile switches authentication off.
+security:
+  - ApiKeyHeader: []
+  - BearerKey: []
+
 tags:
   - name: Simulate
     description: Run simulations. Cheap calls are synchronous; optimization is a job.
@@ -79,6 +85,7 @@ paths:
                   runs: 200
                   seed: 11
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Aggregate results (and optionally one run's log).
           content:
@@ -103,6 +110,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/EvalRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: The build's metric vector with confidence intervals.
           content:
@@ -127,6 +135,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CampaignRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Day win rate and encounters cleared, with a CI.
           content:
@@ -160,6 +169,7 @@ paths:
                   campaign: true
                   seed: 7
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '202':
           description: Accepted; the job is queued.
           headers:
@@ -181,18 +191,22 @@ paths:
       operationId: getJob
       summary: Job status and progress.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: The job.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Job' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Busy' }
+
     delete:
       tags: [Jobs]
       operationId: cancelJob
       summary: Cancel a queued or running job.
       description: 'Cooperative: the job stops at the next generation boundary.'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: The job after the cancel request (status `cancelled` once honored).
           content:
@@ -204,6 +218,7 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/reports:
     get:
@@ -214,6 +229,7 @@ paths:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
         - { name: cursor, in: query, schema: { type: string } }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: A page of report summaries.
           content:
@@ -226,6 +242,7 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/ReportSummary' }
                   nextCursor: { type: [string, 'null'] }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/reports/{reportId}:
     parameters:
@@ -235,12 +252,14 @@ paths:
       operationId: getReport
       summary: Fetch a full `RunReport`.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: The report. Same shape the Angular `/lab` view and D1 export consume.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/RunReport' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/reports/{reportId}/rescore:
     parameters:
@@ -256,6 +275,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/RescoreRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: The re-scored report.
           content:
@@ -263,6 +283,7 @@ paths:
               schema: { $ref: '#/components/schemas/RunReport' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/reports/{reportId}/campaign:
     parameters:
@@ -283,6 +304,7 @@ paths:
                 days: { type: integer, minimum: 1, maximum: 100, default: 12 }
                 seed: { $ref: '#/components/schemas/Seed' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '202':
           description: Accepted.
           headers:
@@ -301,6 +323,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LevelQuery'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Classes.
           content:
@@ -308,6 +331,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/ClassInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/roles:
     get:
@@ -315,6 +339,7 @@ paths:
       operationId: listRoles
       summary: Role weight presets over the six objective axes.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Roles.
           content:
@@ -322,6 +347,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/RoleInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/scenarios:
     get:
@@ -331,6 +357,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LevelQuery'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Scenarios.
           content:
@@ -338,6 +365,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/ScenarioInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/monsters:
     get:
@@ -351,6 +379,7 @@ paths:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 400, default: 100 } }
         - { name: cursor, in: query, schema: { type: string } }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: A page of monsters ordered by slug.
           content:
@@ -363,6 +392,7 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/MonsterInfo' }
                   nextCursor: { type: [string, 'null'] }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/weapons:
     get:
@@ -372,6 +402,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LevelQuery'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Weapons.
           content:
@@ -379,6 +410,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/WeaponInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/armors:
     get:
@@ -388,6 +420,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LevelQuery'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Armors.
           content:
@@ -395,6 +428,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/ArmorInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/maps:
     get:
@@ -402,6 +436,7 @@ paths:
       operationId: listMaps
       summary: Battle maps and their deployment capacity.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Maps.
           content:
@@ -409,6 +444,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/MapInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
   /api/v1/content/party-templates:
     get:
@@ -416,6 +452,7 @@ paths:
       operationId: listPartyTemplates
       summary: Reference party templates (R6, R4, R3).
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '200':
           description: Templates.
           content:
@@ -423,8 +460,19 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/PartyTemplateInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
 
 components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerKey:
+      type: http
+      scheme: bearer
+      description: "The same key, sent as `Authorization: Bearer <key>`."
+
   parameters:
     JobId:
       name: jobId
@@ -459,8 +507,17 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: The API key is missing or not accepted.
+      headers:
+        WWW-Authenticate: { schema: { type: string, const: Bearer } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Busy:
-      description: The simulation executor queue is full. Retry later.
+      description: |
+        Too much work right now: the simulation executor queue is full, or this client's request budget is spent
+        (`code` is `busy` or `rate-limited`). Retry after the delay in `Retry-After`.
       headers:
         Retry-After: { schema: { type: integer } }
       content:

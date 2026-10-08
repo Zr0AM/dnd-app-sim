@@ -4,9 +4,13 @@ Spring Boot port of the `sim/` build-optimization simulator from `Zr0AM/dnd-app`
 See [docs/porting.md](docs/porting.md) for decisions, the baseline SHA and the port map.
 
 ```bash
-./gradlew build    # compile + test + coverage report
-./gradlew bootRun  # http://localhost:8080/actuator/health
+./gradlew build                                              # compile + test + coverage report
+SIM_API_KEYS=$(openssl rand -hex 24) ./gradlew bootRun       # http://localhost:8080/actuator/health
 ```
+
+The service is closed by default: it needs at least one API key in `SIM_API_KEYS` (see
+[docs/api/README.md](docs/api/README.md#security)) and refuses to start without one. The `local` profile below turns
+authentication off for development.
 
 Requires JDK 21.
 

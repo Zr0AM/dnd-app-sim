@@ -34,8 +34,8 @@ final class Requests {
     record GenomeInputBody(
             @NotNull BuildClass classSlug,
             @Size(min = 6, max = 6) List<@NotNull @Min(0) @Max(5) Integer> abilityAssignment,
-            String weaponName,
-            String armorName,
+            @Size(max = 100) String weaponName,
+            @Size(max = 100) String armorName,
             Boolean shield,
             Boolean twoHanded,
             FightingStyle fightingStyle) {
@@ -45,7 +45,7 @@ final class Requests {
         }
     }
 
-    record PartyMemberBody(@NotNull @Pattern(regexp = "build|filler") String type, String id, @Valid GenomeInputBody genome, Role role) {
+    record PartyMemberBody(@NotNull @Pattern(regexp = "build|filler") String type, @Size(max = 64) String id, @Valid GenomeInputBody genome, Role role) {
 
         PartyMemberSpec toSpec(int index, List<FieldError> errors) {
             if ("build".equals(type)) {
@@ -63,13 +63,13 @@ final class Requests {
         }
     }
 
-    record EnemyGroupBody(@NotBlank String monsterSlug, @Min(1) @Max(30) int count) {}
+    record EnemyGroupBody(@NotBlank @Size(max = 100) String monsterSlug, @Min(1) @Max(30) int count) {}
 
     record EncounterBody(
             @NotNull @ValidLevel Integer level,
             @NotEmpty @Size(max = 6) List<@NotNull @Valid PartyMemberBody> party,
-            List<@NotNull @Valid EnemyGroupBody> enemies,
-            String scenarioId,
+            @Size(max = 30) List<@NotNull @Valid EnemyGroupBody> enemies,
+            @Size(max = 100) String scenarioId,
             @Pattern(regexp = MAP_PATTERN) String map,
             @Min(1) @Max(2000) Integer runs,
             @Min(0) @Max(MAX_SEED) Long seed,
@@ -111,7 +111,7 @@ final class Requests {
             @NotNull @ValidLevel Integer level,
             @NotNull @Valid GenomeInputBody genome,
             EvaluationService.Context context,
-            String role,
+            @Size(max = 32) String role,
             @Min(1) @Max(200) Integer runs,
             @Min(0) @Max(MAX_SEED) Long seed) {
 
@@ -142,8 +142,8 @@ final class Requests {
 
     record OptimizeBody(
             @NotNull @ValidLevel Integer level,
-            String role,
-            List<@NotNull BuildClass> classes,
+            @Size(max = 32) String role,
+            @Size(max = 12) List<@NotNull BuildClass> classes,
             @Pattern(regexp = "solo|party") String context,
             @Pattern(regexp = "quick|standard|thorough") String preset,
             @Valid GaBody ga,
@@ -157,7 +157,7 @@ final class Requests {
         }
     }
 
-    record RescoreBody(String role, Map<String, @NotNull @DecimalMin("0") Double> weights, Boolean save) {
+    record RescoreBody(@Size(max = 32) String role, @Size(max = 6) Map<String, @NotNull @DecimalMin("0") Double> weights, Boolean save) {
 
         void check() {
             if ((role == null) == (weights == null)) {

@@ -19,7 +19,10 @@ class ReportStoreConfigTest {
         return new SimProperties(
                 new SimProperties.ReportStore(type, "out/test-reports"),
                 new SimProperties.D1(d1Enabled, "https://api.cloudflare.com/client/v4", account, database, token, Duration.ofSeconds(5)),
-                new SimProperties.Executor(1, 1));
+                new SimProperties.Executor(1, 1),
+                new SimProperties.Limits(2000, 200, 100, 128, 100, 64, 2_000_000L),
+                new SimProperties.Security(SimProperties.SecurityMode.NONE, null),
+                new SimProperties.RateLimit(false, 600, 60));
     }
 
     @Test

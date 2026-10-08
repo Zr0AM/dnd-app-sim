@@ -40,10 +40,16 @@ public final class EncounterService {
 
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
+    private final SimLimits limits;
 
     public EncounterService(ContentCatalogs catalogs, SimulationExecutor executor) {
+        this(catalogs, executor, SimLimits.defaults());
+    }
+
+    public EncounterService(ContentCatalogs catalogs, SimulationExecutor executor, SimLimits limits) {
         this.catalogs = catalogs;
         this.executor = executor;
+        this.limits = limits;
     }
 
     /** Where a fight happens and who the enemies are. */
@@ -83,6 +89,7 @@ public final class EncounterService {
 
     public EncounterResult simulate(EncounterCommand cmd) {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
+        SimLimits.require(cmd.runs(), limits.encounterRuns(), "runs", "runs per encounter");
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
         List<Member> party = resolveParty(cmd, level, seed);
         Arena arena = resolveArena(cmd, party.size(), level);

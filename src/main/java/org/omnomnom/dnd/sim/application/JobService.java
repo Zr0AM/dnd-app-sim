@@ -45,13 +45,19 @@ public final class JobService {
     private final SimulationExecutor executor;
     private final ReportStore store;
     private final Clock clock;
+    private final SimLimits limits;
     private final Map<String, Job> jobs = new LinkedHashMap<>();
 
     public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock) {
+        this(catalogs, executor, store, clock, SimLimits.defaults());
+    }
+
+    public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits) {
         this.catalogs = catalogs;
         this.executor = executor;
         this.store = store;
         this.clock = clock;
+        this.limits = limits;
     }
 
     /** The mutable state of one job; every access goes through the job's monitor. */
@@ -145,6 +151,11 @@ public final class JobService {
         EvaluationService.requireKnownRole(role);
         List<BuildClass> classes = cmd.classes() == null ? List.of() : cmd.classes().stream().distinct().toList();
         Effort effort = effort(cmd.level(), cmd.preset(), cmd.ga());
+        SimLimits.require(effort.populationSize(), limits.optimizePopulation(), "ga.populationSize", "the population size");
+        SimLimits.require(effort.generations(), limits.optimizeGenerations(), "ga.generations", "the number of generations");
+        SimLimits.require(effort.evalRuns(), limits.optimizeEvalRuns(), "ga.evalRuns", "evaluation runs per scenario");
+        long fights = (long) effort.populationSize() * (effort.generations() + 1) * effort.evalRuns() * level.martial().scenarios().size();
+        SimLimits.require(fights, limits.optimizeMaxFights(), "ga", "the optimization (up to " + fights + " fights)");
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
 
         List<String> warnings = new ArrayList<>();
@@ -212,6 +223,7 @@ public final class JobService {
         int level = report.config().get("level") instanceof Number n ? n.intValue() : -1;
         ContentCatalogs.LevelContent content = catalogs.level(level);
         int simulatedDays = days != null ? days : DEFAULT_CAMPAIGN_DAYS;
+        SimLimits.require(simulatedDays, limits.campaignDays(), "days", "simulated days");
 
         Job job = new Job(JobView.Kind.CAMPAIGN, seed, List.of());
         return submit(job, () -> {

@@ -77,10 +77,16 @@ public final class EvaluationService {
 
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
+    private final SimLimits limits;
 
     public EvaluationService(ContentCatalogs catalogs, SimulationExecutor executor) {
+        this(catalogs, executor, SimLimits.defaults());
+    }
+
+    public EvaluationService(ContentCatalogs catalogs, SimulationExecutor executor, SimLimits limits) {
         this.catalogs = catalogs;
         this.executor = executor;
+        this.limits = limits;
     }
 
     /** The party slot a role's hero fills; roles with no slot (generalist, equal) fall back to the controller. */
@@ -103,6 +109,9 @@ public final class EvaluationService {
     public EvalOutcome evaluate(EvalCommand cmd) {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
         requireKnownRole(cmd.role());
+        if (cmd.runsPerScenario() != null) {
+            SimLimits.require(cmd.runsPerScenario(), limits.evalRunsPerScenario(), "runs", "runs per scenario");
+        }
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
         Genome genome = GenomeResolver.resolve(cmd.genome(), level.martial(), seed, "genome");
         String description = Reports.describe(genome, cmd.level());
@@ -126,6 +135,7 @@ public final class EvaluationService {
 
     public CampaignOutcome campaign(CampaignCommand cmd) {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
+        SimLimits.require(cmd.days(), limits.campaignDays(), "days", "simulated days");
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
         Genome genome = GenomeResolver.resolve(cmd.genome(), level.martial(), seed, "genome");
         Campaign.Result r = executor.call(() -> Campaign.evaluateAdventuringDay(genome, level.martial(), cmd.days(), cmd.shortRestHealFraction()));
