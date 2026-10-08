@@ -51,7 +51,7 @@ class ProblemHandler {
     ResponseEntity<ProblemDetail> invalidParameter(HandlerMethodValidationException e) {
         List<FieldError> errors = new ArrayList<>();
         e.getParameterValidationResults().forEach(r -> r.getResolvableErrors().forEach(re -> errors.add(
-                new FieldError(r.getMethodParameter().getParameterName(), re.getDefaultMessage(), re.getCodes() == null ? null : re.getCodes()[0]))));
+                new FieldError(r.getMethodParameter().getParameterName(), re.getDefaultMessage(), re.getCodes() == null || re.getCodes().length == 0 ? null : re.getCodes()[re.getCodes().length - 1]))));
         return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "A parameter failed validation.", errors);
     }
 

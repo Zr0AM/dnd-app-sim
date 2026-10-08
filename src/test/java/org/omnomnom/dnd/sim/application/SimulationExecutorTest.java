@@ -58,4 +58,41 @@ class SimulationExecutorTest {
             assertThat(exec.call(() -> "ok")).isEqualTo("ok");
         }
     }
+
+    @Test
+    void workersAreDaemonThreads() {
+        try (SimulationExecutor exec = new SimulationExecutor(1, 1)) {
+            assertThat(exec.call(() -> Thread.currentThread().isDaemon())).isTrue();
+        }
+    }
+
+    @Test
+    void interruptingTheCallerInterruptsTheRunningTask() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch taskSawInterrupt = new CountDownLatch(1);
+        try (SimulationExecutor exec = new SimulationExecutor(1, 1)) {
+            Throwable[] failure = new Throwable[1];
+            Thread caller = new Thread(() -> {
+                try {
+                    exec.call(() -> {
+                        started.countDown();
+                        try {
+                            new CountDownLatch(1).await(); // blocks until interrupted
+                        } catch (InterruptedException e) {
+                            taskSawInterrupt.countDown();
+                        }
+                        return null;
+                    });
+                } catch (Throwable t) {
+                    failure[0] = t;
+                }
+            });
+            caller.start();
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            caller.interrupt();
+            caller.join(5000);
+            assertThat(taskSawInterrupt.await(5, TimeUnit.SECONDS)).as("the worker is interrupted, not left running").isTrue();
+            assertThat(failure[0]).isInstanceOf(IllegalStateException.class).hasMessageContaining("interrupted");
+        }
+    }
 }

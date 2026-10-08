@@ -167,6 +167,14 @@ the first fight (a fresh hero is already at full HP and resources). Not killable
 the day-clear test, because a solo party win with an unconscious hero cannot happen and the 50-round cap draw is
 vanishingly rare.
 
+Phase 10 (application layer and web adapter) was mutation-sampled on eight files (about 12 mutants each): 18 survivors.
+The real gaps (the average-rounds accumulator, the exact-capacity boundary, cursor paging across neighbouring slugs,
+inclusive challenge-rating bounds, per-member and fixed enemy counts, weapon property names, executor interruption and
+daemon workers, request defaults, and the problem `type` and `code`) are covered by `ContentServiceTest`,
+`SimulationExecutorTest` and `SimulateApiTest`. Field-error codes for parameter problems now name the constraint
+(`Min`, `ValidLevel`) rather than leaking the controller method. The 10b files (jobs, stores, report endpoints) have not
+been mutation-sampled.
+
 ## Port progress
 
 | Area | Status |
