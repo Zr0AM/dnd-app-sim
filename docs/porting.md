@@ -49,7 +49,7 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 6 | `claude/phase-5-ai` | tactical AI (`policy.ts`) |
 | 7 | `claude/phase-6-content` | seed data + sync script, `ContentSource` port, SQLite adapter, monster compiler, multiattack data |
 | 8 | `claude/phase-7-builds` | character and caster compilers, spell catalog, class features, fillers |
-| 9 | `claude/phase-8-scenarios-eval` | scenarios, party harness, evaluators, statistical conformance tests |
+| 9 | `claude/phase-8-scenarios-eval` | scenario library, maps, reference-party harness, `Stats`, solo and party evaluators (take a hero factory; the genome and catalog arrive with the optimizer) |
 | 10 | `claude/phase-9-optimizer` | NSGA-II, reports, roles, campaign |
 | 11 | `claude/phase-10-rest` | controllers, jobs, report stores (filesystem, D1) |
 | 12 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
@@ -66,6 +66,7 @@ RUN="node --experimental-transform-types --import ./tools/reference/register-ts.
 python3 tools/reference/gen-scenarios.py   # scenarios.json + sweep.json.gz + build-sweep.json.gz (inputs shared by both engines)
 $RUN tools/reference/gen-rng.mts           # rng.json: seeds, streams, d20 and dice rolls
 $RUN tools/reference/gen-encounters.mts    # encounters.json + sweep-expected.json + build-sweep-expected.json (TypeScript's answers)
+$RUN tools/reference/gen-eval.mts          # eval-expected.json: the TS solo and party evaluators over 24 caster heroes
 $RUN tools/reference/gen-content.mts       # content.json: all 341 monster templates (hashed), equipment, classes, slots
 DUMP=sweep-042 $RUN tools/reference/gen-encounters.mts   # print one fight's events, to debug a mismatch
 ```
@@ -94,6 +95,12 @@ together.
   arts, stunning strike, Wild Shape, Dark One's Blessing, Hunter's Mark, aura, Colossus Slayer), the spell catalog,
   the six reference fillers and compiled SRD monsters, driven by the tactical AI. Same SHA-256 comparison; a wrong AC,
   hit-point total, slot count or feature rider anywhere diverges the fight.
+- **Evaluators** (`eval-input.json`, `EvaluatorParityTest`): the real TypeScript `evaluate` and `evaluatePartyBuild`
+  run 24 caster heroes (6 classes at levels 3, 5, 11 and 17) through the real catalog, scenario library and reference
+  parties; Java builds the same heroes from recipes and every metric, confidence interval and run count must match
+  to 1e-9. Because upstream builds its heroes from a genome and its catalog while Java uses recipes, a match also shows
+  the two hero definitions agree. Martial heroes need the genome and catalog, so they are covered once those land
+  (the optimizer phase); their combat is already covered by the build sweep.
 - Because RNG streams are addressed by combatant/spell/target labels, any change to a rule, a label or an AI
   decision shows up as a divergence. The rest of the engine (content, optimizer) is held to statistical equivalence.
 
@@ -136,8 +143,9 @@ are covered by the build sweep and unit tests only. Finishing that is tracked fo
 | `ai` (tactical policy) | done (Phase 5) |
 | `content`: seed data, `ContentSource` + SQLite adapter, monster compiler | done (Phase 6) |
 | `content`: character/caster compilers, spell catalog, class features, fillers | done (Phase 7) |
-| `scenario`, evaluators | next |
-| `opt`, REST | not started |
+| `scenario` (maps, library, party harness), `opt/stats`, solo and party evaluators | done (Phase 8) |
+| `opt`: genome, catalog, NSGA-II, reports, roles, campaign | next |
+| REST | not started |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover

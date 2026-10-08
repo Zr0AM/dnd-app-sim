@@ -22,6 +22,7 @@ import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.Grid;
 import org.omnomnom.dnd.sim.domain.grid.GridMath;
 import org.omnomnom.dnd.sim.domain.rng.LabeledRandom;
+import org.omnomnom.dnd.sim.testsupport.RecipeFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;

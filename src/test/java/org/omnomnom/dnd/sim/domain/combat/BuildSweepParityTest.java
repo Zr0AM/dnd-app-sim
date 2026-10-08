@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
+import org.omnomnom.dnd.sim.testsupport.RecipeFactory;
 import org.omnomnom.dnd.sim.testsupport.TestJson;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;

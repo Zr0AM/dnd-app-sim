@@ -1,4 +1,4 @@
-package org.omnomnom.dnd.sim.domain.combat;
+package org.omnomnom.dnd.sim.testsupport;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -8,6 +8,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.omnomnom.dnd.sim.domain.combat.AttackKind;
+import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
+import org.omnomnom.dnd.sim.domain.combat.Combatant;
+import org.omnomnom.dnd.sim.domain.combat.CombatantTestAccess;
+import org.omnomnom.dnd.sim.domain.combat.FeatureFactory;
+import org.omnomnom.dnd.sim.domain.combat.Recharge;
+import org.omnomnom.dnd.sim.domain.combat.ResourceSpec;
+import org.omnomnom.dnd.sim.domain.combat.Side;
+import org.omnomnom.dnd.sim.domain.combat.Spell;
+import org.omnomnom.dnd.sim.domain.combat.SpellcastingSpec;
 import org.omnomnom.dnd.sim.domain.content.BuildSpec;
 import org.omnomnom.dnd.sim.domain.content.CasterBuildSpec;
 import org.omnomnom.dnd.sim.domain.content.CasterCompiler;
@@ -38,19 +48,19 @@ import tools.jackson.databind.JsonNode;
  * Builds combatants from the build-sweep "recipes" through the real content layer (the seed data, the compilers, the
  * fillers and the class features). Mirrors {@code makeFromRecipe} in {@code tools/reference/gen-encounters.mts}.
  */
-final class RecipeFactory {
+public final class RecipeFactory {
 
     private final ContentSource source;
     private final Map<String, MonsterTemplate> monsters = new HashMap<>();
     private final Map<Integer, Map<Role, Fillers.Filler>> fillersByLevel = new HashMap<>();
 
-    RecipeFactory(ContentSource source) {
+    public RecipeFactory(ContentSource source) {
         this.source = source;
         source.monsterSources().forEach(
                 s -> monsters.put(s.monster().monsterSlug(), MonsterCompiler.compile(s, MonsterMultiattack.overridesFor(s.monster().monsterSlug()))));
     }
 
-    static boolean isRecipe(JsonNode c) {
+    public static boolean isRecipe(JsonNode c) {
         return c.has("martial") || c.has("caster") || c.has("filler") || c.has("monster");
     }
 
@@ -159,7 +169,7 @@ final class RecipeFactory {
         return CasterCompiler.compile(spec.cantrips(cantrips).spells(spells).build());
     }
 
-    Combatant make(JsonNode c) {
+    public Combatant make(JsonNode c) {
         Combatant combatant;
         if (c.has("martial")) {
             combatant = martial(c);
@@ -173,7 +183,7 @@ final class RecipeFactory {
                     new MonsterCompiler.Placement(c.get("id").asString(), side(c), position(c)));
         }
         if (c.has("startHp")) {
-            combatant.setHp(c.get("startHp").asInt());
+            CombatantTestAccess.setHp(combatant, c.get("startHp").asInt());
         }
         c.path("conditions").forEach(cond -> combatant.addCondition(Condition.fromCode(cond.asString())));
         return combatant;
