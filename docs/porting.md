@@ -50,7 +50,7 @@ Each PR targets the previous PR's branch; merge bottom-up.
 | 7 | `claude/phase-6-content` | seed data + sync script, `ContentSource` port, SQLite adapter, monster compiler, multiattack data |
 | 8 | `claude/phase-7-builds` | character and caster compilers, spell catalog, class features, fillers |
 | 9 | `claude/phase-8-scenarios-eval` | scenario library, maps, reference-party harness, `Stats`, solo and party evaluators (take a hero factory; the genome and catalog arrive with the optimizer) |
-| 10 | `claude/phase-9-optimizer` | NSGA-II, reports, roles, campaign |
+| 10 | `claude/phase-9-optimizer` | genome and catalog, NSGA-II (with progress and cancel hooks), reports, role presets, adventuring-day campaign, anchor |
 | 11 | `claude/phase-10-rest` | controllers, jobs, report stores (filesystem, D1) |
 | 12 | `claude/phase-11-hardening` | limits, auth/rate limiting, profiling |
 
@@ -67,6 +67,7 @@ python3 tools/reference/gen-scenarios.py   # scenarios.json + sweep.json.gz + bu
 $RUN tools/reference/gen-rng.mts           # rng.json: seeds, streams, d20 and dice rolls
 $RUN tools/reference/gen-encounters.mts    # encounters.json + sweep-expected.json + build-sweep-expected.json (TypeScript's answers)
 $RUN tools/reference/gen-eval.mts          # eval-expected.json: the TS solo and party evaluators over 24 caster heroes
+$RUN tools/reference/gen-opt.mts           # opt-expected.json: genome operators, every class through the solo evaluator, NSGA-II runs, reports, campaign, anchor
 $RUN tools/reference/gen-content.mts       # content.json: all 341 monster templates (hashed), equipment, classes, slots
 DUMP=sweep-042 $RUN tools/reference/gen-encounters.mts   # print one fight's events, to debug a mismatch
 ```
@@ -101,6 +102,12 @@ together.
   to 1e-9. Because upstream builds its heroes from a genome and its catalog while Java uses recipes, a match also shows
   the two hero definitions agree. Martial heroes need the genome and catalog, so they are covered once those land
   (the optimizer phase); their combat is already covered by the build sweep.
+- **Optimizer** (`opt-expected.json`, `OptimizerParityTest`): 90 chained random, mutate, mutate and crossover
+  steps compared genome for genome (same labeled streams, same draw order); all 12 classes x 4 checkpoint levels (192
+  genomes) through `buildFromGenome` and the solo evaluator, which also gives the martial evaluator parity deferred
+  from Phase 8; the NSGA-II sort and crowding cores on tied synthetic points; three full NSGA-II runs (two at level 3,
+  one at 11, one with a class restriction) compared for every individual's genome, objectives, rank and crowding, then
+  their reports, role rescoring and campaign annotation; the adventuring day for 16 builds; and the anchor.
 - Because RNG streams are addressed by combatant/spell/target labels, any change to a rule, a label or an AI
   decision shows up as a divergence. The rest of the engine (content, optimizer) is held to statistical equivalence.
 
@@ -139,6 +146,17 @@ cases, the allies-alive fraction and the objective signs, all now covered by `Ma
 `ScenarioTest`. Two survivors are equivalent mutants: the sample-standard-deviation form `(v-m)*(v+m)` sums to the same
 value as `(v-m)^2` whenever `m` is the mean, and the Wilson upper clamp at `p = 1` differs only by rounding.
 
+Deliberate differences in the optimizer port:
+
+- `opt/ga.ts` (the scalar GA) is **not ported**: NSGA-II supersedes it and the API exposes no GA.
+- `describeGenome` prints the level (`L3 fighter ...`) where upstream prints a literal `L?` placeholder.
+- Reports are plain records; the run key hashes a canonical JSON string the caller supplies, so a key matches upstream
+  only when the config text is identical (the parity test uses identical text). The API contract does not promise
+  equal keys across implementations.
+- NSGA-II gains a progress listener and a cancellation check at generation boundaries, which the job service uses.
+- Evaluation inside a run is single-threaded and cached by genome key; parallelism belongs to the job layer (one run per
+  executor thread), because results must not depend on thread timing.
+
 ## Port progress
 
 | Area | Status |
@@ -150,8 +168,8 @@ value as `(v-m)^2` whenever `m` is the mean, and the Wilson upper clamp at `p = 
 | `content`: seed data, `ContentSource` + SQLite adapter, monster compiler | done (Phase 6) |
 | `content`: character/caster compilers, spell catalog, class features, fillers | done (Phase 7) |
 | `scenario` (maps, library, party harness), `opt/stats`, solo and party evaluators | done (Phase 8) |
-| `opt`: genome, catalog, NSGA-II, reports, roles, campaign | next |
-| REST | not started |
+| `opt`: genome, catalog, NSGA-II, reports, role presets, campaign, anchor | done (Phase 9) |
+| `application` use cases, REST, jobs, report stores (filesystem, D1) | next |
 
 Tests still waiting on later ports: the "casting in the engine" block of `spell.spec.ts` and the `buff`, `control`
 and `metamagic` specs use the spell catalog and/or the tactical AI. The data-driven parity scenarios already cover

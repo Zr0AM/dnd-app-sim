@@ -20,7 +20,8 @@
    "caster": {
     "spellAbility": "int",
     "cantrips": [
-     "fire-bolt"
+     "fire-bolt",
+     "ray-of-frost"
     ],
     "spells": [
      "burning-hands",
@@ -51,7 +52,8 @@
    "caster": {
     "spellAbility": "int",
     "cantrips": [
-     "fire-bolt"
+     "fire-bolt",
+     "ray-of-frost"
     ],
     "spells": [
      "burning-hands",
@@ -82,7 +84,8 @@
    "caster": {
     "spellAbility": "int",
     "cantrips": [
-     "fire-bolt"
+     "fire-bolt",
+     "ray-of-frost"
     ],
     "spells": [
      "burning-hands",
@@ -113,7 +116,8 @@
    "caster": {
     "spellAbility": "int",
     "cantrips": [
-     "fire-bolt"
+     "fire-bolt",
+     "ray-of-frost"
     ],
     "spells": [
      "burning-hands",

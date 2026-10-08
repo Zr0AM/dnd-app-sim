@@ -439,7 +439,7 @@ SUBCLASS = {"fighter": "champion", "barbarian": "path-of-the-berserker", "rogue"
             "bard": "college-of-lore", "sorcerer": "draconic-sorcery", "warlock": "fiend-patron", "druid": "circle-of-the-land"}
 STD = [15, 14, 13, 12, 10, 8]
 CASTERS = {  # mirrors CASTER_SPECS in sim/src/opt/catalog.ts
-    "wizard": dict(spellAbility="int", cantrips=["fire-bolt"], spells=["burning-hands", "scorching-ray", "fireball", "hold-person", "hypnotic-pattern"], weapon="Dagger", armor=None, shield=False),
+    "wizard": dict(spellAbility="int", cantrips=["fire-bolt", "ray-of-frost"], spells=["burning-hands", "scorching-ray", "fireball", "hold-person", "hypnotic-pattern"], weapon="Dagger", armor=None, shield=False),
     "cleric": dict(spellAbility="wis", cantrips=["sacred-flame"], spells=["cure-wounds", "healing-word", "guiding-bolt"], weapon="Mace", armor="Scale Mail", shield=True),
     "bard": dict(spellAbility="cha", cantrips=[], spells=["bless", "haste"], weapon="Rapier", armor="Leather Armor", shield=False),
     "sorcerer": dict(spellAbility="cha", cantrips=["fire-bolt"], spells=["burning-hands", "scorching-ray", "fireball", "hold-person"], weapon="Dagger", armor=None, shield=False,
