@@ -133,6 +133,12 @@ short-rest recharge), now covered in `CharacterCompilerTest`. The tie in `weapon
 is an equivalent mutant. `CasterCompiler`, the feature classes and `SpellCatalog` were **not** mutation-sampled; they
 are covered by the build sweep and unit tests only. Finishing that is tracked for the hardening phase.
 
+Phase 8 (scenarios, party harness, evaluators) was mutation-sampled on all nine files (about 10 mutants each): 21
+survivors exposed unpinned deployment cells and map sizes, the default run counts, the empty-result and one-run edge
+cases, the allies-alive fraction and the objective signs, all now covered by `MapsTest`, `EvaluatorTest` and
+`ScenarioTest`. Two survivors are equivalent mutants: the sample-standard-deviation form `(v-m)*(v+m)` sums to the same
+value as `(v-m)^2` whenever `m` is the mean, and the Wilson upper clamp at `p = 1` differs only by rounding.
+
 ## Port progress
 
 | Area | Status |

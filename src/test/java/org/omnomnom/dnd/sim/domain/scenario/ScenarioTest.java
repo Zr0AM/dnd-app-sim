@@ -194,6 +194,12 @@ class ScenarioTest {
     }
 
     @Test
+    void anOversizedPartyEncounterIsCappedAtTheMapsEnemyCells() {
+        // Seven members would call for 35 goblins; the map has 30 cells.
+        assertThat(PartyScenarios.load(monsters, 7, 5).get(0).spawnEnemies()).hasSize(30);
+    }
+
+    @Test
     void partyScenariosSpawnFreshEnemiesOnPassableCells() {
         PartyScenario s = PartyScenarios.load(monsters, 4, 5).get(0);
         for (Combatant e : s.spawnEnemies()) {
