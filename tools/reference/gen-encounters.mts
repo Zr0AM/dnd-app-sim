@@ -1,0 +1,373 @@
+// Runs the shared scenarios (src/test/resources/reference/scenarios.json) through the ORIGINAL TypeScript
+// engine and writes the resulting event logs and final states to src/test/resources/reference/encounters.json.
+// The Java EncounterParityTest builds the same scenarios and must reproduce this output exactly.
+//
+//   DND_APP_DIR=/path/to/dnd-app node --experimental-strip-types tools/reference/gen-encounters.mts
+//
+// Upstream baseline: Zr0AM/dnd-app @ 8db9df32179604057009203c9effa5bc91c9dd6f.
+//
+// Plan intent grammar (one string per intent, tried in order every turn; failed actions are ignored):
+//   approach:<rangeFt>                 move toward the nearest enemy until within rangeFt (as far as movement allows)
+//   retreat:<cells>                    move <cells> straight away from the nearest enemy
+//   attack:<weaponIndex>:<max>         attack the nearest enemy up to <max> times with that weapon
+//   cast:<spell>:<slot|->:<rule>:<q|-> cast a spell; slot '-' = spell's own level; 'q' = Quickened Spell
+//   lay                                Lay on Hands on the weakest wounded ally
+//   mark                               Hunter's Mark on the nearest enemy
+// Target rules: nearest | farthest | strongest (highest max HP) | weakest-ally (lowest HP fraction) | nearest-ally.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const appDir = process.env.DND_APP_DIR ?? '/home/user/dnd-app';
+const load = (rel: string) => import(pathToFileURL(join(appDir, 'sim/src', rel)).href);
+const { Random } = await load('rng/rng.ts');
+const { Grid, cell, distanceFt } = await load('grid/grid.ts');
+const { dice } = await load('dice/dice.ts');
+const { Combatant } = await load('combat/actor.ts');
+const { Encounter } = await load('combat/encounter.ts');
+
+const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
+const input = JSON.parse(readFileSync(join(root, 'scenarios.json'), 'utf8'));
+
+const D = (a: number[]) => dice(a[0], a[1], a[2] ?? 0);
+
+function scaling(s: any) {
+  switch (s.type) {
+    case 'cantrip': {
+      return (_slot: number, level: number) =>
+        dice(s.count + (level >= 5 ? 1 : 0) + (level >= 11 ? 1 : 0) + (level >= 17 ? 1 : 0), s.sides);
+    }
+    case 'upcast':
+      return (slot: number) => dice(s.count + Math.max(0, slot - s.baseLevel) * s.perUpcast, s.sides);
+    case 'fixed':
+      return () => dice(s.count, s.sides, s.bonus ?? 0);
+    default:
+      throw new Error('scaling ' + s.type);
+  }
+}
+
+function makeSpell(id: string, s: any) {
+  const k = s.kind;
+  let kind: any;
+  switch (k.type) {
+    case 'attack-damage':
+      kind = {
+        type: k.type,
+        damage: scaling(k.damage),
+        damageType: k.damageType,
+        rays: k.rays,
+        raysPerUpcast: k.raysPerUpcast,
+        beams: k.beamsByLevel
+          ? (lvl: number) => k.beamsByLevel.filter((t: number[]) => t[0] <= lvl).at(-1)[1]
+          : undefined,
+        addSpellMod: k.addSpellMod,
+      };
+      break;
+    case 'save-damage':
+      kind = {
+        type: k.type,
+        save: k.save,
+        damage: scaling(k.damage),
+        damageType: k.damageType,
+        onSuccess: k.onSuccess,
+        aoeRadiusFt: k.aoeRadiusFt,
+        selfOrigin: k.selfOrigin,
+      };
+      break;
+    case 'heal':
+      kind = { type: k.type, dice: scaling(k.dice), addSpellMod: k.addSpellMod };
+      break;
+    case 'control':
+      kind = {
+        type: k.type,
+        save: k.save,
+        condition: k.condition,
+        rounds: k.rounds,
+        repeatSaveEndsEffect: k.repeatSaveEndsEffect,
+        aoeRadiusFt: k.aoeRadiusFt,
+      };
+      break;
+    case 'buff':
+      kind = {
+        type: k.type,
+        buffId: k.buffId,
+        maxTargets: k.maxTargets,
+        rounds: k.rounds,
+        attackBonusDice: k.attackBonusDice ? D(k.attackBonusDice) : undefined,
+        saveBonusDice: k.saveBonusDice ? D(k.saveBonusDice) : undefined,
+        acBonus: k.acBonus,
+        extraAttackAction: k.extraAttackAction,
+      };
+      break;
+    default:
+      throw new Error('kind ' + k.type);
+  }
+  return {
+    id,
+    name: s.name,
+    level: s.level,
+    action: s.action,
+    rangeFt: s.rangeFt,
+    concentration: s.concentration,
+    kind,
+  };
+}
+const spells: Record<string, any> = {};
+for (const [id, s] of Object.entries(input.spells)) spells[id] = makeSpell(id, s);
+
+// ---- features (each combatant gets its own instance) -------------------------------------------
+function makeFeature(id: string): any {
+  switch (id) {
+    case 'berserk': {
+      let riderUsed = false;
+      let effectUsed = false;
+      return {
+        id,
+        onTurnStart() {
+          riderUsed = false;
+          effectUsed = false;
+        },
+        onHit() {
+          if (riderUsed) return [];
+          riderUsed = true;
+          return [{ damage: dice(1, 6, 0), type: 'necrotic' }];
+        },
+        onHitEffect() {
+          if (effectUsed) return null;
+          effectUsed = true;
+          return { save: 'con', dc: 11, condition: 'stunned', rounds: 1 };
+        },
+        onKill(self: any) {
+          self.grantTempHp(5);
+        },
+        resistsDamage(_self: any, type: string) {
+          return type === 'bludgeoning' || type === 'piercing' || type === 'slashing';
+        },
+      };
+    }
+    case 'reckless':
+      return {
+        id,
+        outgoingAttack(_self: any, _target: any, weapon: any) {
+          return weapon.kind === 'melee' ? { advantage: true } : null;
+        },
+        grantsAttackersAdvantage() {
+          return true;
+        },
+      };
+    case 'flurry':
+      return {
+        id,
+        bonusAttackActions() {
+          return 1;
+        },
+      };
+    case 'aura-of-protection':
+      return { id };
+    default:
+      throw new Error('feature ' + id);
+  }
+}
+
+// ---- building combatants and grids ----------------------------------------------------------------
+const ABILITY = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+function makeCombatant(c: any) {
+  const spec: any = {
+    id: c.id,
+    name: c.name,
+    side: c.side,
+    level: c.level,
+    abilities: Object.fromEntries(ABILITY.map((a, i) => [a, c.abilities[i]])),
+    ac: c.ac,
+    maxHp: c.maxHp,
+    position: cell(c.position[0], c.position[1]),
+    attacks: c.attacks.map((a: any) => ({
+      name: a.name,
+      kind: a.kind,
+      reachFt: a.reachFt,
+      rangeFt: a.rangeFt,
+      rangeLongFt: a.rangeLongFt,
+      attackBonus: a.attackBonus,
+      damage: D(a.damage),
+      damageType: a.damageType,
+      extraDamage: a.extraDamage?.map((e: any) => ({ damage: D(e.damage), type: e.type })),
+      critRange: a.critRange,
+      finesse: a.finesse,
+    })),
+    features: (c.features ?? []).map(makeFeature),
+    extraAttacks: c.extraAttacks,
+    legendaryActions: c.legendaryActions,
+    saveProficiencies: c.saveProficiencies,
+    saveBonuses: c.saveBonuses,
+    damageResponses: c.damageResponses,
+    speedFt: c.speedFt,
+    resources: c.resources,
+  };
+  if (c.spellcasting) {
+    spec.spellcasting = {
+      ability: c.spellcasting.ability,
+      slots: c.spellcasting.slots.map((s: number[]) => ({ level: s[0], count: s[1] })),
+      cantrips: c.spellcasting.cantrips.map((id: string) => spells[id]),
+      spells: c.spellcasting.spells.map((id: string) => spells[id]),
+      shortRestSlots: c.spellcasting.shortRestSlots,
+    };
+  }
+  const combatant = new Combatant(spec);
+  if (c.startHp !== undefined) combatant.hp = c.startHp;
+  for (const cond of c.conditions ?? []) combatant.addCondition(cond);
+  return combatant;
+}
+
+function makeGrid(g: any) {
+  const grid = new Grid(g.width, g.height, g.cellFt ?? 5);
+  for (const [x, y] of g.walls ?? []) grid.setTerrain(cell(x, y), { wall: true });
+  for (const [x, y] of g.difficult ?? []) grid.setTerrain(cell(x, y), { difficult: true });
+  return grid;
+}
+
+// ---- the plan interpreter (mirrored exactly by the Java test) --------------------------------------
+const dist = (a: any, b: any) => distanceFt(a.position, b.position);
+
+function minBy<T>(list: T[], key: (t: T) => number): T | undefined {
+  let best: T | undefined;
+  let bestKey = Infinity;
+  for (const t of list) {
+    const k = key(t);
+    if (k < bestKey) {
+      bestKey = k;
+      best = t;
+    }
+  }
+  return best;
+}
+
+function pick(rule: string, api: any): any {
+  const self = api.self;
+  switch (rule) {
+    case 'nearest':
+      return minBy(api.enemies(), (c: any) => dist(self, c));
+    case 'farthest':
+      return minBy(api.enemies(), (c: any) => -dist(self, c));
+    case 'strongest':
+      return minBy(api.enemies(), (c: any) => -c.maxHp);
+    case 'nearest-ally':
+      return minBy(api.allies(), (c: any) => dist(self, c));
+    case 'weakest-ally': {
+      let best: any;
+      for (const c of api.allAllies()) {
+        if (c.hp >= c.maxHp) continue;
+        if (!best || c.hp * best.maxHp < best.hp * c.maxHp) best = c;
+      }
+      return best;
+    }
+    default:
+      throw new Error('rule ' + rule);
+  }
+}
+
+function stepToward(from: any, to: any, steps: number) {
+  let { x, y } = from;
+  for (let i = 0; i < steps; i++) {
+    x += Math.sign(to.x - x);
+    y += Math.sign(to.y - y);
+  }
+  return cell(x, y);
+}
+
+function runIntent(intent: string, api: any) {
+  const [kind, ...p] = intent.split(':');
+  const self = api.self;
+  switch (kind) {
+    case 'approach': {
+      const t = pick('nearest', api);
+      if (!t) return;
+      const rangeFt = Number(p[0]);
+      const d = dist(self, t);
+      if (d <= rangeFt) return;
+      const need = Math.ceil((d - rangeFt) / 5);
+      const can = Math.floor(api.resources.movementFt / 5);
+      const steps = Math.min(need, can);
+      if (steps <= 0) return;
+      api.moveTo(stepToward(self.position, t.position, steps));
+      return;
+    }
+    case 'retreat': {
+      const t = pick('nearest', api);
+      if (!t) return;
+      const n = Number(p[0]);
+      const dx = Math.sign(self.position.x - t.position.x);
+      const dy = Math.sign(self.position.y - t.position.y);
+      api.moveTo(cell(self.position.x + dx * n, self.position.y + dy * n));
+      return;
+    }
+    case 'attack': {
+      const weapon = self.attacks[Number(p[0])];
+      for (let i = 0; i < Number(p[1]); i++) {
+        const t = pick('nearest', api);
+        if (!t) break;
+        if (api.attack(t, weapon) === null) break;
+      }
+      return;
+    }
+    case 'cast': {
+      const t = pick(p[2], api);
+      if (!t) return;
+      const slot = p[1] === '-' ? undefined : Number(p[1]);
+      api.castSpell(spells[p[0]], t, slot, p[3] === 'q');
+      return;
+    }
+    case 'lay': {
+      const t = pick('weakest-ally', api);
+      if (t) api.layOnHands(t);
+      return;
+    }
+    case 'mark': {
+      const t = pick('nearest', api);
+      if (t) api.markTarget(t);
+      return;
+    }
+    default:
+      throw new Error('intent ' + kind);
+  }
+}
+
+// ---- run -------------------------------------------------------------------------------------------
+const results = input.scenarios.map((sc: any) => {
+  const combatants = sc.combatants.map(makeCombatant);
+  const e = new Encounter({
+    grid: makeGrid(sc.grid),
+    combatants,
+    rng: new Random(sc.seed),
+    policyFor: (c: any) => {
+      const plan: string[] = sc.plans[c.id] ?? [];
+      return (api: any) => {
+        for (const intent of plan) runIntent(intent, api);
+      };
+    },
+  });
+  const r = e.run(sc.roundCap);
+  return {
+    name: sc.name,
+    rounds: r.rounds,
+    winner: r.winner,
+    events: r.log,
+    final: combatants.map((c: any) => ({
+      id: c.id,
+      hp: c.hp,
+      tempHp: c.tempHp,
+      dead: c.dead,
+      stable: c.stable,
+      x: c.position.x,
+      y: c.position.y,
+    })),
+  };
+});
+
+const dest = join(root, 'encounters.json');
+writeFileSync(dest, JSON.stringify({ source: 'Zr0AM/dnd-app@8db9df32179604057009203c9effa5bc91c9dd6f', results }, null, 1) + '\n');
+for (const r of results) {
+  const kinds: Record<string, number> = {};
+  for (const ev of r.events) kinds[ev.kind] = (kinds[ev.kind] ?? 0) + 1;
+  console.log(r.name.padEnd(24), 'rounds', r.rounds, 'winner', r.winner, JSON.stringify(kinds));
+}
+console.log('wrote', dest);

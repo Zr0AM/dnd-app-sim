@@ -1,0 +1,1853 @@
+{
+ "$comment": "Shared by tools/reference/gen-encounters.mts (TypeScript) and EncounterParityTest (Java). Dice are [count, sides, bonus]. See gen-encounters.mts for the plan intent grammar.",
+ "spells": {
+  "fire-bolt": {
+   "name": "Fire Bolt",
+   "level": 0,
+   "action": "action",
+   "rangeFt": 120,
+   "concentration": false,
+   "kind": {
+    "type": "attack-damage",
+    "damage": {
+     "type": "cantrip",
+     "count": 1,
+     "sides": 10
+    },
+    "damageType": "fire"
+   }
+  },
+  "eldritch-blast": {
+   "name": "Eldritch Blast",
+   "level": 0,
+   "action": "action",
+   "rangeFt": 120,
+   "concentration": false,
+   "kind": {
+    "type": "attack-damage",
+    "damage": {
+     "type": "fixed",
+     "count": 1,
+     "sides": 10,
+     "bonus": 0
+    },
+    "damageType": "force",
+    "beamsByLevel": [
+     [
+      1,
+      1
+     ],
+     [
+      5,
+      2
+     ],
+     [
+      11,
+      3
+     ],
+     [
+      17,
+      4
+     ]
+    ],
+    "addSpellMod": true
+   }
+  },
+  "sacred-flame": {
+   "name": "Sacred Flame",
+   "level": 0,
+   "action": "action",
+   "rangeFt": 60,
+   "concentration": false,
+   "kind": {
+    "type": "save-damage",
+    "save": "dex",
+    "damage": {
+     "type": "cantrip",
+     "count": 1,
+     "sides": 8
+    },
+    "damageType": "radiant",
+    "onSuccess": "none"
+   }
+  },
+  "scorching-ray": {
+   "name": "Scorching Ray",
+   "level": 2,
+   "action": "action",
+   "rangeFt": 120,
+   "concentration": false,
+   "kind": {
+    "type": "attack-damage",
+    "damage": {
+     "type": "fixed",
+     "count": 2,
+     "sides": 6,
+     "bonus": 0
+    },
+    "damageType": "fire",
+    "rays": 3,
+    "raysPerUpcast": 1
+   }
+  },
+  "burning-hands": {
+   "name": "Burning Hands",
+   "level": 1,
+   "action": "action",
+   "rangeFt": 15,
+   "concentration": false,
+   "kind": {
+    "type": "save-damage",
+    "save": "dex",
+    "damage": {
+     "type": "upcast",
+     "baseLevel": 1,
+     "count": 3,
+     "sides": 6,
+     "perUpcast": 1
+    },
+    "damageType": "fire",
+    "onSuccess": "half",
+    "aoeRadiusFt": 15,
+    "selfOrigin": true
+   }
+  },
+  "fireball": {
+   "name": "Fireball",
+   "level": 3,
+   "action": "action",
+   "rangeFt": 150,
+   "concentration": false,
+   "kind": {
+    "type": "save-damage",
+    "save": "dex",
+    "damage": {
+     "type": "upcast",
+     "baseLevel": 3,
+     "count": 8,
+     "sides": 6,
+     "perUpcast": 1
+    },
+    "damageType": "fire",
+    "onSuccess": "half",
+    "aoeRadiusFt": 20
+   }
+  },
+  "hold-person": {
+   "name": "Hold Person",
+   "level": 2,
+   "action": "action",
+   "rangeFt": 60,
+   "concentration": true,
+   "kind": {
+    "type": "control",
+    "save": "wis",
+    "condition": "paralyzed",
+    "rounds": 10,
+    "repeatSaveEndsEffect": true
+   }
+  },
+  "hypnotic-pattern": {
+   "name": "Hypnotic Pattern",
+   "level": 3,
+   "action": "action",
+   "rangeFt": 120,
+   "concentration": true,
+   "kind": {
+    "type": "control",
+    "save": "wis",
+    "condition": "incapacitated",
+    "rounds": 10,
+    "repeatSaveEndsEffect": false,
+    "aoeRadiusFt": 15
+   }
+  },
+  "cure-wounds": {
+   "name": "Cure Wounds",
+   "level": 1,
+   "action": "action",
+   "rangeFt": 5,
+   "concentration": false,
+   "kind": {
+    "type": "heal",
+    "dice": {
+     "type": "upcast",
+     "baseLevel": 1,
+     "count": 2,
+     "sides": 8,
+     "perUpcast": 1
+    },
+    "addSpellMod": true
+   }
+  },
+  "healing-word": {
+   "name": "Healing Word",
+   "level": 1,
+   "action": "bonus",
+   "rangeFt": 60,
+   "concentration": false,
+   "kind": {
+    "type": "heal",
+    "dice": {
+     "type": "upcast",
+     "baseLevel": 1,
+     "count": 1,
+     "sides": 4,
+     "perUpcast": 1
+    },
+    "addSpellMod": true
+   }
+  },
+  "bless": {
+   "name": "Bless",
+   "level": 1,
+   "action": "action",
+   "rangeFt": 30,
+   "concentration": true,
+   "kind": {
+    "type": "buff",
+    "buffId": "bless",
+    "maxTargets": 3,
+    "rounds": 10,
+    "attackBonusDice": [
+     1,
+     4,
+     0
+    ],
+    "saveBonusDice": [
+     1,
+     4,
+     0
+    ]
+   }
+  },
+  "haste": {
+   "name": "Haste",
+   "level": 3,
+   "action": "action",
+   "rangeFt": 30,
+   "concentration": true,
+   "kind": {
+    "type": "buff",
+    "buffId": "haste",
+    "maxTargets": 1,
+    "rounds": 10,
+    "acBonus": 2,
+    "extraAttackAction": true
+   }
+  }
+ },
+ "scenarios": [
+  {
+   "name": "melee-brawl",
+   "seed": 101,
+   "roundCap": 10,
+   "grid": {
+    "width": 16,
+    "height": 12
+   },
+   "combatants": [
+    {
+     "id": "ftr1",
+     "name": "ftr1",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      18,
+      14,
+      16,
+      10,
+      10,
+      10
+     ],
+     "ac": 18,
+     "maxHp": 52,
+     "position": [
+      1,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "greatsword",
+       "kind": "melee",
+       "attackBonus": 7,
+       "damage": [
+        2,
+        6,
+        4
+       ],
+       "damageType": "slashing",
+       "reachFt": 5,
+       "critRange": 19
+      }
+     ],
+     "features": [
+      "berserk",
+      "reckless"
+     ],
+     "extraAttacks": 1,
+     "saveProficiencies": [
+      "str",
+      "con"
+     ]
+    },
+    {
+     "id": "ftr2",
+     "name": "ftr2",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      16,
+      14,
+      14,
+      10,
+      12,
+      8
+     ],
+     "ac": 17,
+     "maxHp": 44,
+     "position": [
+      1,
+      7
+     ],
+     "attacks": [
+      {
+       "name": "longsword",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      },
+      {
+       "name": "shortbow",
+       "kind": "ranged",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        6,
+        2
+       ],
+       "damageType": "piercing",
+       "rangeFt": 80,
+       "rangeLongFt": 320
+      }
+     ],
+     "features": [
+      "flurry"
+     ],
+     "extraAttacks": 1
+    },
+    {
+     "id": "g1",
+     "name": "g1",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      8,
+      14,
+      10,
+      10,
+      8,
+      8
+     ],
+     "ac": 15,
+     "maxHp": 13,
+     "position": [
+      11,
+      4
+     ],
+     "attacks": [
+      {
+       "name": "scimitar",
+       "kind": "melee",
+       "attackBonus": 4,
+       "damage": [
+        1,
+        6,
+        2
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "g2",
+     "name": "g2",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      8,
+      14,
+      10,
+      10,
+      8,
+      8
+     ],
+     "ac": 15,
+     "maxHp": 13,
+     "position": [
+      11,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "scimitar",
+       "kind": "melee",
+       "attackBonus": 4,
+       "damage": [
+        1,
+        6,
+        2
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "g3",
+     "name": "g3",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      8,
+      14,
+      10,
+      10,
+      8,
+      8
+     ],
+     "ac": 15,
+     "maxHp": 13,
+     "position": [
+      11,
+      8
+     ],
+     "attacks": [
+      {
+       "name": "scimitar",
+       "kind": "melee",
+       "attackBonus": 4,
+       "damage": [
+        1,
+        6,
+        2
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "brute",
+     "name": "brute",
+     "side": "enemy",
+     "level": 3,
+     "abilities": [
+      18,
+      10,
+      16,
+      6,
+      8,
+      6
+     ],
+     "ac": 13,
+     "maxHp": 59,
+     "position": [
+      12,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "flaming-axe",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        12,
+        4
+       ],
+       "damageType": "slashing",
+       "reachFt": 5,
+       "extraDamage": [
+        {
+         "damage": [
+          1,
+          6,
+          0
+         ],
+         "type": "fire"
+        }
+       ]
+      }
+     ],
+     "extraAttacks": 1,
+     "damageResponses": {
+      "slashing": "resistant",
+      "fire": "vulnerable"
+     }
+    }
+   ],
+   "plans": {
+    "ftr1": [
+     "approach:5",
+     "attack:0:2"
+    ],
+    "ftr2": [
+     "approach:5",
+     "attack:0:3"
+    ],
+    "g1": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "g2": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "g3": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "brute": [
+     "approach:5",
+     "attack:0:2"
+    ]
+   }
+  },
+  {
+   "name": "casters-and-support",
+   "seed": 202,
+   "roundCap": 12,
+   "grid": {
+    "width": 20,
+    "height": 14
+   },
+   "combatants": [
+    {
+     "id": "wiz",
+     "name": "wiz",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      8,
+      14,
+      14,
+      18,
+      12,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 32,
+     "position": [
+      1,
+      6
+     ],
+     "attacks": [],
+     "spellcasting": {
+      "ability": "int",
+      "slots": [
+       [
+        1,
+        4
+       ],
+       [
+        2,
+        3
+       ],
+       [
+        3,
+        2
+       ]
+      ],
+      "cantrips": [
+       "fire-bolt"
+      ],
+      "spells": [
+       "burning-hands",
+       "scorching-ray",
+       "fireball",
+       "hold-person",
+       "hypnotic-pattern"
+      ]
+     }
+    },
+    {
+     "id": "clr",
+     "name": "clr",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      13,
+      10,
+      14,
+      8,
+      16,
+      12
+     ],
+     "ac": 18,
+     "maxHp": 38,
+     "position": [
+      2,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "mace",
+       "kind": "melee",
+       "attackBonus": 4,
+       "damage": [
+        1,
+        6,
+        1
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 5
+      }
+     ],
+     "saveProficiencies": [
+      "wis",
+      "cha"
+     ],
+     "spellcasting": {
+      "ability": "wis",
+      "slots": [
+       [
+        1,
+        4
+       ],
+       [
+        2,
+        3
+       ]
+      ],
+      "cantrips": [
+       "sacred-flame"
+      ],
+      "spells": [
+       "cure-wounds",
+       "healing-word",
+       "bless"
+      ]
+     }
+    },
+    {
+     "id": "tnk",
+     "name": "tnk",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      16,
+      10,
+      16,
+      8,
+      12,
+      16
+     ],
+     "ac": 19,
+     "maxHp": 50,
+     "position": [
+      2,
+      7
+     ],
+     "attacks": [
+      {
+       "name": "longsword",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ],
+     "features": [
+      "aura-of-protection"
+     ],
+     "extraAttacks": 1,
+     "saveProficiencies": [
+      "wis",
+      "cha"
+     ]
+    },
+    {
+     "id": "bard",
+     "name": "bard",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      8,
+      14,
+      13,
+      10,
+      12,
+      16
+     ],
+     "ac": 15,
+     "maxHp": 30,
+     "position": [
+      1,
+      8
+     ],
+     "attacks": [
+      {
+       "name": "rapier",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        8,
+        2
+       ],
+       "damageType": "piercing",
+       "reachFt": 5,
+       "finesse": true
+      }
+     ],
+     "spellcasting": {
+      "ability": "cha",
+      "slots": [
+       [
+        1,
+        4
+       ],
+       [
+        2,
+        3
+       ],
+       [
+        3,
+        2
+       ]
+      ],
+      "cantrips": [],
+      "spells": [
+       "haste",
+       "bless"
+      ]
+     }
+    },
+    {
+     "id": "o1",
+     "name": "o1",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      16,
+      7,
+      11,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      10,
+      4
+     ],
+     "attacks": [
+      {
+       "name": "greataxe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        12,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "o2",
+     "name": "o2",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      16,
+      7,
+      11,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      10,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "greataxe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        12,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "o3",
+     "name": "o3",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      16,
+      7,
+      11,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      10,
+      8
+     ],
+     "attacks": [
+      {
+       "name": "greataxe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        12,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "o4",
+     "name": "o4",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      16,
+      7,
+      11,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      11,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "greataxe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        12,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "o5",
+     "name": "o5",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      16,
+      7,
+      11,
+      10
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      11,
+      7
+     ],
+     "attacks": [
+      {
+       "name": "greataxe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        12,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "ogre",
+     "name": "ogre",
+     "side": "enemy",
+     "level": 4,
+     "abilities": [
+      19,
+      8,
+      16,
+      5,
+      7,
+      7
+     ],
+     "ac": 11,
+     "maxHp": 59,
+     "position": [
+      3,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "great-club",
+       "kind": "melee",
+       "attackBonus": 9,
+       "damage": [
+        3,
+        10,
+        6
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "archer",
+     "name": "archer",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      10,
+      16,
+      12,
+      10,
+      10,
+      10
+     ],
+     "ac": 14,
+     "maxHp": 24,
+     "position": [
+      14,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "shortbow",
+       "kind": "ranged",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        6,
+        3
+       ],
+       "damageType": "piercing",
+       "rangeFt": 80,
+       "rangeLongFt": 320
+      }
+     ]
+    }
+   ],
+   "plans": {
+    "wiz": [
+     "cast:hypnotic-pattern:3:nearest:-",
+     "cast:hold-person:2:strongest:-",
+     "cast:fireball:3:nearest:-",
+     "cast:scorching-ray:2:nearest:-",
+     "cast:burning-hands:1:nearest:-",
+     "cast:fire-bolt:-:nearest:-"
+    ],
+    "clr": [
+     "cast:bless:1:nearest-ally:-",
+     "cast:healing-word:1:weakest-ally:-",
+     "cast:cure-wounds:1:weakest-ally:-",
+     "cast:sacred-flame:-:nearest:-"
+    ],
+    "tnk": [
+     "approach:5",
+     "attack:0:3"
+    ],
+    "bard": [
+     "cast:haste:3:nearest-ally:-",
+     "approach:5",
+     "attack:0:2"
+    ],
+    "o1": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "o2": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "o3": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "o4": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "o5": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "ogre": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "archer": [
+     "attack:0:1"
+    ]
+   }
+  },
+  {
+   "name": "legendary-boss",
+   "seed": 303,
+   "roundCap": 10,
+   "grid": {
+    "width": 14,
+    "height": 12
+   },
+   "combatants": [
+    {
+     "id": "h1",
+     "name": "h1",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      10,
+      16,
+      12,
+      10,
+      10,
+      10
+     ],
+     "ac": 15,
+     "maxHp": 40,
+     "position": [
+      4,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "shortsword",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        6,
+        3
+       ],
+       "damageType": "piercing",
+       "reachFt": 5,
+       "finesse": true
+      }
+     ],
+     "startHp": 0
+    },
+    {
+     "id": "h2",
+     "name": "h2",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      8,
+      14,
+      14,
+      10,
+      12,
+      18
+     ],
+     "ac": 13,
+     "maxHp": 36,
+     "position": [
+      3,
+      7
+     ],
+     "attacks": [],
+     "features": [
+      "berserk"
+     ],
+     "spellcasting": {
+      "ability": "cha",
+      "slots": [],
+      "cantrips": [
+       "eldritch-blast"
+      ],
+      "spells": []
+     }
+    },
+    {
+     "id": "h3",
+     "name": "h3",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      16,
+      10,
+      14,
+      8,
+      10,
+      16
+     ],
+     "ac": 18,
+     "maxHp": 46,
+     "position": [
+      3,
+      3
+     ],
+     "attacks": [
+      {
+       "name": "longsword",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ],
+     "features": [
+      "aura-of-protection"
+     ],
+     "extraAttacks": 1,
+     "resources": [
+      {
+       "id": "lay-on-hands",
+       "max": 25
+      }
+     ]
+    },
+    {
+     "id": "boss",
+     "name": "boss",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      20,
+      10,
+      18,
+      10,
+      12,
+      14
+     ],
+     "ac": 17,
+     "maxHp": 180,
+     "position": [
+      9,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "claw",
+       "kind": "melee",
+       "attackBonus": 9,
+       "damage": [
+        1,
+        4,
+        1
+       ],
+       "damageType": "slashing",
+       "reachFt": 10
+      },
+      {
+       "name": "tail",
+       "kind": "melee",
+       "attackBonus": 9,
+       "damage": [
+        3,
+        10,
+        5
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 10
+      }
+     ],
+     "legendaryActions": 3,
+     "extraAttacks": 1
+    },
+    {
+     "id": "add1",
+     "name": "add1",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      10,
+      12,
+      10,
+      6,
+      8,
+      6
+     ],
+     "ac": 13,
+     "maxHp": 20,
+     "position": [
+      10,
+      3
+     ],
+     "attacks": [
+      {
+       "name": "rusty-sword",
+       "kind": "melee",
+       "attackBonus": 3,
+       "damage": [
+        1,
+        6,
+        1
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "add2",
+     "name": "add2",
+     "side": "enemy",
+     "level": 1,
+     "abilities": [
+      10,
+      12,
+      10,
+      6,
+      8,
+      6
+     ],
+     "ac": 12,
+     "maxHp": 6,
+     "position": [
+      10,
+      8
+     ],
+     "attacks": [
+      {
+       "name": "rusty-sword",
+       "kind": "melee",
+       "attackBonus": 3,
+       "damage": [
+        1,
+        6,
+        1
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    }
+   ],
+   "plans": {
+    "h1": [
+     "approach:5",
+     "attack:0:2"
+    ],
+    "h2": [
+     "cast:eldritch-blast:-:nearest:-"
+    ],
+    "h3": [
+     "lay",
+     "approach:5",
+     "attack:0:2"
+    ],
+    "boss": [
+     "approach:10",
+     "attack:0:2"
+    ],
+    "add1": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "add2": [
+     "approach:5",
+     "attack:0:1"
+    ]
+   }
+  },
+  {
+   "name": "terrain-and-reactions",
+   "seed": 404,
+   "roundCap": 10,
+   "grid": {
+    "width": 14,
+    "height": 10,
+    "walls": [
+     [
+      7,
+      0
+     ],
+     [
+      7,
+      1
+     ],
+     [
+      7,
+      2
+     ],
+     [
+      7,
+      3
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      7,
+      6
+     ],
+     [
+      7,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      7,
+      9
+     ]
+    ],
+    "difficult": [
+     [
+      4,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      5,
+      5
+     ]
+    ]
+   },
+   "combatants": [
+    {
+     "id": "arch",
+     "name": "arch",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      10,
+      18,
+      12,
+      10,
+      12,
+      10
+     ],
+     "ac": 15,
+     "maxHp": 34,
+     "position": [
+      3,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "longbow",
+       "kind": "ranged",
+       "attackBonus": 7,
+       "damage": [
+        1,
+        8,
+        4
+       ],
+       "damageType": "piercing",
+       "rangeFt": 150,
+       "rangeLongFt": 600
+      }
+     ],
+     "extraAttacks": 1
+    },
+    {
+     "id": "rgr",
+     "name": "rgr",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      12,
+      16,
+      14,
+      10,
+      14,
+      8
+     ],
+     "ac": 16,
+     "maxHp": 40,
+     "position": [
+      2,
+      3
+     ],
+     "attacks": [
+      {
+       "name": "longbow",
+       "kind": "ranged",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "piercing",
+       "rangeFt": 150,
+       "rangeLongFt": 600
+      }
+     ],
+     "resources": [
+      {
+       "id": "hunters-mark",
+       "max": 2
+      }
+     ],
+     "extraAttacks": 1
+    },
+    {
+     "id": "sorc",
+     "name": "sorc",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      8,
+      14,
+      14,
+      10,
+      12,
+      18
+     ],
+     "ac": 13,
+     "maxHp": 30,
+     "position": [
+      2,
+      7
+     ],
+     "attacks": [],
+     "resources": [
+      {
+       "id": "sorcery",
+       "max": 6
+      }
+     ],
+     "spellcasting": {
+      "ability": "cha",
+      "slots": [
+       [
+        2,
+        3
+       ]
+      ],
+      "cantrips": [
+       "fire-bolt"
+      ],
+      "spells": [
+       "scorching-ray"
+      ]
+     }
+    },
+    {
+     "id": "m1",
+     "name": "m1",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      14,
+      8,
+      10,
+      8
+     ],
+     "ac": 14,
+     "maxHp": 28,
+     "position": [
+      6,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "axe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "m2",
+     "name": "m2",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      14,
+      8,
+      10,
+      8
+     ],
+     "ac": 14,
+     "maxHp": 28,
+     "position": [
+      4,
+      6
+     ],
+     "attacks": [
+      {
+       "name": "axe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "m3",
+     "name": "m3",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      14,
+      8,
+      10,
+      8
+     ],
+     "ac": 14,
+     "maxHp": 28,
+     "position": [
+      9,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "axe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "guard",
+     "name": "guard",
+     "side": "enemy",
+     "level": 2,
+     "abilities": [
+      16,
+      12,
+      14,
+      8,
+      10,
+      8
+     ],
+     "ac": 14,
+     "maxHp": 28,
+     "position": [
+      4,
+      4
+     ],
+     "attacks": [
+      {
+       "name": "axe",
+       "kind": "melee",
+       "attackBonus": 5,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ],
+     "conditions": [
+      "paralyzed"
+     ]
+    }
+   ],
+   "plans": {
+    "arch": [
+     "retreat:2",
+     "attack:0:2"
+    ],
+    "rgr": [
+     "mark",
+     "attack:0:2"
+    ],
+    "sorc": [
+     "cast:scorching-ray:2:nearest:q",
+     "cast:fire-bolt:-:nearest:-"
+    ],
+    "m1": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "m2": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "m3": [
+     "approach:5",
+     "attack:0:1"
+    ],
+    "guard": [
+     "attack:0:1"
+    ]
+   }
+  },
+  {
+   "name": "concentration-pressure",
+   "seed": 505,
+   "roundCap": 8,
+   "grid": {
+    "width": 12,
+    "height": 10
+   },
+   "combatants": [
+    {
+     "id": "wiz",
+     "name": "wiz",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      8,
+      14,
+      10,
+      18,
+      12,
+      10
+     ],
+     "ac": 5,
+     "maxHp": 1000,
+     "position": [
+      5,
+      5
+     ],
+     "attacks": [],
+     "spellcasting": {
+      "ability": "int",
+      "slots": [
+       [
+        1,
+        40
+       ]
+      ],
+      "cantrips": [],
+      "spells": [
+       "bless"
+      ]
+     }
+    },
+    {
+     "id": "ally",
+     "name": "ally",
+     "side": "party",
+     "level": 5,
+     "abilities": [
+      16,
+      12,
+      14,
+      10,
+      10,
+      10
+     ],
+     "ac": 16,
+     "maxHp": 1000,
+     "position": [
+      5,
+      8
+     ],
+     "attacks": [
+      {
+       "name": "sword",
+       "kind": "melee",
+       "attackBonus": 6,
+       "damage": [
+        1,
+        8,
+        3
+       ],
+       "damageType": "slashing",
+       "reachFt": 5
+      }
+     ],
+     "extraAttacks": 1
+    },
+    {
+     "id": "gi1",
+     "name": "gi1",
+     "side": "enemy",
+     "level": 6,
+     "abilities": [
+      23,
+      8,
+      21,
+      9,
+      10,
+      12
+     ],
+     "ac": 16,
+     "maxHp": 400,
+     "position": [
+      4,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "maul",
+       "kind": "melee",
+       "attackBonus": 12,
+       "damage": [
+        4,
+        10,
+        8
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "gi2",
+     "name": "gi2",
+     "side": "enemy",
+     "level": 6,
+     "abilities": [
+      23,
+      8,
+      21,
+      9,
+      10,
+      12
+     ],
+     "ac": 16,
+     "maxHp": 400,
+     "position": [
+      6,
+      5
+     ],
+     "attacks": [
+      {
+       "name": "maul",
+       "kind": "melee",
+       "attackBonus": 12,
+       "damage": [
+        4,
+        10,
+        8
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 5
+      }
+     ]
+    },
+    {
+     "id": "gi3",
+     "name": "gi3",
+     "side": "enemy",
+     "level": 6,
+     "abilities": [
+      23,
+      8,
+      21,
+      9,
+      10,
+      12
+     ],
+     "ac": 16,
+     "maxHp": 400,
+     "position": [
+      5,
+      4
+     ],
+     "attacks": [
+      {
+       "name": "maul",
+       "kind": "melee",
+       "attackBonus": 12,
+       "damage": [
+        4,
+        10,
+        8
+       ],
+       "damageType": "bludgeoning",
+       "reachFt": 5
+      }
+     ]
+    }
+   ],
+   "plans": {
+    "wiz": [
+     "cast:bless:1:nearest-ally:-"
+    ],
+    "ally": [
+     "approach:5",
+     "attack:0:2"
+    ],
+    "gi1": [
+     "attack:0:1"
+    ],
+    "gi2": [
+     "attack:0:1"
+    ],
+    "gi3": [
+     "attack:0:1"
+    ]
+   }
+  }
+ ]
+}
