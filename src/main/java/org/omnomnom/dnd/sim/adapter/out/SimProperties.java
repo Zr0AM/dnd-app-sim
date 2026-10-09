@@ -35,5 +35,8 @@ public record SimProperties(
         }
     }
 
-    public record Executor(@DefaultValue("0") int threads, @DefaultValue("64") int queueCapacity) {}
+    /**
+     * @param busyRetryAfter the {@code Retry-After} given when the queue is full
+     */
+    public record Executor(@DefaultValue("0") int threads, @DefaultValue("64") int queueCapacity, @DefaultValue("5s") Duration busyRetryAfter) {}
 }

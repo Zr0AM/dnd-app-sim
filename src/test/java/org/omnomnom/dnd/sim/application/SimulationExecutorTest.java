@@ -95,4 +95,29 @@ class SimulationExecutorTest {
             assertThat(failure[0]).isInstanceOf(IllegalStateException.class).hasMessageContaining("interrupted");
         }
     }
+
+    @Test
+    void theBusyRetryAfterIsConfigurable() throws Exception {
+        CountDownLatch release = new CountDownLatch(1);
+        try (SimulationExecutor exec = new SimulationExecutor(1, 1, 17)) {
+            exec.submit(() -> {
+                release.await();
+                return 0;
+            });
+            exec.submit(() -> 0);
+            long deadline = System.currentTimeMillis() + 5000;
+            BusyException busy = null;
+            while (busy == null && System.currentTimeMillis() < deadline) {
+                try {
+                    exec.submit(() -> 0);
+                    Thread.sleep(5);
+                } catch (BusyException e) {
+                    busy = e;
+                }
+            }
+            assertThat(busy).isNotNull();
+            assertThat(busy.retryAfterSeconds()).isEqualTo(17);
+            release.countDown();
+        }
+    }
 }
