@@ -20,6 +20,7 @@ public final class SimulationExecutor implements AutoCloseable {
 
     private final ThreadPoolExecutor pool;
     private final int busyRetryAfterSeconds;
+    private final boolean ownsPool;
 
     /**
      * @param threads worker threads; zero or less means the number of available processors
@@ -30,18 +31,42 @@ public final class SimulationExecutor implements AutoCloseable {
     }
 
     /**
+     * Builds and owns its own pool; {@link #close} shuts it down.
+     *
      * @param busyRetryAfterSeconds the {@code Retry-After} a caller is given when the queue is full
      */
     public SimulationExecutor(int threads, int queueCapacity, int busyRetryAfterSeconds) {
+        this(newPool(threads, queueCapacity), busyRetryAfterSeconds, true);
+    }
+
+    /**
+     * Runs on a pool managed elsewhere (the Spring container in the service), which also shuts it down. The pool should
+     * be bounded so a full queue rejects work rather than growing.
+     */
+    public SimulationExecutor(ThreadPoolExecutor pool, int busyRetryAfterSeconds) {
+        this(pool, busyRetryAfterSeconds, false);
+    }
+
+    private SimulationExecutor(ThreadPoolExecutor pool, int busyRetryAfterSeconds, boolean ownsPool) {
+        this.pool = pool;
         this.busyRetryAfterSeconds = Math.max(1, busyRetryAfterSeconds);
-        int n = threads > 0 ? threads : Runtime.getRuntime().availableProcessors();
+        this.ownsPool = ownsPool;
+    }
+
+    /** The worker count to use: {@code threads}, or the number of available processors when it is zero or less. */
+    public static int workerCount(int threads) {
+        return threads > 0 ? threads : Runtime.getRuntime().availableProcessors();
+    }
+
+    private static ThreadPoolExecutor newPool(int threads, int queueCapacity) {
+        int n = workerCount(threads);
         AtomicInteger counter = new AtomicInteger();
         ThreadFactory factory = r -> {
             Thread t = new Thread(r, "sim-worker-" + counter.incrementAndGet());
             t.setDaemon(true);
             return t;
         };
-        this.pool = new ThreadPoolExecutor(n, n, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(Math.max(1, queueCapacity)), factory);
+        return new ThreadPoolExecutor(n, n, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(Math.max(1, queueCapacity)), factory);
     }
 
     /** Fire-and-forget submission for jobs; throws {@link BusyException} when the queue is full. */
@@ -79,8 +104,11 @@ public final class SimulationExecutor implements AutoCloseable {
         return pool.getQueue().size();
     }
 
+    /** Shuts the pool down if this executor created it; a pool supplied by the caller is left to its owner. */
     @Override
     public void close() {
-        pool.shutdownNow();
+        if (ownsPool) {
+            pool.shutdownNow();
+        }
     }
 }

@@ -15,6 +15,10 @@ tracked automatically; diff `sim/` and `docs/sim/` against it before each phase.
 - Hexagonal layout: `domain` (pure Java) / `application` (use cases, ports) / `adapter.in.web` / `adapter.out`, with
   Spring wiring in `config`. Each layer is split into feature subpackages; `ArchitectureTest` keeps the layers
   pointing inward and the subpackages of `domain`, `application` and `adapter.in.web` free of cycles.
+- Every collaborator is a Spring bean declared in `config` (the simulation thread pool, the clock, job settings and
+  limits, the report store and its D1 client and HTTP client, the access filter, rate limiter and interceptor);
+  `@ConditionalOnProperty` picks the report store and switches rate limiting. Only controllers and the problem handler
+  are component-scanned; `domain` and `application` stay annotation-free and constructible by hand in tests.
 - Simulation runs on a bounded, core-sized executor, not virtual threads (CPU-bound).
 - Reference data is loaded once at startup into an immutable catalog; no JPA, no `@Cacheable`.
 - Reports persist to Cloudflare D1 via its HTTP query API (no JDBC driver exists). `sim.d1.*` holds the

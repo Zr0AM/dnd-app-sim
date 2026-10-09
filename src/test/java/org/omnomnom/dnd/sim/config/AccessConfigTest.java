@@ -7,7 +7,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.application.report.ReportStore;
+import org.omnomnom.dnd.sim.adapter.in.web.security.AccessFilter;
+import org.omnomnom.dnd.sim.adapter.in.web.security.RateLimitInterceptor;
+import org.omnomnom.dnd.sim.application.access.RateLimiter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Configuration;
 
 class AccessConfigTest {
 
@@ -38,6 +43,23 @@ class AccessConfigTest {
         assertThat(config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of("k")))).isNotNull();
         assertThat(config.accessFilter(props(SimProperties.SecurityMode.NONE, List.of()))).isNotNull();
     }
+
+    @Test
+    void rateLimitingIsOnUnlessDisabled() {
+        ApplicationContextRunner runner = new ApplicationContextRunner()
+                .withUserConfiguration(Properties.class, AccessConfig.class)
+                .withBean(Clock.class, Clock::systemUTC)
+                .withSystemProperties("sim.rate-limit.enabled") // the test task turns it off for every other test
+                .withPropertyValues("sim.security.mode=none");
+        runner.run(ctx -> assertThat(ctx).hasNotFailed().hasSingleBean(AccessFilter.class).hasSingleBean(RateLimiter.class)
+                .hasSingleBean(RateLimitInterceptor.class));
+        runner.withPropertyValues("sim.rate-limit.enabled=false").run(ctx -> assertThat(ctx).hasNotFailed()
+                .hasSingleBean(AccessFilter.class).doesNotHaveBean(RateLimiter.class).doesNotHaveBean(RateLimitInterceptor.class));
+    }
+
+    @Configuration
+    @EnableConfigurationProperties(SimProperties.class)
+    static class Properties {}
 
     @Test
     void theDefaultPropertiesAreClosedAndLimited() {

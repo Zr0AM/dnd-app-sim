@@ -98,7 +98,8 @@ class JobServiceTest {
                 null, TINY, false, false, 42L));
         assertThat(queued.kind()).isEqualTo(JobView.Kind.OPTIMIZE);
         assertThat(queued.seed()).isEqualTo(42L);
-        assertThat(queued.status()).isIn(JobView.Status.QUEUED, JobView.Status.RUNNING);
+        // A tiny job can finish before its view is returned.
+        assertThat(queued.status()).isIn(JobView.Status.QUEUED, JobView.Status.RUNNING, JobView.Status.SUCCEEDED);
 
         JobView done = awaitFinished(queued.id());
         assertThat(done.status()).isEqualTo(JobView.Status.SUCCEEDED);

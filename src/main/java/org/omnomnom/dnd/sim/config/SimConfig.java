@@ -14,13 +14,15 @@ import org.omnomnom.dnd.sim.application.execution.SimulationExecutor;
 import org.omnomnom.dnd.sim.application.job.JobService;
 import org.omnomnom.dnd.sim.application.report.ReportService;
 import org.omnomnom.dnd.sim.application.report.ReportStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * The composition root: builds the immutable catalogs once at startup (the seed database is opened, read and closed),
- * the bounded simulation executor, and the use cases. Application classes carry no framework annotations; this is the
- * only place they meet Spring.
+ * the bounded simulation pool, the use cases and their settings, each as its own bean. Application classes carry no
+ * framework annotations; the {@code config} package is the only place they meet Spring.
  */
 @Configuration
 class SimConfig {
@@ -32,10 +34,34 @@ class SimConfig {
         }
     }
 
-    @Bean(destroyMethod = "close")
-    SimulationExecutor simulationExecutor(SimProperties props) {
-        return new SimulationExecutor(props.executor().threads(), props.executor().queueCapacity(),
-                (int) props.executor().busyRetryAfter().toSeconds());
+    @Bean
+    Clock clock() {
+        return Clock.systemUTC();
+    }
+
+    /**
+     * The worker pool, owned by the container: it is started with the context and shut down when the context closes,
+     * interrupting running simulations as a restart does. Daemon workers never hold the JVM open. The pool is not a
+     * default autowiring candidate, so it neither stands in for Boot's {@code applicationTaskExecutor} nor stops that
+     * from being created.
+     */
+    @Bean(defaultCandidate = false)
+    ThreadPoolTaskExecutor simulationPool(SimProperties props) {
+        int workers = SimulationExecutor.workerCount(props.executor().threads());
+        ThreadPoolTaskExecutor pool = new ThreadPoolTaskExecutor();
+        pool.setCorePoolSize(workers);
+        pool.setMaxPoolSize(workers);
+        pool.setQueueCapacity(Math.max(1, props.executor().queueCapacity()));
+        pool.setThreadNamePrefix("sim-worker-");
+        pool.setDaemon(true);
+        pool.setWaitForTasksToCompleteOnShutdown(false);
+        return pool;
+    }
+
+    /** The pool is closed by its own bean, so this wrapper has no destroy method. */
+    @Bean(destroyMethod = "")
+    SimulationExecutor simulationExecutor(@Qualifier("simulationPool") ThreadPoolTaskExecutor pool, SimProperties props) {
+        return new SimulationExecutor(pool.getThreadPoolExecutor(), (int) props.executor().busyRetryAfter().toSeconds());
     }
 
     @Bean
@@ -68,11 +94,15 @@ class SimConfig {
     }
 
     @Bean
-    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits,
-            SimProperties props) {
+    JobService.Settings jobSettings(SimProperties props) {
         SimProperties.Jobs jobs = props.jobs();
-        return new JobService(catalogs, executor, store, clock,
-                new JobService.Settings(jobs.retainedFinished(), jobs.campaignDays(), jobs.exposeErrorDetail()), limits);
+        return new JobService.Settings(jobs.retainedFinished(), jobs.campaignDays(), jobs.exposeErrorDetail());
+    }
+
+    @Bean
+    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock,
+            JobService.Settings settings, SimLimits limits) {
+        return new JobService(catalogs, executor, store, clock, settings, limits);
     }
 
     @Bean

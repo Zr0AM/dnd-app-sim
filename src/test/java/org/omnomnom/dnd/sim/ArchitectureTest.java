@@ -1,5 +1,7 @@
 package org.omnomnom.dnd.sim;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -7,6 +9,9 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 @AnalyzeClasses(packages = "org.omnomnom.dnd.sim", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
@@ -85,4 +90,31 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule webPackagesAreAcyclic = slices().matching(ROOT + ".adapter.in.web.(**)").should().beFreeOfCycles();
+
+    // ---- Spring wiring lives in config -------------------------------------------------------------
+
+    /** Every bean is declared in the composition root, so the classes it wires stay plain and constructible by hand. */
+    @ArchTest
+    static final ArchRule beansAreDeclaredInConfig = methods()
+            .that().areAnnotatedWith(Bean.class)
+            .should().beDeclaredInClassesThat().resideInAPackage(ROOT + ".config..");
+
+    @ArchTest
+    static final ArchRule configurationClassesLiveInConfig = classes()
+            .that().areMetaAnnotatedWith(Configuration.class)
+            .should().resideInAPackage(ROOT + ".config..")
+            .orShould().haveSimpleName("SimApplication");
+
+    /** Component scanning picks up only the web edge (controllers, advice); everything else is a {@code @Bean}. */
+    @ArchTest
+    static final ArchRule scannedComponentsAreWebOrConfig = classes()
+            .that().areMetaAnnotatedWith(Component.class)
+            .should().resideInAnyPackage(ROOT + ".adapter.in.web..", ROOT + ".config..")
+            .orShould().haveSimpleName("SimApplication");
+
+    @ArchTest
+    static final ArchRule onlyConfigReadsSettings = noClasses()
+            .that().resideOutsideOfPackages(ROOT + ".config..")
+            .and().doNotHaveSimpleName("SimApplication")
+            .should().dependOnClassesThat().resideInAPackage(ROOT + ".config..");
 }
