@@ -23,6 +23,7 @@ dependencies {
     implementation platform(libs.findLibrary('spring-boot-bom').get())
     testImplementation libs.findLibrary('junit-jupiter').get()
     testImplementation libs.findLibrary('assertj-core').get()
+    testImplementation libs.findLibrary('awaitility').get()
     testRuntimeOnly libs.findLibrary('junit-platform-launcher').get()
 }
 

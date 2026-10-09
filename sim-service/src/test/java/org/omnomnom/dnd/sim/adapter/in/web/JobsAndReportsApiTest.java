@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.testsupport.OpenApiSchema;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,16 +62,18 @@ class JobsAndReportsApiTest {
         return mapper.readTree(r.andReturn().getResponse().getContentAsString());
     }
 
-    private JsonNode awaitJob(String id) throws Exception {
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            JsonNode job = json(mvc.perform(get("/api/v1/jobs/" + id)).andExpect(status().isOk()));
-            if (!job.get("status").asString().matches("queued|running")) {
-                return job;
-            }
-            Thread.sleep(25);
-        }
-        throw new AssertionError("job " + id + " did not finish");
+    private JsonNode awaitJob(String id) {
+        return Awaitility.await("job " + id)
+                .atMost(Duration.ofSeconds(120))
+                .pollInterval(Duration.ofMillis(25))
+                .until(() -> json(mvc.perform(get("/api/v1/jobs/" + id)).andExpect(status().isOk())),
+                        job -> !job.get("status").asString().matches("queued|running"));
+    }
+
+    /** Wait until the clock has moved on, so reports saved before and after it have distinct, ordered timestamps. */
+    private static void waitForClockToAdvance() {
+        Instant later = Instant.now().plusMillis(15);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> Instant.now().isAfter(later));
     }
 
     static final String TINY = """
@@ -86,7 +91,7 @@ class JobsAndReportsApiTest {
     }
 
     @Test
-    void optimizeThenFetchRescoreAndAnnotateTheReport() throws Exception {
+    void optimizeStoresAReportThatCanBeFetched() throws Exception {
         String reportId = optimize(101);
         assertThat(reportId).matches("[0-9a-f]{8}");
         assertThat(Files.exists(REPORTS.resolve(reportId + ".json"))).isTrue();
@@ -101,8 +106,12 @@ class JobsAndReportsApiTest {
         assertThat(report.get("leaderboard").get(0).get("description").asString()).startsWith("L3 ");
         assertThat(report.get("leaderboard").get(0).has("campaignDayWinRate")).isFalse();
         assertThat(report.get("objectiveBounds").get("offense")).hasSize(2);
+    }
 
-        // Re-rank without re-simulating; the stored report is untouched unless save is true.
+    /** Re-rank without re-simulating; the stored report is untouched unless save is true. */
+    @Test
+    void rescoringReRanksWithoutResimulatingAndSavesOnlyWhenAsked() throws Exception {
+        String reportId = optimize(103);
         JsonNode tank = json(send("/api/v1/reports/" + reportId + "/rescore", "{\"role\":\"tank\"}").andExpect(status().isOk()));
         OpenApiSchema.assertConforms(tank, "RunReport");
         assertThat(tank.get("weights").get("survival").asDouble()).isEqualTo(3.0);
@@ -112,8 +121,12 @@ class JobsAndReportsApiTest {
         assertThat(stillEqual.get("weights").get("survival").asDouble()).isEqualTo(1.0);
         send("/api/v1/reports/" + reportId + "/rescore", "{\"role\":\"tank\",\"save\":true}").andExpect(status().isOk());
         assertThat(json(mvc.perform(get("/api/v1/reports/" + reportId))).get("weights").get("survival").asDouble()).isEqualTo(3.0);
+    }
 
-        // Annotate with adventuring days: a job, then the same report id carries the rates.
+    /** Annotate with adventuring days: a job, then the same report id carries the rates. */
+    @Test
+    void annotatingWithAdventuringDaysIsAJobThatUpdatesTheSameReport() throws Exception {
+        String reportId = optimize(104);
         ResultActions accepted = send("/api/v1/reports/" + reportId + "/campaign", "{\"days\":2}").andExpect(status().isAccepted());
         JsonNode job = json(accepted);
         assertThat(job.get("kind").asString()).isEqualTo("campaign");
@@ -130,7 +143,7 @@ class JobsAndReportsApiTest {
     @Test
     void listingReportsNewestFirstWithPaging() throws Exception {
         String first = optimize(201);
-        Thread.sleep(15);
+        waitForClockToAdvance();
         String second = optimize(202);
         JsonNode page = json(mvc.perform(get("/api/v1/reports?limit=1")).andExpect(status().isOk()));
         assertThat(page.get("items")).hasSize(1);

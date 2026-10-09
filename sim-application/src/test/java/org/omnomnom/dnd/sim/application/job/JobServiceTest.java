@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Predicate;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,19 +56,11 @@ class JobServiceTest {
         return new OptimizeCommand(3, null, List.of(BuildClass.FIGHTER, BuildClass.WIZARD), null, TINY, false, campaign, seed);
     }
 
-    private JobView await(String id, Predicate<JobView> done) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            JobView v = jobs.get(id);
-            if (done.test(v)) {
-                return v;
-            }
-            Thread.sleep(20);
-        }
-        throw new AssertionError("timed out waiting for job " + id + ": " + jobs.get(id));
+    private JobView await(String id, Predicate<JobView> done) {
+        return awaitJob(jobs, id, done);
     }
 
-    private JobView awaitFinished(String id) throws InterruptedException {
+    private JobView awaitFinished(String id) {
         return await(id, v -> v.status().finished());
     }
 
@@ -264,16 +258,16 @@ class JobServiceTest {
 
     // ---- adversarial review fixes ----------------------------------------------------------------
 
-    private static JobView awaitWith(JobService service, String id) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            JobView v = service.get(id);
-            if (v.status().finished()) {
-                return v;
-            }
-            Thread.sleep(20);
-        }
-        throw new AssertionError("timed out waiting for job " + id);
+    private static JobView awaitWith(JobService service, String id) {
+        return awaitJob(service, id, v -> v.status().finished());
+    }
+
+    /** Poll the service until the job satisfies {@code done}, failing with the job's last state if it never does. */
+    private static JobView awaitJob(JobService service, String id, Predicate<JobView> done) {
+        return Awaitility.await("job " + id)
+                .atMost(Duration.ofSeconds(120))
+                .pollInterval(Duration.ofMillis(20))
+                .until(() -> service.get(id), done);
     }
 
     @Test
