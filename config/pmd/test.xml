@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<ruleset name="sim-test"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>Rules for test code: the hygiene rules only. Tests repeat literals and assert at length on purpose.</description>
+
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+    <rule ref="category/java/codestyle.xml/EmptyControlStatement">
+        <properties>
+            <property name="allowCommentedBlocks" value="true"/>
+        </properties>
+    </rule>
+
+    <rule name="NoThreadSleep" language="java" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule"
+          message="Do not sleep in a test; wait for the condition with Awaitility instead">
+        <description>Thread.sleep makes a test slow when it waits too long and flaky when it waits too little.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>//MethodCall[@MethodName = 'sleep'][ancestor::ClassBody][./*[1][@Image = 'Thread' or self::TypeExpression/ClassType[@SimpleName = 'Thread'] or self::AmbiguousName[@Name = 'Thread']]]</value>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

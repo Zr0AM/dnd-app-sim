@@ -53,41 +53,45 @@ public final class Nsga2 {
         int n = points.size();
         List<List<Integer>> dominatedBy = new ArrayList<>(); // who each point dominates
         int[] dominationCount = new int[n]; // how many dominate each point
-        List<List<Integer>> fronts = new ArrayList<>();
-        fronts.add(new ArrayList<>());
         for (int p = 0; p < n; p++) {
             dominatedBy.add(new ArrayList<>());
         }
         for (int p = 0; p < n; p++) {
-            for (int q = 0; q < n; q++) {
-                if (p == q) {
-                    continue;
-                }
-                if (dominates(points.get(p), points.get(q))) {
-                    dominatedBy.get(p).add(q);
-                } else if (dominates(points.get(q), points.get(p))) {
-                    dominationCount[p]++;
-                }
-            }
-            if (dominationCount[p] == 0) {
-                fronts.get(0).add(p);
-            }
+            dominationCount[p] = scanDomination(points, p, dominatedBy.get(p));
         }
-        int i = 0;
-        while (!fronts.get(i).isEmpty()) {
-            List<Integer> next = new ArrayList<>();
-            for (int p : fronts.get(i)) {
-                for (int q : dominatedBy.get(p)) {
-                    if (--dominationCount[q] == 0) {
-                        next.add(q);
-                    }
-                }
-            }
-            i++;
-            fronts.add(next);
+        List<List<Integer>> fronts = new ArrayList<>();
+        List<Integer> front = IntStream.range(0, n).filter(p -> dominationCount[p] == 0).boxed().toList();
+        while (!front.isEmpty()) {
+            fronts.add(front);
+            front = nextFront(front, dominatedBy, dominationCount);
         }
-        fronts.remove(fronts.size() - 1); // the last one is empty
         return fronts;
+    }
+
+    /** Record the points {@code p} dominates in {@code dominated}; returns how many points dominate {@code p}. */
+    private static int scanDomination(List<double[]> points, int p, List<Integer> dominated) {
+        int dominators = 0;
+        for (int q = 0; q < points.size(); q++) {
+            if (q != p && dominates(points.get(p), points.get(q))) {
+                dominated.add(q);
+            } else if (q != p && dominates(points.get(q), points.get(p))) {
+                dominators++;
+            }
+        }
+        return dominators;
+    }
+
+    /** Remove {@code front} from the counts; the points no one else dominates any more form the next front. */
+    private static List<Integer> nextFront(List<Integer> front, List<List<Integer>> dominatedBy, int[] dominationCount) {
+        List<Integer> next = new ArrayList<>();
+        for (int p : front) {
+            for (int q : dominatedBy.get(p)) {
+                if (--dominationCount[q] == 0) {
+                    next.add(q);
+                }
+            }
+        }
+        return next;
     }
 
     /**

@@ -2,6 +2,7 @@
 plugins {
     id 'java'
     id 'jacoco'
+    id 'pmd'
 }
 
 def libs = extensions.getByType(VersionCatalogsExtension).named('libs')
@@ -51,4 +52,18 @@ tasks.named('jacocoTestReport') {
         xml.required = true
         html.required = true
     }
+}
+
+// Static analysis mirroring the SonarCloud rules this project fixes; the rulesets live in config/pmd. Production code gets
+// the full set; tests and test fixtures only the hygiene rules.
+pmd {
+    toolVersion = libs.findVersion('pmd').get().requiredVersion
+    ignoreFailures = false
+    consoleOutput = true
+    incrementalAnalysis = true
+    ruleSets = [] // no Gradle default rules: only the files below
+}
+
+tasks.withType(Pmd).configureEach {
+    ruleSetFiles = files(rootProject.file(name == 'pmdMain' ? 'config/pmd/main.xml' : 'config/pmd/test.xml'))
 }

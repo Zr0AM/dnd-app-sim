@@ -45,6 +45,9 @@ public final class EncounterService {
     /** Enemies are named {@code enemy-0}, {@code enemy-1}, ...; party ids may not take that prefix. */
     static final String ENEMY_ID_PREFIX = "enemy-";
 
+    /** The request field validation errors name when the enemies are at fault. */
+    private static final String ENEMIES_FIELD = "enemies";
+
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
     private final SimLimits limits;
@@ -170,12 +173,17 @@ public final class EncounterService {
         return switch (spec) {
             case PartyMemberSpec.Build(var id, var genome) -> {
                 Genome resolved = GenomeResolver.resolve(
-                        genome, level.martial(), Seeds.seedFrom(seed, "member", index), "party[" + index + "].genome");
+                        genome, level.martial(), Seeds.seedFrom(seed, "member", index), partyField(index, "genome"));
                 yield new Member(id != null ? id : defaultHeroId(builds), resolved, null);
             }
             case PartyMemberSpec.Filler(var id, var role) ->
                     new Member(id != null ? id : "ally-" + role.code() + "-" + index, null, role);
         };
+    }
+
+    /** The request path of a field of party member {@code index}, as reported in validation errors. */
+    private static String partyField(int index, String field) {
+        return "party[" + index + "]." + field;
     }
 
     private static String defaultHeroId(int builds) {
@@ -185,17 +193,17 @@ public final class EncounterService {
     private static void requireUsableId(String id, int index, Set<String> taken) {
         if (id.startsWith(ENEMY_ID_PREFIX)) {
             throw new UnprocessableException("reserved-id", "party member ids may not start with '" + ENEMY_ID_PREFIX
-                    + "', which names the enemies", "party[" + index + "].id");
+                    + "', which names the enemies", partyField(index, "id"));
         }
         if (!taken.add(id)) {
-            throw new UnprocessableException("duplicate-id", "duplicate party member id: " + id, "party[" + index + "].id");
+            throw new UnprocessableException("duplicate-id", "duplicate party member id: " + id, partyField(index, "id"));
         }
     }
 
     private Arena resolveArena(EncounterCommand cmd, int partySize, ContentCatalogs.LevelContent level) {
         boolean hasEnemies = cmd.enemies() != null && !cmd.enemies().isEmpty();
         if (hasEnemies == (cmd.scenarioId() != null)) {
-            throw new UnprocessableException("invalid-enemy-spec", "give exactly one of enemies or scenarioId", "enemies");
+            throw new UnprocessableException("invalid-enemy-spec", "give exactly one of enemies or scenarioId", ENEMIES_FIELD);
         }
         if (cmd.scenarioId() != null) {
             return libraryArena(cmd, partySize, level);
@@ -206,7 +214,7 @@ public final class EncounterService {
                 .toList();
         if (plan.size() > map.enemyStarts().size()) {
             throw new UnprocessableException("over-capacity",
-                    "map " + map.id() + " holds " + map.enemyStarts().size() + " enemies, got " + plan.size(), "enemies");
+                    "map " + map.id() + " holds " + map.enemyStarts().size() + " enemies, got " + plan.size(), ENEMIES_FIELD);
         }
         return new Arena(map.id(), map.grid(), map.partyStarts(), plan, map.enemyStarts().subList(0, plan.size()));
     }
@@ -222,10 +230,10 @@ public final class EncounterService {
     private MonsterTemplate templateFor(EncounterCommand.EnemyGroup group) {
         MonsterTemplate template = catalogs.monsters().find(group.monsterSlug());
         if (template == null) {
-            throw new UnprocessableException("unknown-monster", "unknown monster: " + group.monsterSlug(), "enemies");
+            throw new UnprocessableException("unknown-monster", "unknown monster: " + group.monsterSlug(), ENEMIES_FIELD);
         }
         if (template.attacks().isEmpty()) {
-            throw new UnprocessableException("monster-has-no-attacks", group.monsterSlug() + " has no usable attack", "enemies");
+            throw new UnprocessableException("monster-has-no-attacks", group.monsterSlug() + " has no usable attack", ENEMIES_FIELD);
         }
         return template;
     }

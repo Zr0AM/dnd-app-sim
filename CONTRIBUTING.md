@@ -45,6 +45,34 @@ Thanks for contributing. This document describes how changes get into the reposi
 - Update documentation (`README.md`, `docs/`) when behaviour, configuration or APIs change.
 - Do not edit generated or synced files by hand. The seed SQL in `sim-content` comes from `scripts/sync-seeds.sh`.
 
+### Static analysis
+
+`./gradlew build` runs PMD on every module with the rulesets in `config/pmd/`, plus `ArchitectureTest`. They catch early the
+problems SonarCloud reports, so most Sonar issues never reach CI. Sonar stays the authority; PMD only approximates it.
+
+- **Production code** (`config/pmd/main.xml`): cognitive complexity of 16 or more per method, a string literal repeated three
+  times in a file, unused imports and private methods, empty control statements (a comment inside the block is enough), and
+  `catch (Throwable)`. Catch `Exception`; if an `Error` must not leave work half-finished, settle it in a `finally` (see
+  `JobService.run`).
+- **Tests and test fixtures** (`config/pmd/test.xml`): unused imports and private methods, empty control statements, and
+  `Thread.sleep`. Wait for a condition with Awaitility instead.
+- **`ArchitectureTest`** also caps how many other project classes one class in `domain.combat` may use. Split a class that
+  needs more, the way `Encounter` was split into `SpellResolver`, `WeaponAttackResolver` and friends.
+
+When a rule fires, fix the code rather than suppressing it. If a rule is wrong for a case, change the ruleset in a PR that says why.
+
+### Shared helpers to reuse
+
+Before writing a loop, a ternary ladder or a string constant, look for the helper that already exists:
+
+- `FloatOrder` (`domain.core`): compare or sort doubles (`descendingBy`); never `a - b` comparators.
+- `Picks.firstMax` / `firstMin` (`domain.core`): the best candidate, the first of ties winning. Seeded results depend on tie order.
+- `Tiers.pick` (`domain.core`): a value that steps up with level, instead of `level >= 17 ? ... : level >= 11 ? ...`.
+- `ResourceIds`, `FeatureIds`, `Gear`, `Objectives` and `MonsterSlugs`: named ids and equipment names, not string literals.
+- `Stats` and the per-run `record` pattern in `SoloEvaluator` / `PartyEvaluator`: collect one record per run, then summarize,
+  rather than parallel lists. When summing doubles, keep a left-to-right fold (`reduce(0, Double::sum)`): `DoubleStream.sum()`
+  uses compensated summation and can differ in the last bits, which the parity tests would catch.
+
 ## Before you open a PR
 
 The project requires JDK 21.

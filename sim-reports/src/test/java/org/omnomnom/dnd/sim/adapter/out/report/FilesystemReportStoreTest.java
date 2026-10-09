@@ -14,7 +14,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.omnomnom.dnd.sim.application.error.BadRequestException;
 import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.omnomnom.dnd.sim.domain.opt.report.Reports;
 import org.omnomnom.dnd.sim.testsupport.TestMapper;
