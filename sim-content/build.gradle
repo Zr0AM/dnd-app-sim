@@ -1,0 +1,13 @@
+plugins {
+    id 'sim.library-conventions'
+}
+
+description = 'Outbound adapter: the SQLite seed catalog behind the domain ContentSource port.'
+
+dependencies {
+    api project(':sim-domain')
+    runtimeOnly libs.sqlite.jdbc
+
+    testImplementation testFixtures(project(':sim-domain'))
+    testImplementation libs.jackson.databind
+}

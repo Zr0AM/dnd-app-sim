@@ -1,0 +1,53 @@
+// Shared by every module: Java 21, the Spring Boot BOM for versions, JUnit 5 with AssertJ, and a JaCoCo report per module.
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+def libs = extensions.getByType(VersionCatalogsExtension).named('libs')
+
+group = 'org.omnomnom.dnd'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform(libs.findLibrary('spring-boot-bom').get())
+    testImplementation libs.findLibrary('junit-jupiter').get()
+    testImplementation libs.findLibrary('assertj-core').get()
+    testRuntimeOnly libs.findLibrary('junit-platform-launcher').get()
+}
+
+plugins.withId('java-test-fixtures') {
+    dependencies {
+        testFixturesImplementation platform(libs.findLibrary('spring-boot-bom').get())
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-parameters' << '-Xlint:all'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+jacoco {
+    toolVersion = libs.findVersion('jacoco').get().requiredVersion
+}
+
+tasks.named('jacocoTestReport') {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}

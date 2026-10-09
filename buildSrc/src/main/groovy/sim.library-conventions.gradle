@@ -1,0 +1,6 @@
+// A module other modules build on: the Java conventions plus api/implementation separation and shareable test fixtures.
+plugins {
+    id 'sim.java-conventions'
+    id 'java-library'
+    id 'java-test-fixtures'
+}

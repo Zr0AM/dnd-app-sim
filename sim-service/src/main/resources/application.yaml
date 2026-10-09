@@ -1,0 +1,69 @@
+server:
+  shutdown: graceful # finish in-flight requests on SIGTERM
+  tomcat:
+    max-swallow-size: 1MB
+
+spring:
+  application:
+    name: dnd-app-sim
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: false # simulation work is CPU-bound; it runs on a dedicated bounded executor
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    enabled: false # a browser cannot send the API key header; the local profile turns it on
+
+sim:
+  # Where finished RunReports are persisted: "filesystem" or "d1".
+  report-store:
+    type: filesystem
+    directory: ${SIM_REPORT_DIR:out/reports}
+  # Cloudflare D1 is reached over its HTTP query API (there is no JDBC driver or wire protocol).
+  # Credentials come from the environment and are never committed.
+  d1:
+    enabled: false
+    base-url: https://api.cloudflare.com/client/v4
+    account-id: ${CF_ACCOUNT_ID:}
+    database-id: ${CF_D1_DATABASE_ID:}
+    api-token: ${CF_API_TOKEN:}
+    timeout: 30s
+  # Dedicated executor for CPU-bound simulation/optimization work (0 = available processors).
+  executor:
+    threads: 0
+    queue-capacity: 64
+    busy-retry-after: 5s # Retry-After when the queue is full
+  jobs:
+    retained-finished: 200 # finished jobs kept for polling (jobs live in memory)
+    campaign-days: 12 # days for an optimization's campaign pass and the default for report annotation
+    expose-error-detail: false # keep exception messages (paths, upstream errors) out of job responses
+  # Ceilings on how much work one request may ask for (422 limit-exceeded). Lower them to protect a small host; the API
+  # schema's own maxima (400) are fixed.
+  limits:
+    encounter-runs: 2000
+    eval-runs-per-scenario: 200
+    campaign-days: 100
+    optimize-population: 128
+    optimize-generations: 100
+    optimize-eval-runs: 64
+    optimize-max-fights: 2000000
+  # The service is closed unless told otherwise: with mode api-key (the default) at least one key is required and
+  # startup fails without it. The local profile switches this off.
+  security:
+    mode: api-key
+    api-keys: ${SIM_API_KEYS:}
+  # Per-client token buckets (a client is an API key, or the remote address when authentication is off).
+  rate-limit:
+    enabled: true
+    requests-per-minute: 600
+    simulations-per-minute: 60
+    max-clients: 10000 # tracked clients; beyond it idle, then least recently seen, clients are forgotten
+    idle-timeout: 10m

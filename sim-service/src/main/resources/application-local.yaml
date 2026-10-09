@@ -1,0 +1,36 @@
+# Local development profile: run with `./gradlew bootRun --args='--spring.profiles.active=local'`
+# or SPRING_PROFILES_ACTIVE=local. Needs no Cloudflare credentials or network access.
+server:
+  port: 8080
+
+logging:
+  level:
+    org.omnomnom.dnd.sim: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+sim:
+  report-store:
+    type: filesystem
+    directory: out/reports # git-ignored
+  d1:
+    enabled: false
+    # To exercise the D1 adapter locally, flip enabled/type and export real values (never commit them):
+    #   export CF_ACCOUNT_ID=... CF_D1_DATABASE_ID=... CF_API_TOKEN=...
+    #   ./gradlew bootRun --args='--spring.profiles.active=local --sim.d1.enabled=true --sim.report-store.type=d1'
+    # A scratch/preview D1 database is strongly recommended over production while developing.
+  executor:
+    threads: 2
+    queue-capacity: 8
+  security:
+    mode: none # local development only; the default profile requires SIM_API_KEYS
+  rate-limit:
+    enabled: false

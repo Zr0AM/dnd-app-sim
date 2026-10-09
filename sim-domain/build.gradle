@@ -1,0 +1,13 @@
+plugins {
+    id 'sim.library-conventions'
+}
+
+description = 'The simulation engine and optimizer: plain Java with no dependencies.'
+
+dependencies {
+    // Fixtures read the reference JSON produced by tools/reference.
+    testFixturesApi libs.jackson.databind
+    testImplementation libs.jackson.databind
+    // Optimizer, evaluator, scenario and build-sweep tests run on the real seed catalog.
+    testImplementation project(':sim-content')
+}

@@ -114,9 +114,100 @@ well-formed but invalid, `409` cancelling a finished job, `429` queue full.
 
 ## Security
 
-Not designed in Phase 1. The endpoints are CPU-expensive, so authentication or rate limiting is needed
-before any public deployment; this is tracked for the hardening phase. The OpenAPI document declares no
-security scheme yet.
+The service is **closed by default**.
+
+- **API keys**: every request except `/actuator/health` and `/actuator/info` needs a key, sent as `X-API-Key: <key>` or
+  `Authorization: Bearer <key>`. Keys come from `SIM_API_KEYS` (comma separated, so a key can be rotated by listing the
+  new one beside the old). They are held as SHA-256 digests, compared in constant time, and never logged or echoed. A
+  missing or wrong key is `401` with `WWW-Authenticate: Bearer`.
+- **Fail closed**: with the default `sim.security.mode=api-key` and no key configured, startup fails. Authentication is
+  switched off only by the `local` profile (or an explicit `sim.security.mode=none`), which logs a warning; never expose
+  such an instance beyond localhost.
+- **Rate limiting**: per client (the key, or the remote address when authentication is off), a token bucket holds one
+  minute of budget and refills continuously. Ordinary requests default to 600 per minute and the expensive endpoints
+  (every `POST simulate/*` and a report's `campaign`, marked `@Expensive` in the controllers) to 60 per minute.
+  Refusals are `429 rate-limited` with `Retry-After`. The limit is applied after routing, so the endpoint that runs
+  decides the budget; path decorations such as `;matrix=params` cannot move a simulation onto the cheaper budget. At most
+  `sim.rate-limit.max-clients` (10,000) clients are tracked: past it, clients silent for `idle-timeout` (10 minutes) are
+  forgotten first, then the least recently seen, down to 90% of the cap, so memory stays bounded and cleanup is
+  amortized. Buckets are in memory and per instance, so behind N instances each enforces its own budget. Requests
+  refused for a bad key never reach the limiter. Behind a reverse proxy set `server.forward-headers-strategy` so the
+  remote address is the client's, not the proxy's.
+- **Work limits** (`sim.limits.*`): a request that asks for too much is `422 limit-exceeded` before anything is queued.
+  Besides the per-field ceilings (runs, days, population, generations, evaluation runs) an optimization is bounded by
+  `optimize-max-fights`, an upper bound on the fights it can simulate (population x (generations + 1) x evaluation runs x
+  scenarios; repeated genomes are cached, so real work is usually far less). Defaulted values count: an `eval` without
+  `runs` is checked at its default (16 solo, 12 party) runs per scenario.
+- **Not provided**: per-key authorization (all keys are equal), user identity, TLS (terminate it at the proxy) and
+  request signing. Swagger UI is off outside the `local` profile because a browser cannot send the key header; the
+  OpenAPI document is generated at `/v3/api-docs` behind the key.
+
+## Settings
+
+Everything below can be set in `application.yaml`, by profile, or by environment variable (Spring's relaxed binding:
+`sim.jobs.campaign-days` is `SIM_JOBS_CAMPAIGNDAYS`). Defaults in parentheses.
+
+| Setting | What it controls |
+| --- | --- |
+| `sim.executor.threads` (cores), `queue-capacity` (64), `busy-retry-after` (5s) | the simulation pool and its `429 busy` |
+| `sim.jobs.retained-finished` (200) | finished jobs kept for polling |
+| `sim.jobs.campaign-days` (12) | days for an optimization's campaign pass and the default for report annotation |
+| `sim.jobs.expose-error-detail` (false) | whether a failed job shows its exception message |
+| `sim.limits.*` | per-request work ceilings (above) |
+| `sim.security.mode` (api-key), `api-keys` (`SIM_API_KEYS`) | authentication (above) |
+| `sim.rate-limit.enabled` (true), `requests-per-minute` (600), `simulations-per-minute` (60), `max-clients` (10000), `idle-timeout` (10m) | rate limiting (above) |
+| `sim.report-store.*`, `sim.d1.*` | where reports are kept |
+
+## Performance
+
+Measured on 4 cores in the development container after JIT warm-up, one thread, as an order of magnitude and not a
+promise: about 14,000 solo fights per second (a level-3 evaluation of 1,000 fights takes about 70 ms), a standard
+level-3 optimization (population 32, 12 generations, 12 runs) about 0.6 s, a thorough level-11 one (population 64, 24
+generations, 20 runs) about 1 s, and catalog loading at startup about 0.5 s. The largest request the defaults allow
+(about 2 million fights) is therefore minutes at most. Because a single optimization is this fast, evaluation inside a run
+stays single-threaded; parallelism comes from running several jobs on the executor, which also keeps results independent
+of thread timing.
+
+## Implementation notes (Phase 10)
+
+- **Status codes**: `400` covers anything the schema forbids (types, bounds, enums, `exactly one of enemies or scenarioId`,
+  a build without a genome); `422` covers well-formed requests that cannot be honored. The 422 `code` values in use are
+  `unsupported-level`, `unknown-monster`, `monster-has-no-attacks`, `over-capacity`, `unknown-scenario`, `unknown-map`,
+  `map-mismatch`, `duplicate-id`, `reserved-id` (a party id starting with `enemy-`), `invalid-log-run`, `unknown-weapon`, `unknown-armor`, `invalid-ability-assignment`
+  and `unknown-role`. The 400 codes are `invalid-request` (with `errors[]`) and `malformed-json`. Spring's own client errors keep
+  their status as problems: `404 not-found`, `405 method-not-allowed` (with `Allow`), `415 unsupported-media-type`,
+  `406 not-acceptable`; only genuinely unexpected failures are `500 internal-error`, with details kept in the log.
+- **`seed` on `eval`** only completes an under-specified genome (as the CLI's per-seed random genome did). The
+  evaluator's own seeds depend on the scenario and run index alone (common random numbers), so the numbers for a fully
+  specified genome do not depend on `seed`. The effective genome is echoed; sending it back reproduces the result.
+- **`seed` on `campaign`** completes the genome and also chooses the simulated days: fight `i` of day `d` is seeded from
+  `(day, seed, d, i)`. The same seed reproduces a result; different seeds sample different days.
+- **Encounter seeding**: run `i` uses `(seed, map + enemy slugs, i)`, never the party, so two parties facing the same
+  enemies under one seed get identical enemy rolls.
+- **Null policy**: `Genome.armorName` is always present (null means unarmored); `fightingStyle`, `MemberStats.genome`,
+  `EvalResponse.ci` and the optional scenario fields are omitted when unset.
+- **Contract check**: `OpenApiConformanceTest` validates real responses (every event kind seen, all content lists,
+  problem bodies) against `openapi.yaml`, so the document and the service cannot drift unnoticed.
+- **Jobs** (`optimize`, `reports/{id}/campaign`) run on the bounded simulation executor; a full queue is `429` with
+  `Retry-After`. Cancelling a queued job is immediate; a running job stops at the next generation boundary and reports
+  `cancelled` once it has. Cancelling a finished job is `409 job-finished`. Jobs are in memory (a restart loses them);
+  the most recent finished jobs are remembered (`sim.jobs.retained-finished`, 200). An optimization with
+  `campaign: true` annotates with `sim.jobs.campaign-days` (12) days seeded from the run's seed. A failed job's
+  `error.detail` is generic unless `sim.jobs.expose-error-detail` is on; the exception is always in the service log.
+- **Report campaign seed**: `POST /reports/{id}/campaign` seeds the days from `seed` (drawn and echoed on the job when
+  omitted); every build in the report faces the same days. `days` defaults to `sim.jobs.campaign-days`.
+- **Paging cursors** are opaque; one the service did not issue is `400 invalid-request` (`errors[0].code`
+  `invalid-cursor`).
+- **Reports** are stored by run key. A report's `config` is the effective request (level, role, classes, resolved `ga`
+  numbers, campaign, seed), so the same request yields the same key and overwrites. The key hashes the config's JSON, so
+  it is stable but not equal to the TypeScript key.
+- **Report stores**: `filesystem` (default; `<runKey>.json`, written atomically, in `sim.report-store.directory`) or `d1`
+  (table `sim_report`, created on first use, over Cloudflare's HTTP query API with the token from `CF_API_TOKEN`; asking
+  for `d1` without all of `CF_ACCOUNT_ID`, `CF_D1_DATABASE_ID`, `CF_API_TOKEN` fails at startup). The D1 table is this
+  service's own; mapping reports into the app's planned `SimRun`/`SimResult` tables is a separate integration.
+- **Rescore** takes exactly one of `role` and `weights` (`400` otherwise); unknown role or objective names are `422`.
+- **Deferred to hardening**: configurable `sim.limits.*` (the schema maxima are enforced as 400s today), authentication
+  and rate limiting.
 
 ## Open questions
 
