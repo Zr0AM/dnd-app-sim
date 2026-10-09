@@ -20,7 +20,8 @@
 		"dev": "wrangler dev",
 		"e2e:dev": "wrangler dev --enable-containers=false",
 		"start": "wrangler dev",
-		"test": "vitest run"
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
 	},
 	"type": "module"
 }

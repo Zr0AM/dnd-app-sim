@@ -8,7 +8,7 @@ It proxies `/api/v1/*` and `/actuator/health` to a single Durable Object-managed
 ```bash
 npm ci
 npm test              # unit tests; no Docker
-npx tsc --noEmit
+npm run typecheck
 npx wrangler deploy   # needs Docker, builds and pushes the image
 npm run cf-typegen    # after changing wrangler.jsonc
 ```

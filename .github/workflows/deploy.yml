@@ -37,8 +37,8 @@ jobs:
       - name: Worker type check and tests
         working-directory: worker
         run: |
-          npm ci
-          npx tsc --noEmit
+          npm ci --ignore-scripts
+          npm run typecheck
           npm test
 
   deploy:
@@ -64,7 +64,7 @@ jobs:
 
       - name: Install Worker dependencies
         working-directory: worker
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # Finds the production D1 database by name, creating it on the first deploy. sim_report is created on first use.
       - name: Provision D1
@@ -101,7 +101,7 @@ jobs:
           jq -n --arg account "$CLOUDFLARE_ACCOUNT_ID" --arg db "$CF_D1_DATABASE_ID" --arg token "$CLOUDFLARE_API_TOKEN" \
             --arg keys "$SIM_API_KEYS" \
             '{CF_ACCOUNT_ID: $account, CF_D1_DATABASE_ID: $db, CF_API_TOKEN: $token, SIM_API_KEYS: $keys}' > "$secrets"
-          npx wrangler deploy --secrets-file "$secrets" | tee "$RUNNER_TEMP/deploy.log"
+          npm run deploy -- --secrets-file "$secrets" | tee "$RUNNER_TEMP/deploy.log"
           url="$(grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/deploy.log" | head -n 1)"
           [ -n "$url" ] || { echo "::error::wrangler deploy printed no workers.dev URL"; exit 1; }
           echo "url=$url" >> "$GITHUB_OUTPUT"
