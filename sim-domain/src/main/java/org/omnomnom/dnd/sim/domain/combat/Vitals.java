@@ -191,7 +191,7 @@ final class Vitals {
 
     /** Raise exhaustion by {@code n} levels (0-6); at level 6 the creature dies. */
     void gainExhaustion(int n) {
-        exhaustionLevel = Math.clamp(exhaustionLevel + n, 0, 6);
+        exhaustionLevel = Math.clamp((long) exhaustionLevel + n, 0, 6);
         if (exhaustionLevel >= 6) {
             dead = true;
         }
