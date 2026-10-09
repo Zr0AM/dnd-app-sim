@@ -30,3 +30,7 @@ sim:
     threads: 0
     queue-capacity: 64
     busy-retry-after: 5s # Retry-After when the queue is full
+  jobs:
+    retained-finished: 200 # finished jobs kept for polling (jobs live in memory)
+    campaign-days: 12 # days for an optimization's campaign pass and the default for report annotation
+    expose-error-detail: false # keep exception messages (paths, upstream errors) out of job responses

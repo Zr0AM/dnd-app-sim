@@ -128,7 +128,7 @@ public final class EvaluationService {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
         Genome genome = GenomeResolver.resolve(cmd.genome(), level.martial(), seed, "genome");
-        Campaign.Result r = executor.call(() -> Campaign.evaluateAdventuringDay(genome, level.martial(), cmd.days(), cmd.shortRestHealFraction()));
+        Campaign.Result r = executor.call(() -> Campaign.evaluateAdventuringDay(genome, level.martial(), cmd.days(), cmd.shortRestHealFraction(), seed));
         return new CampaignOutcome(seed, genome, r.dayWinRateCi(), r.avgEncountersCleared(), r.encountersPerDay(), r.days());
     }
 

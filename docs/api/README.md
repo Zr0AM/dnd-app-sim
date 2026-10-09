@@ -127,9 +127,11 @@ security scheme yet.
   and `unknown-role`. The 400 codes are `invalid-request` (with `errors[]`) and `malformed-json`. Spring's own client errors keep
   their status as problems: `404 not-found`, `405 method-not-allowed` (with `Allow`), `415 unsupported-media-type`,
   `406 not-acceptable`; only genuinely unexpected failures are `500 internal-error`, with details kept in the log.
-- **`seed` on `eval` and `campaign`** only completes an under-specified genome (as the CLI's per-seed random genome did).
-  The evaluators' own seeds depend on the scenario and run index alone (common random numbers), so the numbers for a
-  fully specified genome do not depend on `seed`. The effective genome is echoed; sending it back reproduces the result.
+- **`seed` on `eval`** only completes an under-specified genome (as the CLI's per-seed random genome did). The
+  evaluator's own seeds depend on the scenario and run index alone (common random numbers), so the numbers for a fully
+  specified genome do not depend on `seed`. The effective genome is echoed; sending it back reproduces the result.
+- **`seed` on `campaign`** completes the genome and also chooses the simulated days: fight `i` of day `d` is seeded from
+  `(day, seed, d, i)`. The same seed reproduces a result; different seeds sample different days.
 - **Encounter seeding**: run `i` uses `(seed, map + enemy slugs, i)`, never the party, so two parties facing the same
   enemies under one seed get identical enemy rolls.
 - **Null policy**: `Genome.armorName` is always present (null means unarmored); `fightingStyle`, `MemberStats.genome`,
@@ -139,7 +141,13 @@ security scheme yet.
 - **Jobs** (`optimize`, `reports/{id}/campaign`) run on the bounded simulation executor; a full queue is `429` with
   `Retry-After`. Cancelling a queued job is immediate; a running job stops at the next generation boundary and reports
   `cancelled` once it has. Cancelling a finished job is `409 job-finished`. Jobs are in memory (a restart loses them);
-  the 200 most recent finished jobs are remembered. An optimization with `campaign: true` annotates with 12 days.
+  the most recent finished jobs are remembered (`sim.jobs.retained-finished`, 200). An optimization with
+  `campaign: true` annotates with `sim.jobs.campaign-days` (12) days seeded from the run's seed. A failed job's
+  `error.detail` is generic unless `sim.jobs.expose-error-detail` is on; the exception is always in the service log.
+- **Report campaign seed**: `POST /reports/{id}/campaign` seeds the days from `seed` (drawn and echoed on the job when
+  omitted); every build in the report faces the same days. `days` defaults to `sim.jobs.campaign-days`.
+- **Paging cursors** are opaque; one the service did not issue is `400 invalid-request` (`errors[0].code`
+  `invalid-cursor`).
 - **Reports** are stored by run key. A report's `config` is the effective request (level, role, classes, resolved `ga`
   numbers, campaign, seed), so the same request yields the same key and overwrites. The key hashes the config's JSON, so
   it is stable but not equal to the TypeScript key.

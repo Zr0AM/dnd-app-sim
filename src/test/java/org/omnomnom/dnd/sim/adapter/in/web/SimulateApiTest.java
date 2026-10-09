@@ -434,4 +434,27 @@ class SimulateApiTest {
                 "{\"level\":3,\"party\":[{\"type\":\"filler\",\"id\":\"my-enemy-0\",\"role\":\"tank\"}]," + GOBLINS + ",\"seed\":1}")
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void theCampaignSeedChoosesTheDays() throws Exception {
+        // A fully specified genome, so the seed only affects the days.
+        String genome = "{\"classSlug\":\"barbarian\",\"abilityAssignment\":[0,2,1,3,4,5],\"weaponName\":\"Greataxe\",\"armorName\":null,"
+                + "\"shield\":false,\"twoHanded\":true}";
+        java.util.function.LongFunction<String> day = seed -> {
+            try {
+                JsonNode r = json(send("/api/v1/simulate/campaign", "{\"level\":5,\"genome\":" + genome + ",\"days\":6,\"seed\":" + seed + "}")
+                        .andExpect(status().isOk()));
+                return r.get("dayWinRate").get("point").asString() + "/" + r.get("avgEncountersCleared").asString();
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+        };
+        String first = day.apply(1);
+        assertThat(day.apply(1)).isEqualTo(first);
+        boolean differs = false;
+        for (long seed = 2; seed <= 8 && !differs; seed++) {
+            differs = !day.apply(seed).equals(first);
+        }
+        assertThat(differs).isTrue();
+    }
 }

@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.omnomnom.dnd.sim.application.BadRequestException;
 import org.omnomnom.dnd.sim.application.ReportStore;
 import org.omnomnom.dnd.sim.domain.opt.Reports;
 import tools.jackson.core.type.TypeReference;
@@ -28,6 +30,9 @@ public final class D1ReportStore implements ReportStore {
 
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
     private static final Pattern ID = FilesystemReportStore.ID;
+
+    /** {@code <saved_at>|<id>} of the last report on the previous page. */
+    private static final Pattern CURSOR = Pattern.compile("(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z)\\|([0-9a-f]{8,64})");
 
     private final D1Client client;
     private final ObjectMapper mapper;
@@ -94,9 +99,12 @@ public final class D1ReportStore implements ReportStore {
         List<Object> params = new ArrayList<>();
         String where = "";
         if (cursor != null) {
-            int sep = cursor.indexOf('|');
-            String savedAt = cursor.substring(0, sep);
-            String id = cursor.substring(sep + 1);
+            Matcher m = CURSOR.matcher(cursor);
+            if (!m.matches()) {
+                throw new BadRequestException("invalid-cursor", "cursor is not one this service issued", "cursor");
+            }
+            String savedAt = m.group(1);
+            String id = m.group(2);
             where = " WHERE saved_at < ? OR (saved_at = ? AND id < ?)";
             params.add(savedAt);
             params.add(savedAt);

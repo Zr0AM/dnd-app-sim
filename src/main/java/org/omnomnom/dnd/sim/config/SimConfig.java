@@ -52,8 +52,10 @@ class SimConfig {
     }
 
     @Bean
-    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock) {
-        return new JobService(catalogs, executor, store, clock);
+    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimProperties props) {
+        SimProperties.Jobs jobs = props.jobs();
+        return new JobService(catalogs, executor, store, clock,
+                new JobService.Settings(jobs.retainedFinished(), jobs.campaignDays(), jobs.exposeErrorDetail()));
     }
 
     @Bean

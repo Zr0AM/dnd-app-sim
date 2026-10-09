@@ -214,7 +214,8 @@ class JobServiceTest {
         assertThat(done.reportId()).isNull();
         assertThat(done.error().code()).isEqualTo("job-failed");
         assertThat(done.error().status()).isEqualTo(500);
-        assertThat(done.error().detail()).isEqualTo("disk on fire");
+        // The exception text stays in the log; clients get a generic detail naming the job.
+        assertThat(done.error().detail()).doesNotContain("disk on fire").contains(done.id());
     }
 
     // ---- annotating a saved report -------------------------------------------------------------
@@ -238,5 +239,81 @@ class JobServiceTest {
     void annotatingAnUnknownReportIs404() {
         assertThatThrownBy(() -> jobs.startReportCampaign("deadbeef", null, null))
                 .isInstanceOfSatisfying(NotFoundException.class, e -> assertThat(e.code()).isEqualTo("report-not-found"));
+    }
+
+    // ---- adversarial review fixes ----------------------------------------------------------------
+
+    private static JobView awaitWith(JobService service, String id) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 120_000;
+        while (System.currentTimeMillis() < deadline) {
+            JobView v = service.get(id);
+            if (v.status().finished()) {
+                return v;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("timed out waiting for job " + id);
+    }
+
+    @Test
+    void anOperatorCanExposeFailureDetail() throws Exception {
+        JobService verbose = new JobService(catalogs, executor, store, Clock.systemUTC(), new JobService.Settings(200, 12, true));
+        store.failOnSave.set(true);
+        JobView done = awaitWith(verbose, verbose.startOptimization(tiny(1L, false)).id());
+        assertThat(done.status()).isEqualTo(JobView.Status.FAILED);
+        assertThat(done.error().detail()).isEqualTo("disk on fire");
+    }
+
+    private List<Double> annotate(String reportId, Long seed) throws InterruptedException {
+        JobView job = jobs.startReportCampaign(reportId, 8, seed);
+        assertThat(job.seed()).isEqualTo(seed);
+        assertThat(awaitFinished(job.id()).status()).isEqualTo(JobView.Status.SUCCEEDED);
+        return store.find(reportId).orElseThrow().report().leaderboard().stream().map(Reports.Entry::campaignDayWinRate).toList();
+    }
+
+    @Test
+    void theReportCampaignSeedChoosesTheDaysAndIsEchoed() throws Exception {
+        // Level 5 barbarians clear some days and lose others, so the rates move with the days sampled.
+        String reportId = awaitFinished(jobs.startOptimization(
+                new OptimizeCommand(5, null, List.of(BuildClass.BARBARIAN), null, TINY, false, false, 9L)).id()).reportId();
+        List<Double> first = annotate(reportId, 1L);
+        assertThat(annotate(reportId, 1L)).isEqualTo(first); // the same seed reproduces the annotation
+        boolean differs = false;
+        for (long seed = 2; seed <= 8 && !differs; seed++) {
+            differs = !annotate(reportId, seed).equals(first);
+        }
+        assertThat(differs).as("other seeds sample other days").isTrue();
+        // Without a seed one is drawn and echoed, like every other endpoint.
+        JobView drawn = jobs.startReportCampaign(reportId, 2, null);
+        assertThat(drawn.seed()).isNotNull().isBetween(0L, 4294967295L);
+        awaitFinished(drawn.id());
+    }
+
+    @Test
+    void campaignDaysAreAnOperatorSetting() throws Exception {
+        InMemoryReportStore own = new InMemoryReportStore();
+        JobService twoDays = new JobService(catalogs, executor, own, Clock.systemUTC(), new JobService.Settings(200, 2, false));
+        String reportId = awaitWith(twoDays, twoDays.startOptimization(tiny(4L, true)).id()).reportId();
+        // A two-day campaign can only score 0, 0.5 or 1.
+        assertThat(own.find(reportId).orElseThrow().report().leaderboard())
+                .allSatisfy(e -> assertThat(e.campaignDayWinRate()).isIn(0.0, 0.5, 1.0));
+        // An annotation job without days uses the setting too.
+        JobView job = twoDays.startReportCampaign(reportId, null, 3L);
+        awaitWith(twoDays, job.id());
+        assertThat(own.find(reportId).orElseThrow().report().leaderboard())
+                .allSatisfy(e -> assertThat(e.campaignDayWinRate()).isIn(0.0, 0.5, 1.0));
+    }
+
+    @Test
+    void finishedJobRetentionIsAnOperatorSetting() throws Exception {
+        JobService keepTwo = new JobService(catalogs, executor, store, Clock.systemUTC(), new JobService.Settings(2, 12, false));
+        List<String> ids = new java.util.ArrayList<>();
+        for (long seed = 1; seed <= 3; seed++) {
+            ids.add(awaitWith(keepTwo, keepTwo.startOptimization(tiny(seed, false)).id()).id());
+        }
+        keepTwo.startOptimization(tiny(4L, false));
+        assertThatThrownBy(() -> keepTwo.get(ids.get(0))).isInstanceOf(NotFoundException.class);
+        assertThat(keepTwo.get(ids.get(1)).status()).isEqualTo(JobView.Status.SUCCEEDED);
+        assertThat(JobService.Settings.defaults()).isEqualTo(new JobService.Settings(200, 12, false));
     }
 }

@@ -6,12 +6,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.omnomnom.dnd.sim.application.BadRequestException;
 import org.omnomnom.dnd.sim.application.ReportStore;
 import org.omnomnom.dnd.sim.domain.opt.Reports;
 import org.slf4j.Logger;
@@ -28,6 +31,9 @@ public final class FilesystemReportStore implements ReportStore {
 
     /** Run keys are lowercase hex; anything else is rejected before it can reach the filesystem. */
     static final Pattern ID = Pattern.compile("[0-9a-f]{8,64}");
+
+    /** {@code <epoch millis>:<id>} of the last report on the previous page. */
+    private static final Pattern CURSOR = Pattern.compile("(\\d{1,18}):([0-9a-f]{8,64})");
 
     private final Path directory;
     private final ObjectMapper mapper;
@@ -78,7 +84,9 @@ public final class FilesystemReportStore implements ReportStore {
                 for (Path p : (Iterable<Path>) files::iterator) {
                     String name = p.getFileName().toString();
                     if (name.endsWith(".json") && ID.matcher(name.substring(0, name.length() - 5)).matches()) {
-                        entries.add(new Entry(name.substring(0, name.length() - 5), Files.getLastModifiedTime(p).toInstant()));
+                        // Millisecond precision throughout: the sort, the cursor and the comparison must all agree.
+                        entries.add(new Entry(name.substring(0, name.length() - 5),
+                                Files.getLastModifiedTime(p).toInstant().truncatedTo(ChronoUnit.MILLIS)));
                     }
                 }
             } catch (IOException e) {
@@ -91,15 +99,18 @@ public final class FilesystemReportStore implements ReportStore {
         Instant afterTime = null;
         String afterId = null;
         if (cursor != null) {
-            int sep = cursor.indexOf(':');
-            afterTime = Instant.ofEpochMilli(Long.parseLong(cursor.substring(0, sep)));
-            afterId = cursor.substring(sep + 1);
+            Matcher m = CURSOR.matcher(cursor);
+            if (!m.matches()) {
+                throw new BadRequestException("invalid-cursor", "cursor is not one this service issued", "cursor");
+            }
+            afterTime = Instant.ofEpochMilli(Long.parseLong(m.group(1)));
+            afterId = m.group(2);
         }
         List<Summary> items = new ArrayList<>();
         String next = null;
         for (Entry e : entries) {
             if (afterTime != null) {
-                int cmp = e.savedAt().truncatedTo(java.time.temporal.ChronoUnit.MILLIS).compareTo(afterTime);
+                int cmp = e.savedAt().compareTo(afterTime);
                 if (cmp > 0 || (cmp == 0 && e.id().compareTo(afterId) >= 0)) {
                     continue;
                 }
@@ -113,7 +124,7 @@ public final class FilesystemReportStore implements ReportStore {
                 Reports.Report r = mapper.readValue(file(e.id()), Reports.Report.class);
                 Top top = r.leaderboard().isEmpty() ? null
                         : new Top(r.leaderboard().get(0).description(), r.leaderboard().get(0).weightedScore());
-                items.add(new Summary(e.id(), e.savedAt().truncatedTo(java.time.temporal.ChronoUnit.MILLIS), r.config(), top));
+                items.add(new Summary(e.id(), e.savedAt(), r.config(), top));
             } catch (RuntimeException ex) {
                 LOG.warn("skipping unreadable report file {}: {}", e.id(), ex.toString());
             }

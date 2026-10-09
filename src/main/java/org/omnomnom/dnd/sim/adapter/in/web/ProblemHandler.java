@@ -3,6 +3,7 @@ package org.omnomnom.dnd.sim.adapter.in.web;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import org.omnomnom.dnd.sim.application.BadRequestException;
 import org.omnomnom.dnd.sim.application.BusyException;
 import org.omnomnom.dnd.sim.application.ConflictException;
 import org.omnomnom.dnd.sim.application.NotFoundException;
@@ -78,6 +79,11 @@ class ProblemHandler {
     ResponseEntity<ProblemDetail> badParameterType(MethodArgumentTypeMismatchException e) {
         return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "Parameter '" + e.getName() + "' has the wrong type.",
                 List.of(new FieldError(e.getName(), "has the wrong type", "type-mismatch")));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    ResponseEntity<ProblemDetail> badRequest(BadRequestException e) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage(), e.errors());
     }
 
     @ExceptionHandler(UnprocessableException.class)
