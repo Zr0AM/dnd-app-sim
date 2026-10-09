@@ -128,7 +128,7 @@ class JobServiceTest {
     void aCampaignPassAnnotatesTheBuilds() throws Exception {
         JobView done = awaitFinished(jobs.startOptimization(tiny(3L, true)).id());
         assertThat(done.status()).isEqualTo(JobView.Status.SUCCEEDED);
-        assertThat(done.progress().phase()).isEqualTo("campaign");
+        assertThat(done.progress()).isEqualTo(new JobView.Progress("campaign", 1, 1));
         Reports.Report report = store.find(done.reportId()).orElseThrow().report();
         assertThat(report.config()).containsEntry("campaign", true);
         assertThat(report.leaderboard()).allSatisfy(e -> assertThat(e.campaignDayWinRate()).isBetween(0.0, 1.0));
@@ -183,7 +183,10 @@ class JobServiceTest {
         assertThat(jobs.cancel(queued.id()).status()).isEqualTo(JobView.Status.CANCELLED);
         jobs.cancel(running.id());
         awaitFinished(running.id());
+        executor.call(() -> 0); // everything queued before this has now been dequeued and run (or skipped)
         assertThat(jobs.get(queued.id()).startedAt()).isNull();
+        assertThat(jobs.get(queued.id()).status()).isEqualTo(JobView.Status.CANCELLED);
+        assertThat(jobs.get(queued.id()).progress()).isNull();
         assertThat(store.size()).isZero();
     }
 
@@ -227,7 +230,7 @@ class JobServiceTest {
         JobView done = awaitFinished(job.id());
         assertThat(done.status()).isEqualTo(JobView.Status.SUCCEEDED);
         assertThat(done.reportId()).isEqualTo(reportId);
-        assertThat(done.progress().completed()).isEqualTo(1);
+        assertThat(done.progress()).isEqualTo(new JobView.Progress("campaign", 1, 1));
         Reports.Report report = store.find(reportId).orElseThrow().report();
         assertThat(report.leaderboard()).allSatisfy(e -> assertThat(e.campaignDayWinRate()).isBetween(0.0, 1.0));
         assertThat(report.paretoFront()).allSatisfy(e -> assertThat(e.campaignDayWinRate()).isBetween(0.0, 1.0));
@@ -238,5 +241,27 @@ class JobServiceTest {
     void annotatingAnUnknownReportIs404() {
         assertThatThrownBy(() -> jobs.startReportCampaign("deadbeef", null, null))
                 .isInstanceOfSatisfying(NotFoundException.class, e -> assertThat(e.code()).isEqualTo("report-not-found"));
+    }
+
+    @Test
+    void onlyTheMostRecentFinishedJobsAreRemembered() throws Exception {
+        JobService keepTwo = new JobService(catalogs, executor, store, Clock.systemUTC(), SimLimits.defaults(), 2);
+        List<String> ids = new java.util.ArrayList<>();
+        for (long seed = 1; seed <= 3; seed++) {
+            JobView job = keepTwo.startOptimization(tiny(seed, false));
+            ids.add(job.id());
+            long deadline = System.currentTimeMillis() + 60_000;
+            while (!keepTwo.get(job.id()).status().finished() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10);
+            }
+        }
+        // Two are kept, so with three finished the oldest goes when the next job is submitted.
+        assertThat(keepTwo.get(ids.get(0)).status()).isEqualTo(JobView.Status.SUCCEEDED);
+        JobView fourth = keepTwo.startOptimization(tiny(4L, false));
+        assertThat(keepTwo.get(fourth.id())).isNotNull();
+        assertThatThrownBy(() -> keepTwo.get(ids.get(0))).isInstanceOf(NotFoundException.class);
+        assertThat(keepTwo.get(ids.get(1)).status()).isEqualTo(JobView.Status.SUCCEEDED);
+        assertThat(keepTwo.get(ids.get(2)).status()).isEqualTo(JobView.Status.SUCCEEDED);
+        assertThat(JobService.DEFAULT_RETAINED_FINISHED_JOBS).isEqualTo(200);
     }
 }

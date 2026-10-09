@@ -50,6 +50,9 @@ class AccessApiTest {
                 .andExpect(header().string("WWW-Authenticate", "Bearer"))
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.code").value("unauthorized"))
+                .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:unauthorized"))
+                .andExpect(jsonPath("$.title").value("Unauthorized"))
+                .andExpect(jsonPath("$.status").value(401))
                 .andReturn().getResponse();
         OpenApiSchema.assertConforms(mapper.readTree(response.getContentAsString()), "Problem");
         mvc.perform(post("/api/v1/simulate/encounter").contentType(MediaType.APPLICATION_JSON).content(ENCOUNTER)).andExpect(status().isUnauthorized());
@@ -91,6 +94,9 @@ class AccessApiTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.code").value("rate-limited"))
+                .andExpect(jsonPath("$.type").value("urn:dnd-app-sim:problem:rate-limited"))
+                .andExpect(jsonPath("$.title").value("Too many requests"))
+                .andExpect(jsonPath("$.status").value(429))
                 .andReturn().getResponse();
         assertThat(Integer.parseInt(refused.getHeader("Retry-After"))).isBetween(1, 60);
         OpenApiSchema.assertConforms(mapper.readTree(refused.getContentAsString()), "Problem");

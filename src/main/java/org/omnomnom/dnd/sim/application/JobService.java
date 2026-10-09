@@ -39,13 +39,14 @@ public final class JobService {
     public static final int DEFAULT_CAMPAIGN_DAYS = 12;
 
     /** How many finished jobs are remembered before the oldest are forgotten. */
-    private static final int RETAINED_FINISHED_JOBS = 200;
+    static final int DEFAULT_RETAINED_FINISHED_JOBS = 200;
 
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
     private final ReportStore store;
     private final Clock clock;
     private final SimLimits limits;
+    private final int retainedFinishedJobs;
     private final Map<String, Job> jobs = new LinkedHashMap<>();
 
     public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock) {
@@ -53,6 +54,11 @@ public final class JobService {
     }
 
     public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits) {
+        this(catalogs, executor, store, clock, limits, DEFAULT_RETAINED_FINISHED_JOBS);
+    }
+
+    JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits, int retainedFinishedJobs) {
+        this.retainedFinishedJobs = retainedFinishedJobs;
         this.catalogs = catalogs;
         this.executor = executor;
         this.store = store;
@@ -298,11 +304,11 @@ public final class JobService {
 
     private void forgetOldFinishedJobs() {
         long finished = jobs.values().stream().filter(j -> j.view().status().finished()).count();
-        if (finished <= RETAINED_FINISHED_JOBS) {
+        if (finished <= retainedFinishedJobs) {
             return;
         }
         var it = jobs.values().iterator();
-        long excess = finished - RETAINED_FINISHED_JOBS;
+        long excess = finished - retainedFinishedJobs;
         while (it.hasNext() && excess > 0) {
             if (it.next().view().status().finished()) {
                 it.remove();

@@ -175,10 +175,13 @@ daemon workers, request defaults, and the problem `type` and `code`) are covered
 (`Min`, `ValidLevel`) rather than leaking the controller method. The 10b files (jobs, stores, report endpoints) have not
 been mutation-sampled.
 
-Phase 11 (limits, access control) and the Phase 10b files were mutation-sampled in part: `RateLimiter` fully (12
-mutants; 3 real survivors in idle cleanup and the allowed decision, now covered). The remaining sampled files (job
-service, report service, the two report stores, the D1 client, the access filter and config) are being run from a
-separate checkout so the working tree stays clean, and any gaps will be added to this PR.
+Phase 11 (limits, access control) and the Phase 10b files were mutation-sampled (about 12 mutants each) on `RateLimiter`,
+`SimLimits`, `JobService`, `ReportService` and `AccessFilter`; the filesystem and D1 stores, the D1 client and
+`AccessConfig` were sampled afterwards (see the PR). Real survivors (rate-limiter cleanup boundaries, job retention,
+campaign progress totals, weight validation, the problem body of 401/429) are covered. Equivalent mutants: the job
+start check when a cancel was requested (the cancel flag stops the work at once anyway), cancelling a queued task with
+interruption (a queued task is not running), the transient initial campaign progress value, and the key digest slice
+that only names a rate-limit bucket.
 
 ## Port progress
 
