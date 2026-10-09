@@ -1,6 +1,7 @@
 package org.omnomnom.dnd.sim.domain.content.feature;
 
 import org.omnomnom.dnd.sim.domain.combat.Feature;
+import org.omnomnom.dnd.sim.domain.combat.FeatureIds;
 
 /**
  * Aura of Protection (Paladin, level 6+): a marker feature. While present, the encounter gives every ally (and the
@@ -9,7 +10,7 @@ import org.omnomnom.dnd.sim.domain.combat.Feature;
  */
 public final class AuraOfProtectionFeature implements Feature {
 
-    public static final String FEATURE_ID = "aura-of-protection";
+    public static final String FEATURE_ID = FeatureIds.AURA_OF_PROTECTION;
 
     @Override
     public String id() {
