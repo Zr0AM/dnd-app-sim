@@ -16,6 +16,7 @@ import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
+import org.omnomnom.dnd.sim.domain.core.Picks;
 import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.dice.Advantage;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
@@ -49,6 +50,7 @@ public final class Encounter {
 
     private final Grid grid;
     private final List<Combatant> combatants;
+    private final Roster roster;
     private final LabeledRandom rng;
     private final Function<Combatant, TurnPolicy> policyFor;
     private final EventSink sink;
@@ -60,6 +62,7 @@ public final class Encounter {
     private Encounter(Builder b) {
         this.grid = b.grid;
         this.combatants = new ArrayList<>(b.combatants);
+        this.roster = new Roster(combatants, b.grid.cellFt());
         this.rng = b.rng;
         this.policyFor = b.policyFor;
         this.sink = b.sink;
@@ -118,24 +121,15 @@ public final class Encounter {
         sink.accept(event);
     }
 
-    private boolean anyConscious(Side side) {
-        for (Combatant c : combatants) {
-            if (c.side() == side && c.isConscious()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /** The fight is over when at most one side still has a conscious combatant. */
     public boolean isOver() {
-        return !anyConscious(Side.PARTY) || !anyConscious(Side.ENEMY);
+        return !roster.anyConscious(Side.PARTY) || !roster.anyConscious(Side.ENEMY);
     }
 
     /** The winning side, or null if both or neither side has a conscious combatant. */
     public Side winner() {
-        boolean party = anyConscious(Side.PARTY);
-        boolean enemy = anyConscious(Side.ENEMY);
+        boolean party = roster.anyConscious(Side.PARTY);
+        boolean enemy = roster.anyConscious(Side.ENEMY);
         if (party == enemy) {
             return null;
         }
@@ -332,35 +326,17 @@ public final class Encounter {
 
         @Override
         public List<Combatant> enemies() {
-            List<Combatant> out = new ArrayList<>();
-            for (Combatant c : combatants) {
-                if (c.side() != self.side() && c.isConscious()) {
-                    out.add(c);
-                }
-            }
-            return out;
+            return roster.consciousOpponents(self);
         }
 
         @Override
         public List<Combatant> allies() {
-            List<Combatant> out = new ArrayList<>();
-            for (Combatant c : combatants) {
-                if (c.side() == self.side() && c.isConscious() && c != self) {
-                    out.add(c);
-                }
-            }
-            return out;
+            return roster.consciousAllies(self);
         }
 
         @Override
         public List<Combatant> allAllies() {
-            List<Combatant> out = new ArrayList<>();
-            for (Combatant c : combatants) {
-                if (c.side() == self.side() && c.isAlive() && c != self) {
-                    out.add(c);
-                }
-            }
-            return out;
+            return roster.livingAllies(self);
         }
 
         @Override
@@ -510,7 +486,7 @@ public final class Encounter {
             // Save-or-condition: each target saves; on a failure the condition is applied for a duration,
             // repeating the save each turn to shake it off.
             List<Combatant> victims = ctl.aoeRadiusFt() != null
-                    ? enemiesWithin(self, target.position(), ctl.aoeRadiusFt())
+                    ? roster.consciousOpponentsWithin(self, target.position(), ctl.aoeRadiusFt())
                     : List.of(target);
             int dc = self.spellSaveDc();
             for (Combatant v : victims) {
@@ -567,7 +543,7 @@ public final class Encounter {
             SpellKind.SaveDamage sd = (SpellKind.SaveDamage) kind;
             // Save-damage: gather targets (area or single).
             List<Combatant> victims = sd.aoeRadiusFt() != null
-                    ? enemiesWithin(self, sd.selfOrigin() ? self.position() : target.position(), sd.aoeRadiusFt())
+                    ? roster.consciousOpponentsWithin(self, sd.selfOrigin() ? self.position() : target.position(), sd.aoeRadiusFt())
                     : List.of(target);
             Dice damage = sd.damage().at(slotLevel, self.level());
             int dc = self.spellSaveDc();
@@ -611,18 +587,6 @@ public final class Encounter {
 
         log(new CombatEvent.SpellCast(self.id(), spell.name(), slotLevel, targetsHit, totalDamage, totalHealing));
         return OptionalInt.of(totalDamage);
-    }
-
-    private List<Combatant> enemiesWithin(Combatant self, Cell origin, int radiusFt) {
-        List<Combatant> out = new ArrayList<>();
-        for (Combatant c : combatants) {
-            if (c.side() != self.side()
-                    && c.isConscious()
-                    && GridMath.distanceFt(origin, c.position(), grid.cellFt()) <= radiusFt) {
-                out.add(c);
-            }
-        }
-        return out;
     }
 
     private boolean buffEligible(Combatant self, Spell spell, Combatant c) {
@@ -997,13 +961,7 @@ public final class Encounter {
 
     /** A combatant's strongest attack by average damage (for legendary actions), or null. */
     private static AttackProfile bestAttack(Combatant c) {
-        AttackProfile best = null;
-        for (AttackProfile w : c.activeAttacks()) {
-            if (best == null || w.damage().mean() > best.damage().mean()) {
-                best = w;
-            }
-        }
-        return best;
+        return Picks.firstMax(c.activeAttacks(), w -> w.damage().mean()).orElse(null);
     }
 
     /** Combine two advantage sources under the no-stacking rule. */

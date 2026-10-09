@@ -9,6 +9,7 @@ import org.omnomnom.dnd.sim.domain.content.build.Role;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
 import org.omnomnom.dnd.sim.domain.core.Side;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /**
@@ -51,13 +52,7 @@ public final class PartyScenarios {
             new Spec("giant-pack", List.of(fixed("fire-giant", 1), perMember(MonsterSlugs.TROLL, 1))));
 
     private static List<Spec> specsForLevel(int level) {
-        if (level >= 17) {
-            return LEVEL_17;
-        }
-        if (level >= 11) {
-            return LEVEL_11;
-        }
-        return LEVEL_5;
+        return Tiers.pick(level, LEVEL_5, Tiers.from(11, LEVEL_11), Tiers.from(17, LEVEL_17));
     }
 
     /** An enemy group of a party encounter: {@code perMember} scales with party size, {@code count} is fixed. */

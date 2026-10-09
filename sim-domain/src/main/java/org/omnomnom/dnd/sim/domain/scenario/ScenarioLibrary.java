@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 
 /**
  * The curated library of solo-hero encounters a build is tested against: a single foe, a pack, a swarm and a mixed
@@ -54,13 +55,7 @@ public final class ScenarioLibrary {
                     g(MonsterSlugs.TROLL, 1), g(MonsterSlugs.OWLBEAR, 1)));
 
     private static List<Spec> specsForLevel(int level) {
-        if (level >= 17) {
-            return LEVEL_17;
-        }
-        if (level >= 11) {
-            return LEVEL_11;
-        }
-        return LEVEL_3;
+        return Tiers.pick(level, LEVEL_3, Tiers.from(11, LEVEL_11), Tiers.from(17, LEVEL_17));
     }
 
     /**

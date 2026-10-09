@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
+import org.omnomnom.dnd.sim.domain.core.FloatOrder;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.EvalResult;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.Objectives;
 import org.omnomnom.dnd.sim.domain.opt.genome.Genome;
@@ -156,7 +157,7 @@ public final class Reports {
                     weightedScore(ind.objectives(), bounds, weights),
                     null);
         };
-        Comparator<Entry> byScore = (a, b) -> signOf(b.weightedScore() - a.weightedScore());
+        Comparator<Entry> byScore = FloatOrder.descendingBy(Entry::weightedScore);
 
         // De-duplicate by genome key for the leaderboard (the population can repeat elites).
         Set<String> seen = new HashSet<>();
@@ -177,10 +178,6 @@ public final class Reports {
         front.sort(byScore);
 
         return new Report(VERSION, runKey(canonicalJson(config)), config, Objectives.NAMES, bounds, weights, List.copyOf(front), board);
-    }
-
-    private static int signOf(double d) {
-        return d > 0 ? 1 : d < 0 ? -1 : 0;
     }
 
     /**
@@ -262,7 +259,7 @@ public final class Reports {
                 out.add(new Entry(e.key(), e.rank(), e.genome(), e.description(), e.metrics(), e.objectives(),
                         weightedScore(vec, report.objectiveBounds(), weights), e.campaignDayWinRate()));
             }
-            out.sort((a, b) -> signOf(b.weightedScore() - a.weightedScore()));
+            out.sort(FloatOrder.descendingBy(Entry::weightedScore));
             return List.copyOf(out);
         };
         return new Report(report.version(), report.runKey(), report.config(), report.objectiveNames(), report.objectiveBounds(),

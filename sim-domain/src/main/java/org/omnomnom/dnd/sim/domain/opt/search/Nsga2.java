@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
+import org.omnomnom.dnd.sim.domain.core.FloatOrder;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.EvalResult;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.Objectives;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.SoloEvaluator;
@@ -88,11 +89,6 @@ public final class Nsga2 {
         return fronts;
     }
 
-    /** A JavaScript-style comparator result from a difference: NaN counts as equal. */
-    private static int signOf(double d) {
-        return d > 0 ? 1 : d < 0 ? -1 : 0;
-    }
-
     /**
      * Crowding distance for the points in one front, aligned to {@code frontIndices}. Boundary points get infinity so
      * the extremes are preserved.
@@ -110,7 +106,7 @@ public final class Nsga2 {
             for (int k = 0; k < m; k++) {
                 order.add(k);
             }
-            order.sort((a, b) -> signOf(points.get(frontIndices.get(a))[o] - points.get(frontIndices.get(b))[o]));
+            order.sort((a, b) -> FloatOrder.compare(points.get(frontIndices.get(a))[o], points.get(frontIndices.get(b))[o]));
             distance[order.get(0)] = Double.POSITIVE_INFINITY;
             distance[order.get(m - 1)] = Double.POSITIVE_INFINITY;
             double min = points.get(frontIndices.get(order.get(0)))[obj];
@@ -329,7 +325,7 @@ public final class Nsga2 {
                 } else {
                     int remaining = populationSize - next.size();
                     List<Integer> sorted = new ArrayList<>(front);
-                    sorted.sort((x, y) -> signOf(combined.get(y).crowding - combined.get(x).crowding));
+                    sorted.sort(FloatOrder.descendingBy(i -> combined.get(i).crowding));
                     for (int k = 0; k < remaining; k++) {
                         next.add(combined.get(sorted.get(k)));
                     }
@@ -347,7 +343,7 @@ public final class Nsga2 {
                 front.add(ind);
             }
         }
-        front.sort((a, b) -> signOf(b.crowding - a.crowding));
+        front.sort(FloatOrder.descendingBy(ind -> ind.crowding));
         return new Result(Collections.unmodifiableList(front), Collections.unmodifiableList(population), opts.generations());
     }
 }
