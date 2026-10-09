@@ -38,6 +38,9 @@ import org.omnomnom.dnd.sim.domain.scenario.Scenario;
  */
 public final class EncounterService {
 
+    /** Enemies are named {@code enemy-0}, {@code enemy-1}, ...; party ids may not take that prefix. */
+    static final String ENEMY_ID_PREFIX = "enemy-";
+
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
     private final SimLimits limits;
@@ -125,6 +128,10 @@ public final class EncounterService {
                     member = new Member(id, null, f.role());
                 }
             }
+            if (id.startsWith(ENEMY_ID_PREFIX)) {
+                throw new UnprocessableException("reserved-id", "party member ids may not start with '" + ENEMY_ID_PREFIX
+                        + "', which names the enemies", "party[" + i + "].id");
+            }
             if (!ids.add(id)) {
                 throw new UnprocessableException("duplicate-id", "duplicate party member id: " + id, "party[" + i + "].id");
             }
@@ -201,7 +208,7 @@ public final class EncounterService {
             accs.put(m.id(), new Acc(m.id(), Side.PARTY, m.genome()));
         }
         for (int n = 0; n < arena.plan().size(); n++) {
-            accs.put("enemy-" + n, new Acc("enemy-" + n, Side.ENEMY, null));
+            accs.put(ENEMY_ID_PREFIX + n, new Acc(ENEMY_ID_PREFIX + n, Side.ENEMY, null));
         }
 
         int wins = 0;
@@ -215,7 +222,7 @@ public final class EncounterService {
             }
             for (int n = 0; n < arena.plan().size(); n++) {
                 combatants.add(MonsterCompiler.spawn(arena.plan().get(n),
-                        new MonsterCompiler.Placement("enemy-" + n, Side.ENEMY, arena.enemyCells().get(n))));
+                        new MonsterCompiler.Placement(ENEMY_ID_PREFIX + n, Side.ENEMY, arena.enemyCells().get(n))));
             }
             CombatTally tally = new CombatTally();
             EventLog events = cmd.includeLog() && i == cmd.logRun() ? new EventLog() : null;

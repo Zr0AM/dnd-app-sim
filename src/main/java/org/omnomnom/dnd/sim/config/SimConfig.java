@@ -35,7 +35,8 @@ class SimConfig {
 
     @Bean(destroyMethod = "close")
     SimulationExecutor simulationExecutor(SimProperties props) {
-        return new SimulationExecutor(props.executor().threads(), props.executor().queueCapacity());
+        return new SimulationExecutor(props.executor().threads(), props.executor().queueCapacity(),
+                (int) props.executor().busyRetryAfter().toSeconds());
     }
 
     @Bean
@@ -68,8 +69,11 @@ class SimConfig {
     }
 
     @Bean
-    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits) {
-        return new JobService(catalogs, executor, store, clock, limits);
+    JobService jobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits,
+            SimProperties props) {
+        SimProperties.Jobs jobs = props.jobs();
+        return new JobService(catalogs, executor, store, clock,
+                new JobService.Settings(jobs.retainedFinished(), jobs.campaignDays(), jobs.exposeErrorDetail()), limits);
     }
 
     @Bean

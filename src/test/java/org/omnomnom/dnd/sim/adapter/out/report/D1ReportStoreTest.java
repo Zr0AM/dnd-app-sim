@@ -149,4 +149,17 @@ class D1ReportStoreTest {
         assertThatThrownBy(() -> store.find("0123abcd")).isInstanceOf(D1Client.D1Exception.class).hasMessageContaining("D1 request failed");
         d1 = new FakeD1Server(); // so @AfterEach has something to close
     }
+
+    @Test
+    void aCursorTheServiceDidNotIssueIsABadRequestAndNeverReachesD1() {
+        store.list(1, null); // creates the schema
+        int before = d1.statements.size();
+        for (String bad : List.of("abc", "2026-10-08T12:00:00Z|0123abcd", "2026-10-08T12:00:00.000Z|bad id", "x|y", "' OR 1=1 --|0123abcd")) {
+            assertThatThrownBy(() -> store.list(5, bad))
+                    .as(bad)
+                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.BadRequestException.class,
+                            e -> assertThat(e.code()).isEqualTo("invalid-cursor"));
+        }
+        assertThat(d1.statements).hasSize(before);
+    }
 }

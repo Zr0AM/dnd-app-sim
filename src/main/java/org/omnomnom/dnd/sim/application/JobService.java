@@ -38,32 +38,49 @@ public final class JobService {
     /** The campaign pass of an optimization and the report annotation job use this many simulated days by default. */
     public static final int DEFAULT_CAMPAIGN_DAYS = 12;
 
-    /** How many finished jobs are remembered before the oldest are forgotten. */
-    static final int DEFAULT_RETAINED_FINISHED_JOBS = 200;
+    /**
+     * Operator settings for jobs.
+     *
+     * @param retainedFinishedJobs how many finished jobs are remembered before the oldest are forgotten
+     * @param campaignDays simulated days for the campaign pass of an optimization and the default for report annotation
+     * @param exposeErrorDetail put a failed job's exception message in its problem detail; off by default because the
+     *     message can name internal paths or upstream responses
+     */
+    public record Settings(int retainedFinishedJobs, int campaignDays, boolean exposeErrorDetail) {
+
+        public static Settings defaults() {
+            return new Settings(200, DEFAULT_CAMPAIGN_DAYS, false);
+        }
+    }
 
     private final ContentCatalogs catalogs;
     private final SimulationExecutor executor;
     private final ReportStore store;
     private final Clock clock;
     private final SimLimits limits;
-    private final int retainedFinishedJobs;
+    private final Settings settings;
     private final Map<String, Job> jobs = new LinkedHashMap<>();
 
     public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock) {
-        this(catalogs, executor, store, clock, SimLimits.defaults());
+        this(catalogs, executor, store, clock, Settings.defaults(), SimLimits.defaults());
+    }
+
+    public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, Settings settings) {
+        this(catalogs, executor, store, clock, settings, SimLimits.defaults());
     }
 
     public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits) {
-        this(catalogs, executor, store, clock, limits, DEFAULT_RETAINED_FINISHED_JOBS);
+        this(catalogs, executor, store, clock, Settings.defaults(), limits);
     }
 
-    JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, SimLimits limits, int retainedFinishedJobs) {
-        this.retainedFinishedJobs = retainedFinishedJobs;
+    public JobService(ContentCatalogs catalogs, SimulationExecutor executor, ReportStore store, Clock clock, Settings settings,
+            SimLimits limits) {
         this.catalogs = catalogs;
         this.executor = executor;
         this.store = store;
         this.clock = clock;
         this.limits = limits;
+        this.settings = settings;
     }
 
     /** The mutable state of one job; every access goes through the job's monitor. */
@@ -208,7 +225,7 @@ public final class JobService {
             Reports.Report report = Reports.build(result, config, cmd.level(), weights, 20);
             if (cmd.campaign()) {
                 job.progress("campaign", 0, 1);
-                report = Campaign.annotate(report, level.martial(), DEFAULT_CAMPAIGN_DAYS, Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION);
+                report = Campaign.annotate(report, level.martial(), settings.campaignDays(), Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, seed);
                 job.progress("campaign", 1, 1);
             }
             if (job.cancelRequested()) {
@@ -221,20 +238,22 @@ public final class JobService {
 
     /**
      * Annotate a saved report with each build's adventuring-day win rate; on success the report with the same id is
-     * overwritten, as the CLI did.
+     * overwritten, as the CLI did. The days are seeded from {@code seed} (drawn and echoed when omitted), and every build
+     * in the report faces the same days.
      */
     public JobView startReportCampaign(String reportId, Integer days, Long seed) {
         Reports.Report report = store.find(reportId).map(ReportStore.Stored::report)
                 .orElseThrow(() -> new NotFoundException("report-not-found", "no report with id " + reportId));
         int level = report.config().get("level") instanceof Number n ? n.intValue() : -1;
         ContentCatalogs.LevelContent content = catalogs.level(level);
-        int simulatedDays = days != null ? days : DEFAULT_CAMPAIGN_DAYS;
+        int simulatedDays = days != null ? days : settings.campaignDays();
         SimLimits.require(simulatedDays, limits.campaignDays(), "days", "simulated days");
+        long daySeed = seed != null ? seed : Seeds.randomSeed();
 
-        Job job = new Job(JobView.Kind.CAMPAIGN, seed, List.of());
+        Job job = new Job(JobView.Kind.CAMPAIGN, daySeed, List.of());
         return submit(job, () -> {
             job.progress("campaign", 0, 1);
-            Reports.Report annotated = Campaign.annotate(report, content.martial(), simulatedDays, Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION);
+            Reports.Report annotated = Campaign.annotate(report, content.martial(), simulatedDays, Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, daySeed);
             if (job.cancelRequested()) {
                 throw new Nsga2.CancelledException();
             }
@@ -285,8 +304,10 @@ public final class JobService {
                     job.cancelled();
                 } catch (Throwable t) {
                     LOG.error("job {} failed", job.id, t);
-                    job.fail(new JobView.Problem("urn:dnd-app-sim:problem:job-failed", "Job failed", 500,
-                            t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage(), "job-failed"));
+                    String detail = settings.exposeErrorDetail()
+                            ? (t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage())
+                            : "The job could not be completed; the details are in the service log (job " + job.id + ").";
+                    job.fail(new JobView.Problem("urn:dnd-app-sim:problem:job-failed", "Job failed", 500, detail, "job-failed"));
                 }
                 return null;
             });
@@ -304,11 +325,11 @@ public final class JobService {
 
     private void forgetOldFinishedJobs() {
         long finished = jobs.values().stream().filter(j -> j.view().status().finished()).count();
-        if (finished <= retainedFinishedJobs) {
+        if (finished <= settings.retainedFinishedJobs()) {
             return;
         }
         var it = jobs.values().iterator();
-        long excess = finished - retainedFinishedJobs;
+        long excess = finished - settings.retainedFinishedJobs();
         while (it.hasNext() && excess > 0) {
             if (it.next().view().status().finished()) {
                 it.remove();

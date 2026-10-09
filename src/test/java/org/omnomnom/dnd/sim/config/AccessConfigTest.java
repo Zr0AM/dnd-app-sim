@@ -17,7 +17,8 @@ class AccessConfigTest {
         return new SimProperties(
                 new SimProperties.ReportStore(SimProperties.StoreType.FILESYSTEM, "out/test-reports"),
                 new SimProperties.D1(false, "https://api.cloudflare.com/client/v4", null, null, null, Duration.ofSeconds(5)),
-                new SimProperties.Executor(1, 1),
+                new SimProperties.Executor(1, 1, Duration.ofSeconds(5)),
+                new SimProperties.Jobs(200, 12, false),
                 new SimProperties.Limits(2000, 200, 100, 128, 100, 64, 2_000_000L),
                 new SimProperties.Security(mode, keys),
                 new SimProperties.RateLimit(true, 600, 60));

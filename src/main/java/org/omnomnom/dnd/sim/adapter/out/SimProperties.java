@@ -11,6 +11,7 @@ public record SimProperties(
         @DefaultValue ReportStore reportStore,
         @DefaultValue D1 d1,
         @DefaultValue Executor executor,
+        @DefaultValue Jobs jobs,
         @DefaultValue Limits limits,
         @DefaultValue Security security,
         @DefaultValue RateLimit rateLimit) {
@@ -41,7 +42,20 @@ public record SimProperties(
         }
     }
 
-    public record Executor(@DefaultValue("0") int threads, @DefaultValue("64") int queueCapacity) {}
+    /**
+     * @param busyRetryAfter the {@code Retry-After} given when the queue is full
+     */
+    public record Executor(@DefaultValue("0") int threads, @DefaultValue("64") int queueCapacity, @DefaultValue("5s") Duration busyRetryAfter) {}
+
+    /**
+     * @param retainedFinished finished jobs remembered for polling before the oldest are forgotten
+     * @param campaignDays simulated days for an optimization's campaign pass and the default for report annotation
+     * @param exposeErrorDetail show a failed job's exception message to API clients (off: it may name internal paths)
+     */
+    public record Jobs(
+            @DefaultValue("200") int retainedFinished,
+            @DefaultValue("12") int campaignDays,
+            @DefaultValue("false") boolean exposeErrorDetail) {}
 
     /** Ceilings on how much work one request may ask for; see {@code SimLimits}. */
     public record Limits(

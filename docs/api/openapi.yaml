@@ -301,8 +301,10 @@ paths:
             schema:
               type: object
               properties:
-                days: { type: integer, minimum: 1, maximum: 100, default: 12 }
-                seed: { $ref: '#/components/schemas/Seed' }
+                days: { type: integer, minimum: 1, maximum: 100, default: 12, description: 'Defaults to the sim.jobs.campaign-days setting.' }
+                seed:
+                  $ref: '#/components/schemas/Seed'
+                  description: Seeds the simulated days (every build faces the same days). Drawn and echoed on the job when omitted.
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '202':
@@ -960,7 +962,9 @@ components:
         genome: { $ref: '#/components/schemas/GenomeInput' }
         days: { type: integer, minimum: 1, maximum: 100, default: 16 }
         shortRestHealFrac: { type: number, minimum: 0, maximum: 1, default: 0.5 }
-        seed: { $ref: '#/components/schemas/Seed' }
+        seed:
+          $ref: '#/components/schemas/Seed'
+          description: Completes an under-specified genome and seeds the simulated days. Drawn and echoed when omitted.
     CampaignResult:
       type: object
       required: [seed, genome, dayWinRate, avgEncountersCleared, encountersPerDay, days]

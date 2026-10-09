@@ -146,6 +146,10 @@ class JobsAndReportsApiTest {
         assertThat(top.get("description").asString()).startsWith("L3 ");
         assertThat(all.get("items").get(0).get("config").get("seed").asLong()).isEqualTo(202);
         mvc.perform(get("/api/v1/reports?limit=0")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/reports?cursor=abc")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid-request"))
+                .andExpect(jsonPath("$.errors[0].field").value("cursor"))
+                .andExpect(jsonPath("$.errors[0].code").value("invalid-cursor"));
         mvc.perform(get("/api/v1/reports?limit=201")).andExpect(status().isBadRequest());
     }
 

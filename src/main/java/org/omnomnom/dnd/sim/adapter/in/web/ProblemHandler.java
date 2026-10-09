@@ -3,6 +3,7 @@ package org.omnomnom.dnd.sim.adapter.in.web;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import org.omnomnom.dnd.sim.application.BadRequestException;
 import org.omnomnom.dnd.sim.application.BusyException;
 import org.omnomnom.dnd.sim.application.ConflictException;
 import org.omnomnom.dnd.sim.application.NotFoundException;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -79,6 +81,11 @@ class ProblemHandler {
                 List.of(new FieldError(e.getName(), "has the wrong type", "type-mismatch")));
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    ResponseEntity<ProblemDetail> badRequest(BadRequestException e) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage(), e.errors());
+    }
+
     @ExceptionHandler(UnprocessableException.class)
     ResponseEntity<ProblemDetail> unprocessable(UnprocessableException e) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, e.code(), "Unprocessable request", e.getMessage(), e.errors());
@@ -106,8 +113,27 @@ class ProblemHandler {
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, e.code(), "Error", e.getMessage(), e.errors());
     }
 
+    /**
+     * Everything else. Spring MVC's own failures (an unknown path, a wrong method or media type, ...) carry their HTTP
+     * status as an {@link ErrorResponse}; they keep it, with their headers (for example {@code Allow} on a 405), and are
+     * not logged as errors. Anything without a status is an unexpected 500 whose details stay in the log.
+     */
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unexpected(Exception e) {
+        if (e instanceof ErrorResponse er && er.getStatusCode().is4xxClientError()) {
+            HttpStatus status = HttpStatus.valueOf(er.getStatusCode().value());
+            String code = switch (status) {
+                case NOT_FOUND -> "not-found";
+                case METHOD_NOT_ALLOWED -> "method-not-allowed";
+                case UNSUPPORTED_MEDIA_TYPE -> "unsupported-media-type";
+                case NOT_ACCEPTABLE -> "not-acceptable";
+                default -> "invalid-request";
+            };
+            LOG.debug("client error {}: {}", status.value(), e.toString());
+            ResponseEntity<ProblemDetail> base = problem(status, code, status.getReasonPhrase(), er.getBody().getDetail() != null
+                    ? er.getBody().getDetail() : status.getReasonPhrase(), List.of());
+            return ResponseEntity.status(status).headers(er.getHeaders()).body(base.getBody());
+        }
         LOG.error("unhandled error", e);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal error", "The request could not be completed.", List.of());
     }

@@ -44,6 +44,15 @@ public final class Campaign {
      * @param shortRestHealFraction fraction of max HP recovered on each short rest (a hit-dice abstraction)
      */
     public static Result evaluateAdventuringDay(Genome genome, MartialCatalog catalog, int days, double shortRestHealFraction) {
+        return evaluateAdventuringDay(genome, catalog, days, shortRestHealFraction, null);
+    }
+
+    /**
+     * As above, with a root seed. With a null seed fight {@code i} of day {@code d} is seeded from {@code ("day", d, i)},
+     * as upstream does; with a seed it is seeded from {@code ("day", seed, d, i)}, so different seeds sample different
+     * days while every build under one seed still faces the same enemy rolls (common random numbers).
+     */
+    public static Result evaluateAdventuringDay(Genome genome, MartialCatalog catalog, int days, double shortRestHealFraction, Long seed) {
         List<Scenario> scenarios = catalog.scenarios();
         int perDay = scenarios.size();
         List<Double> cleared = new ArrayList<>();
@@ -67,7 +76,7 @@ public final class Campaign {
                 List<Combatant> all = new ArrayList<>();
                 all.add(hero);
                 all.addAll(scenario.spawnEnemies());
-                Encounter.RunResult res = Encounter.builder(scenario.grid(), all, new LabeledRandom(Seeds.seedFrom("day", day, i)))
+                Encounter.RunResult res = Encounter.builder(scenario.grid(), all, new LabeledRandom(seed == null ? Seeds.seedFrom("day", day, i) : Seeds.seedFrom("day", seed, day, i)))
                         .policyFor(c -> TacticalPolicy.DEFAULT)
                         .sink(EventSink.NOOP)
                         .build()
@@ -92,12 +101,17 @@ public final class Campaign {
      * both is run once.
      */
     public static Reports.Report annotate(Reports.Report report, MartialCatalog catalog, int days, double shortRestHealFraction) {
+        return annotate(report, catalog, days, shortRestHealFraction, null);
+    }
+
+    /** As above, with a root seed for the days (null for upstream's seeding); see {@link #evaluateAdventuringDay}. */
+    public static Reports.Report annotate(Reports.Report report, MartialCatalog catalog, int days, double shortRestHealFraction, Long seed) {
         Map<String, Double> cache = new HashMap<>();
         java.util.function.UnaryOperator<List<Reports.Entry>> annotateAll = entries -> {
             List<Reports.Entry> out = new ArrayList<>();
             for (Reports.Entry e : entries) {
                 double rate = cache.computeIfAbsent(e.key(),
-                        k -> evaluateAdventuringDay(e.genome(), catalog, days, shortRestHealFraction).dayWinRate());
+                        k -> evaluateAdventuringDay(e.genome(), catalog, days, shortRestHealFraction, seed).dayWinRate());
                 out.add(new Reports.Entry(e.key(), e.rank(), e.genome(), e.description(), e.metrics(), e.objectives(),
                         e.weightedScore(), rate));
             }

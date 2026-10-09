@@ -120,4 +120,33 @@ class FilesystemReportStoreTest {
         Files.writeString(dir.resolve("reports").resolve("NOT-HEX.json"), "{}");
         assertThat(store.list(10, null).items()).extracting(ReportStore.Summary::id).containsExactly("0123abcd");
     }
+
+    // ---- adversarial review fixes ----------------------------------------------------------------
+
+    @Test
+    void reportsSavedWithinOneMillisecondAreAllListed() throws IOException {
+        // A sorts first by nanoseconds but last by id; with mixed precision the second page used to skip B.
+        store.save(TestReports.report("bbbbbbbb", 0.5));
+        store.save(TestReports.report("zzzzzzzz".replace('z', 'f'), 0.5));
+        Files.setLastModifiedTime(dir.resolve("reports").resolve("bbbbbbbb.json"), FileTime.from(Instant.ofEpochSecond(1, 500_000)));
+        Files.setLastModifiedTime(dir.resolve("reports").resolve("ffffffff.json"), FileTime.from(Instant.ofEpochSecond(1, 100_000)));
+        List<String> seen = new ArrayList<>();
+        String cursor = null;
+        do {
+            ReportStore.Page page = store.list(1, cursor);
+            page.items().forEach(s -> seen.add(s.id()));
+            cursor = page.nextCursor();
+        } while (cursor != null);
+        assertThat(seen).containsExactly("ffffffff", "bbbbbbbb");
+    }
+
+    @Test
+    void aCursorTheServiceDidNotIssueIsABadRequest() {
+        for (String bad : List.of("abc", "x:y", "12:NOTHEX", ":0123abcd", "99999999999999999999:0123abcd", "1:../../x")) {
+            assertThatThrownBy(() -> store.list(5, bad))
+                    .as(bad)
+                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.BadRequestException.class,
+                            e -> assertThat(e.code()).isEqualTo("invalid-cursor"));
+        }
+    }
 }
