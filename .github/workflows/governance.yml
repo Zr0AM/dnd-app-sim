@@ -41,9 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Lint OpenAPI Spec
-        uses: stoplight/spectral-action@v0.8.10
-        with:
-          file_glob: 'docs/api/openapi.yaml'
+        run: npx --yes @stoplight/spectral-cli@6 lint docs/api/openapi.yaml --fail-severity=error
 
   pr-governance-gate:
     name: PR Governance Gate

@@ -18,7 +18,13 @@ jobs:
   analyze:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: ./.github/actions/setup-java-gradle
 
       - name: Cache SonarQube packages
@@ -30,8 +36,6 @@ jobs:
 
       - name: Build and analyze with SonarQube
         if: env.SONAR_TOKEN != ''
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew build sonar --info -Dsonar.qualitygate.wait=true
 
       - name: Build without SonarQube (Fork PR Fallback)

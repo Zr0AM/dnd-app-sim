@@ -1084,6 +1084,7 @@ components:
           additionalProperties:
             type: array
             prefixItems: [{ type: number }, { type: number }]
+            items: { type: number }
             minItems: 2
             maxItems: 2
         weights:

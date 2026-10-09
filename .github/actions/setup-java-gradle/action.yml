@@ -1,13 +1,9 @@
 name: 'Setup Java and Gradle'
-description: 'Checks out the repo, sets up JDK 21, and initializes Gradle caching'
+description: 'Sets up JDK 21, and initializes Gradle caching'
 
 runs:
   using: 'composite'
   steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
