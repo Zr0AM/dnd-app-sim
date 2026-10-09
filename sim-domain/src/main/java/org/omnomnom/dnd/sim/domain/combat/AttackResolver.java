@@ -55,7 +55,7 @@ public final class AttackResolver {
 
     /** Probability an attack hits (crit included), accounting for the natural-1 auto-miss and natural-20 auto-hit. */
     public static double chanceAttackHits(AttackParams params) {
-        int needed = Math.clamp(params.targetAc() - params.attackBonus(), 2, 20);
+        int needed = Math.clamp((long) params.targetAc() - params.attackBonus(), 2, 20);
         return Dice.chanceToHit(needed, params.advantage());
     }
 
@@ -72,7 +72,7 @@ public final class AttackResolver {
 
     /** Probability a saving throw succeeds. */
     public static double chanceSaveSucceeds(SaveParams params) {
-        int needed = Math.clamp(params.dc() - params.saveBonus(), 1, 21);
+        int needed = Math.clamp((long) params.dc() - params.saveBonus(), 1, 21);
         return Dice.chanceToHit(needed, params.advantage());
     }
 }

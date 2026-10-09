@@ -10,6 +10,6 @@ final class Samples {
 
     /** One value per row, in row order. */
     static <T> List<Double> column(List<T> rows, ToDoubleFunction<? super T> value) {
-        return rows.stream().map(row -> value.applyAsDouble(row)).toList();
+        return rows.stream().map(value::applyAsDouble).toList();
     }
 }
