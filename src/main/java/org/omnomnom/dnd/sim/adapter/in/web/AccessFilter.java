@@ -10,17 +10,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
-import org.omnomnom.dnd.sim.application.RateLimiter;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Authenticates by API key and applies the per-client rate limit, before any controller runs.
+ * Authenticates by API key before any controller runs, and names the client for the rate limiter.
  *
  * <p>A key is read from {@code X-API-Key} or {@code Authorization: Bearer <key>} and compared by digest in constant time.
- * Health and info are always open. Rejections are {@code application/problem+json}. The client identity used for rate
- * limiting is a short digest of the key (never the key), or the remote address when authentication is off.
+ * Health and info are always open. Rejections are {@code application/problem+json}. The client identity, stored in the
+ * request attribute {@link #CLIENT}, is a short digest of the key (never the key), or the remote address when
+ * authentication is off. Rate limiting itself happens in {@link RateLimitInterceptor}, after the request is routed, so
+ * the cost is decided by the endpoint that will actually run and not by the shape of the URL.
  */
 public final class AccessFilter extends OncePerRequestFilter {
 
@@ -45,18 +45,18 @@ public final class AccessFilter extends OncePerRequestFilter {
         }
     }
 
+    /** The request attribute naming the client, for the rate limiter. */
+    public static final String CLIENT = AccessFilter.class.getName() + ".client";
+
     private final boolean authenticate;
     private final Keys keys;
-    private final RateLimiter limiter;
 
     /**
      * @param authenticate require an API key
-     * @param limiter the rate limiter, or null to leave requests unlimited
      */
-    public AccessFilter(boolean authenticate, Keys keys, RateLimiter limiter) {
+    public AccessFilter(boolean authenticate, Keys keys) {
         this.authenticate = authenticate;
         this.keys = keys;
-        this.limiter = limiter;
     }
 
     static byte[] sha256(String s) {
@@ -87,14 +87,7 @@ public final class AccessFilter extends OncePerRequestFilter {
             }
             client = "key:" + HexFormat.of().formatHex(digest, 0, 4);
         }
-        if (limiter != null) {
-            RateLimiter.Decision decision = limiter.tryAcquire(client, costOf(request));
-            if (!decision.allowed()) {
-                response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(decision.retryAfterSeconds()));
-                problem(response, 429, "rate-limited", "Too many requests", "The request budget is spent; retry after " + decision.retryAfterSeconds() + " s.");
-                return;
-            }
-        }
+        request.setAttribute(CLIENT, client);
         chain.doFilter(request, response);
     }
 
@@ -111,17 +104,7 @@ public final class AccessFilter extends OncePerRequestFilter {
         return null;
     }
 
-    /** The expensive endpoints draw on the simulation budget: everything under simulate/ and a report's campaign job. */
-    static RateLimiter.Cost costOf(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        boolean post = HttpMethod.POST.matches(request.getMethod());
-        if (post && (path.startsWith("/api/v1/simulate/") || (path.startsWith("/api/v1/reports/") && path.endsWith("/campaign")))) {
-            return RateLimiter.Cost.SIMULATION;
-        }
-        return RateLimiter.Cost.ORDINARY;
-    }
-
-    private static void problem(HttpServletResponse response, int status, String code, String title, String detail) throws IOException {
+    static void problem(HttpServletResponse response, int status, String code, String title, String detail) throws IOException {
         response.setStatus(status);
         response.setContentType("application/problem+json");
         response.setCharacterEncoding("UTF-8");

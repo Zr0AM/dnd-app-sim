@@ -90,9 +90,13 @@ public record SimProperties(
      *
      * @param requestsPerMinute for ordinary requests (reads, rescoring, job polling)
      * @param simulationsPerMinute for the expensive endpoints (simulate/*, report campaign)
+     * @param maxClients clients tracked before idle (then least recently seen) ones are forgotten; bounds memory
+     * @param idleTimeout how long a client must be silent to count as idle
      */
     public record RateLimit(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("600") int requestsPerMinute,
-            @DefaultValue("60") int simulationsPerMinute) {}
+            @DefaultValue("60") int simulationsPerMinute,
+            @DefaultValue("10000") int maxClients,
+            @DefaultValue("10m") Duration idleTimeout) {}
 }

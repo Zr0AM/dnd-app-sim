@@ -20,7 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 /** API-key authentication and rate limiting through the real filter chain, with deliberately tiny budgets. */
 @SpringBootTest(properties = {
     "sim.security.mode=api-key",
-    "sim.security.api-keys=alpha-key,beta-key",
+    "sim.security.api-keys=alpha-key,beta-key,gamma-key",
     "sim.rate-limit.enabled=true",
     "sim.rate-limit.requests-per-minute=8",
     "sim.rate-limit.simulations-per-minute=2"
@@ -130,5 +130,23 @@ class AccessApiTest {
             mvc.perform(get("/api/v1/content/weapons?level=3")).andExpect(status().isUnauthorized());
         }
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
+    }
+
+    @Test
+    void decoratedPathsAreChargedByTheEndpointThatRuns() throws Exception {
+        String key = "gamma-key";
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(post("/api/v1/simulate/encounter").header("X-API-Key", key).contentType(MediaType.APPLICATION_JSON).content(ENCOUNTER))
+                    .andExpect(status().isOk());
+        }
+        // Matrix parameters still route to the simulation endpoint, and are charged as one.
+        mvc.perform(post("/api/v1/simulate;x=1/encounter").header("X-API-Key", key).contentType(MediaType.APPLICATION_JSON).content(ENCOUNTER))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate-limited"));
+        mvc.perform(post("/api/v1/simulate/encounter;y=2").header("X-API-Key", key).contentType(MediaType.APPLICATION_JSON).content(ENCOUNTER))
+                .andExpect(status().isTooManyRequests());
+        // And they are still authenticated.
+        mvc.perform(post("/api/v1/simulate;x=1/encounter").contentType(MediaType.APPLICATION_JSON).content(ENCOUNTER))
+                .andExpect(status().isUnauthorized());
     }
 }

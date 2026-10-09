@@ -183,6 +183,17 @@ start check when a cancel was requested (the cancel flag stops the work at once 
 interruption (a queued task is not running), the transient initial campaign progress value, and the key digest slice
 that only names a rate-limit bucket.
 
+### Adversarial review fixes
+
+A whole-codebase adversarial review (after Phase 11) found ten defects, all fixed on the PR that introduced them and
+merged up the stack: Spring's own 404/405/415 returned as 500; a party id `enemy-0` colliding with an enemy (now `422
+reserved-id`); malformed paging cursors returning 500 (now `400 invalid-cursor`); same-millisecond reports skipped by
+filesystem paging; failed jobs leaking exception text (now generic unless `sim.jobs.expose-error-detail`); the report
+campaign `seed` being ignored (it now seeds the days, as do the single-build campaign seed and an optimization's own
+seed); the simulation rate limit bypassable with `;matrix` path parameters (the limit now runs after routing and is
+decided by the endpoint); the rate limiter's client table growing without bound (now capped, with amortized cleanup);
+`eval` defaults escaping `eval-runs-per-scenario`; and the limiter reading the clock twice per timestamp.
+
 ## Port progress
 
 | Area | Status |

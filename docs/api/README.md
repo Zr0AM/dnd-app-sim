@@ -124,18 +124,39 @@ The service is **closed by default**.
   switched off only by the `local` profile (or an explicit `sim.security.mode=none`), which logs a warning; never expose
   such an instance beyond localhost.
 - **Rate limiting**: per client (the key, or the remote address when authentication is off), a token bucket holds one
-  minute of budget and refills continuously. Ordinary requests default to 600 per minute and the expensive ones
-  (`POST simulate/*` and a report's `campaign`) to 60 per minute. Refusals are `429 rate-limited` with `Retry-After`.
-  Buckets are in memory and per instance, so behind N instances each enforces its own budget. Requests refused for a bad
-  key never reach the limiter. Behind a reverse proxy set `server.forward-headers-strategy` so the remote address is the
-  client's, not the proxy's.
+  minute of budget and refills continuously. Ordinary requests default to 600 per minute and the expensive endpoints
+  (every `POST simulate/*` and a report's `campaign`, marked `@Expensive` in the controllers) to 60 per minute.
+  Refusals are `429 rate-limited` with `Retry-After`. The limit is applied after routing, so the endpoint that runs
+  decides the budget; path decorations such as `;matrix=params` cannot move a simulation onto the cheaper budget. At most
+  `sim.rate-limit.max-clients` (10,000) clients are tracked: past it, clients silent for `idle-timeout` (10 minutes) are
+  forgotten first, then the least recently seen, down to 90% of the cap, so memory stays bounded and cleanup is
+  amortized. Buckets are in memory and per instance, so behind N instances each enforces its own budget. Requests
+  refused for a bad key never reach the limiter. Behind a reverse proxy set `server.forward-headers-strategy` so the
+  remote address is the client's, not the proxy's.
 - **Work limits** (`sim.limits.*`): a request that asks for too much is `422 limit-exceeded` before anything is queued.
   Besides the per-field ceilings (runs, days, population, generations, evaluation runs) an optimization is bounded by
   `optimize-max-fights`, an upper bound on the fights it can simulate (population x (generations + 1) x evaluation runs x
-  scenarios; repeated genomes are cached, so real work is usually far less).
+  scenarios; repeated genomes are cached, so real work is usually far less). Defaulted values count: an `eval` without
+  `runs` is checked at its default (16 solo, 12 party) runs per scenario.
 - **Not provided**: per-key authorization (all keys are equal), user identity, TLS (terminate it at the proxy) and
   request signing. Swagger UI is off outside the `local` profile because a browser cannot send the key header; the
   OpenAPI document is generated at `/v3/api-docs` behind the key.
+
+## Settings
+
+Everything below can be set in `application.yaml`, by profile, or by environment variable (Spring's relaxed binding:
+`sim.jobs.campaign-days` is `SIM_JOBS_CAMPAIGNDAYS`). Defaults in parentheses.
+
+| Setting | What it controls |
+| --- | --- |
+| `sim.executor.threads` (cores), `queue-capacity` (64), `busy-retry-after` (5s) | the simulation pool and its `429 busy` |
+| `sim.jobs.retained-finished` (200) | finished jobs kept for polling |
+| `sim.jobs.campaign-days` (12) | days for an optimization's campaign pass and the default for report annotation |
+| `sim.jobs.expose-error-detail` (false) | whether a failed job shows its exception message |
+| `sim.limits.*` | per-request work ceilings (above) |
+| `sim.security.mode` (api-key), `api-keys` (`SIM_API_KEYS`) | authentication (above) |
+| `sim.rate-limit.enabled` (true), `requests-per-minute` (600), `simulations-per-minute` (60), `max-clients` (10000), `idle-timeout` (10m) | rate limiting (above) |
+| `sim.report-store.*`, `sim.d1.*` | where reports are kept |
 
 ## Performance
 

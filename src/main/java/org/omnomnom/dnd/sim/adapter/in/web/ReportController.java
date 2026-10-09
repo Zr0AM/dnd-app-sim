@@ -49,6 +49,7 @@ class ReportController {
         return reports.rescore(reportId, body.role(), body.weights(), body.save() != null && body.save());
     }
 
+    @Expensive
     @PostMapping("/{reportId}/campaign")
     ResponseEntity<JobView> campaign(@PathVariable @Pattern(regexp = ID) String reportId,
             @Valid @RequestBody(required = false) Requests.ReportCampaignBody body) {

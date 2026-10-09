@@ -65,3 +65,5 @@ sim:
     enabled: true
     requests-per-minute: 600
     simulations-per-minute: 60
+    max-clients: 10000 # tracked clients; beyond it idle, then least recently seen, clients are forgotten
+    idle-timeout: 10m

@@ -21,22 +21,22 @@ class AccessConfigTest {
                 new SimProperties.Jobs(200, 12, false),
                 new SimProperties.Limits(2000, 200, 100, 128, 100, 64, 2_000_000L),
                 new SimProperties.Security(mode, keys),
-                new SimProperties.RateLimit(true, 600, 60));
+                new SimProperties.RateLimit(true, 600, 60, 10_000, Duration.ofMinutes(10)));
     }
 
     @Test
     void theServiceDoesNotStartOpenByForgettingAKey() {
-        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of()), Clock.systemUTC()))
+        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SIM_API_KEYS");
-        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, java.util.Arrays.asList(" ", "", null)), Clock.systemUTC()))
+        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, java.util.Arrays.asList(" ", "", null))))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void keysOrAnExplicitOptOutLetItStart() {
-        assertThat(config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of("k")), Clock.systemUTC())).isNotNull();
-        assertThat(config.accessFilter(props(SimProperties.SecurityMode.NONE, List.of()), Clock.systemUTC())).isNotNull();
+        assertThat(config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of("k")))).isNotNull();
+        assertThat(config.accessFilter(props(SimProperties.SecurityMode.NONE, List.of()))).isNotNull();
     }
 
     @Test

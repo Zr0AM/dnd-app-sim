@@ -109,16 +109,16 @@ public final class EvaluationService {
     public EvalOutcome evaluate(EvalCommand cmd) {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
         requireKnownRole(cmd.role());
-        if (cmd.runsPerScenario() != null) {
-            SimLimits.require(cmd.runsPerScenario(), limits.evalRunsPerScenario(), "runs", "runs per scenario");
-        }
+        int runs = cmd.runsPerScenario() != null ? cmd.runsPerScenario()
+                : cmd.context() == Context.PARTY ? PartyEvaluator.DEFAULT_RUNS_PER_SCENARIO : SoloEvaluator.DEFAULT_RUNS_PER_SCENARIO;
+        // The effective value is checked, defaults included, as campaign and optimize do.
+        SimLimits.require(runs, limits.evalRunsPerScenario(), "runs", "runs per scenario");
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();
         Genome genome = GenomeResolver.resolve(cmd.genome(), level.martial(), seed, "genome");
         String description = Reports.describe(genome, cmd.level());
         List<String> warnings = new ArrayList<>();
 
         if (cmd.context() == Context.PARTY) {
-            int runs = cmd.runsPerScenario() != null ? cmd.runsPerScenario() : PartyEvaluator.DEFAULT_RUNS_PER_SCENARIO;
             PartyEvalResult r = executor.call(() -> PartyEvaluator.evaluate(
                     id -> Genomes.build(genome, level.martial(), id), level.partyHarness(), heroRoleFor(cmd.role()), PartyTemplate.ALL, runs));
             return new EvalOutcome(description, cmd.level(), Context.PARTY, seed, genome, r.runs(), r.winRateCi(),
@@ -127,7 +127,6 @@ public final class EvaluationService {
         if (cmd.role() != null && RolePresets.PARTY_ONLY.contains(cmd.role())) {
             warnings.add("role '" + cmd.role() + "' draws on control and support, which only carry signal in the party context");
         }
-        int runs = cmd.runsPerScenario() != null ? cmd.runsPerScenario() : SoloEvaluator.DEFAULT_RUNS_PER_SCENARIO;
         EvalResult r = executor.call(() -> SoloEvaluator.evaluate(id -> Genomes.build(genome, level.martial(), id), level.martial().scenarios(), runs));
         return new EvalOutcome(description, cmd.level(), Context.SOLO, seed, genome, r.runs(), r.ci().winRate(), named(Objectives.of(r)),
                 new Confidence(r.ci().damage(), r.ci().hpRetained()), warnings);

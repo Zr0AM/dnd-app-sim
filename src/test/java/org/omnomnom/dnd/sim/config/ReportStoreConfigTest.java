@@ -23,7 +23,7 @@ class ReportStoreConfigTest {
                 new SimProperties.Jobs(200, 12, false),
                 new SimProperties.Limits(2000, 200, 100, 128, 100, 64, 2_000_000L),
                 new SimProperties.Security(SimProperties.SecurityMode.NONE, null),
-                new SimProperties.RateLimit(false, 600, 60));
+                new SimProperties.RateLimit(false, 600, 60, 10_000, Duration.ofMinutes(10)));
     }
 
     @Test

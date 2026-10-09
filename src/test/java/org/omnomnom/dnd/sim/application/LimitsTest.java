@@ -60,6 +60,15 @@ class LimitsTest {
         assertExceeded(() -> service.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, 5, 1L)), "runs");
         assertThatCode(() -> service.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, 4, 1L)))
                 .doesNotThrowAnyException();
+        // The defaults count too: 16 solo and 12 party runs per scenario exceed a limit of 4.
+        assertExceeded(() -> service.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, null, 1L)), "runs");
+        assertExceeded(() -> service.evaluate(new EvaluationService.EvalCommand(5, fighter, EvaluationService.Context.PARTY, null, null, 1L)), "runs");
+        SimLimits twelve = new SimLimits(5, 12, 3, 8, 6, 2, 2_000);
+        EvaluationService roomy = new EvaluationService(catalogs, executor, twelve);
+        assertThatCode(() -> roomy.evaluate(new EvaluationService.EvalCommand(5, fighter, EvaluationService.Context.PARTY, null, 1, 1L)))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> roomy.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, null, 1L)))
+                .isInstanceOf(UnprocessableException.class);
         assertExceeded(() -> service.campaign(new EvaluationService.CampaignCommand(3, fighter, 4, 0.5, 1L)), "days");
         assertThatCode(() -> service.campaign(new EvaluationService.CampaignCommand(3, fighter, 3, 0.5, 1L))).doesNotThrowAnyException();
     }
