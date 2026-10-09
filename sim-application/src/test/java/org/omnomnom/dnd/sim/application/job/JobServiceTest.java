@@ -230,6 +230,15 @@ class JobServiceTest {
         assertThat(done.error().detail()).doesNotContain("disk on fire").contains(done.id());
     }
 
+    @Test
+    void aJobThatDiesWithAnErrorStillEndsAsFailed() throws Exception {
+        store.errorOnSave.set(true);
+        JobView done = awaitFinished(jobs.startOptimization(tiny(1L, false)).id());
+        assertThat(done.status()).isEqualTo(JobView.Status.FAILED);
+        assertThat(done.error().code()).isEqualTo("job-failed");
+        assertThat(done.error().detail()).doesNotContain("heap on fire").contains(done.id());
+    }
+
     // ---- annotating a saved report -------------------------------------------------------------
 
     @Test

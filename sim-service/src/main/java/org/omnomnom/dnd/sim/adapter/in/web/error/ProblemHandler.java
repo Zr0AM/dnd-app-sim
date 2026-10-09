@@ -132,7 +132,7 @@ class ProblemHandler {
                 case NOT_ACCEPTABLE -> "not-acceptable";
                 default -> INVALID_REQUEST;
             };
-            LOG.debug("client error {}: {}", status.value(), e.toString());
+            LOG.atDebug().setMessage("client error {}: {}").addArgument(status.value()).addArgument(e::toString).log();
             ResponseEntity<ProblemDetail> base = problem(status, code, status.getReasonPhrase(), er.getBody().getDetail() != null
                     ? er.getBody().getDetail() : status.getReasonPhrase(), List.of());
             return ResponseEntity.status(status).headers(er.getHeaders()).body(base.getBody());

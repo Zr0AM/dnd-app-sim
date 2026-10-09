@@ -16,11 +16,16 @@ public final class InMemoryReportStore implements ReportStore {
 
     private final Map<String, Stored> reports = new ConcurrentHashMap<>();
     public final AtomicBoolean failOnSave = new AtomicBoolean();
+    /** Makes save throw an Error (as an out-of-memory or stack overflow would) rather than an exception. */
+    public final AtomicBoolean errorOnSave = new AtomicBoolean();
 
     @Override
     public void save(Reports.Report report) {
         if (failOnSave.get()) {
             throw new IllegalStateException("disk on fire");
+        }
+        if (errorOnSave.get()) {
+            throw new AssertionError("heap on fire");
         }
         reports.put(report.runKey(), new Stored(report, Instant.now()));
     }
