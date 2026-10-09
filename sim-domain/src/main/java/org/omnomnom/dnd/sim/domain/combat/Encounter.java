@@ -5,14 +5,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Function;
-import org.omnomnom.dnd.sim.domain.combat.AttackResolver.AttackParams;
-import org.omnomnom.dnd.sim.domain.combat.AttackResolver.AttackResult;
-import org.omnomnom.dnd.sim.domain.combat.AttackResolver.SaveResult;
 import org.omnomnom.dnd.sim.domain.combat.event.CombatEvent;
 import org.omnomnom.dnd.sim.domain.combat.event.EventSink;
-import org.omnomnom.dnd.sim.domain.combat.spell.BuffSpec;
 import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
-import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
 import org.omnomnom.dnd.sim.domain.core.Picks;
@@ -37,9 +32,6 @@ import org.omnomnom.dnd.sim.domain.rng.LabeledRandom;
  */
 public final class Encounter {
 
-    /** Sorcery Points a Quickened Spell costs (Metamagic). */
-    private static final int QUICKEN_COST = 2;
-
     /** Default round cap for {@link #run()}. */
     public static final int DEFAULT_MAX_ROUNDS = 100;
 
@@ -49,6 +41,7 @@ public final class Encounter {
     private final DamageApplier applier;
     private final WeaponAttackResolver weapons;
     private final MovementResolver movement;
+    private final SpellResolver spells;
     private final Function<Combatant, TurnPolicy> policyFor;
     private int round;
     private List<Combatant> order = List.of();
@@ -60,6 +53,7 @@ public final class Encounter {
         this.applier = new DamageApplier(ctx, rolls);
         this.weapons = new WeaponAttackResolver(ctx, rolls, applier);
         this.movement = new MovementResolver(ctx, weapons);
+        this.spells = new SpellResolver(ctx, rolls, applier);
         this.policyFor = b.policyFor;
     }
 
@@ -346,7 +340,7 @@ public final class Encounter {
 
         @Override
         public OptionalInt castSpell(Spell spell, Combatant target, Integer slotLevel, boolean quickened) {
-            return Encounter.this.castSpell(self, spell, target, slotLevel, resources, quickened);
+            return spells.cast(self, spell, target, slotLevel, resources, quickened);
         }
 
         @Override
@@ -395,187 +389,6 @@ public final class Encounter {
         resources.bonus = false;
         log(new CombatEvent.Heal(self.id(), target.id(), healed));
         return OptionalInt.of(healed);
-    }
-
-    // ---- spellcasting --------------------------------------------------------------------------
-
-    /**
-     * Resolve a spell cast. Cantrips cost the action only; leveled spells also spend a slot of {@code slotLevel}
-     * (default the spell's own level). An attack-damage spell makes a spell attack per ray; a save-damage spell makes
-     * the target (and, for an area spell, every enemy in radius of its cell) roll a save. Returns total damage, or
-     * empty if the cast is illegal.
-     */
-    private OptionalInt castSpell(
-            Combatant self, Spell spell, Combatant target, Integer slotLevelArg, TurnResources resources, boolean quickened) {
-        // Action economy: a spell normally uses the action (bonus-action spells use the bonus). Quickened Spell
-        // (Sorcerer Metamagic) casts it as a Bonus Action for 2 Sorcery Points instead.
-        if (quickened) {
-            if (!resources.bonus || self.resourceCount(ResourceIds.SORCERY) < QUICKEN_COST) {
-                return OptionalInt.empty();
-            }
-        } else if (spell.action() == Spell.CastingTime.BONUS) {
-            if (!resources.bonus) {
-                return OptionalInt.empty();
-            }
-        } else if (!resources.action) {
-            return OptionalInt.empty();
-        }
-
-        int slotLevel = spell.level() == 0 ? 0 : (slotLevelArg != null ? slotLevelArg : spell.level());
-        if (spell.level() > 0 && slotLevel < spell.level()) {
-            return OptionalInt.empty();
-        }
-        if (spell.level() > 0 && self.slotCount(slotLevel) <= 0) {
-            return OptionalInt.empty();
-        }
-
-        // Range check against the primary target's cell.
-        int dist = distanceFt(self, target);
-        if (dist > spell.rangeFt()) {
-            return OptionalInt.empty();
-        }
-
-        var dmgStream = ctx.rng().stream(self.id() + ":" + spell.id() + ":dmg");
-        int totalDamage = 0;
-        int totalHealing = 0;
-        int targetsHit = 0;
-
-        SpellKind kind = spell.kind();
-        if (kind instanceof SpellKind.Heal heal) {
-            // Target is an ally; restore HP (reviving if at 0).
-            int mod = self.spellAbility() != null ? self.abilityMod(self.spellAbility()) : 0;
-            int amount = heal.dice().at(slotLevel, self.level()).roll(dmgStream) + (heal.addSpellMod() ? mod : 0);
-            totalHealing = target.heal(amount);
-            targetsHit = 1;
-        } else if (kind instanceof SpellKind.AttackDamage ad) {
-            // Beam count: level-based (Eldritch Blast) or the upcast-ray path.
-            int rays = ad.beams() != null
-                    ? ad.beams().applyAsInt(self.level())
-                    : Spell.raysAt(ad, slotLevel, Math.max(1, spell.level()));
-            Dice damage = ad.damage().at(slotLevel, self.level());
-            // Agonizing Blast adds the caster's spell modifier to each beam's damage.
-            int perBeamBonus = ad.addSpellMod() && self.spellAbility() != null ? self.abilityMod(self.spellAbility()) : 0;
-            for (int r = 0; r < rays; r++) {
-                if (!target.isConscious()) {
-                    break;
-                }
-                int buffToHit = rolls.buffAttackBonus(self, spell.id() + ":" + target.id() + ":" + r);
-                var atkStream = ctx.rng().stream(self.id() + ":" + spell.id() + ":" + target.id() + ":atk:" + r);
-                AttackResult result = AttackResolver.resolveAttack(atkStream, AttackParams.of(
-                                self.spellAttackBonus() + buffToHit, target.effectiveAc())
-                        .withAdvantage(Conditions.attackAdvantage(self, target, dist <= 5)));
-                if (result.hit()) {
-                    int raw = damage.roll(dmgStream);
-                    if (result.crit()) {
-                        raw += damage.withoutBonus().roll(dmgStream);
-                    }
-                    raw += perBeamBonus;
-                    int dealt = DamageMitigation.applyResponse(raw, target.damageResponseFor(ad.damageType()));
-                    totalDamage += applier.applySpellDamage(self, target, dealt);
-                }
-            }
-            if (totalDamage > 0) {
-                targetsHit = 1;
-            }
-        } else if (kind instanceof SpellKind.Control ctl) {
-            // Save-or-condition: each target saves; on a failure the condition is applied for a duration,
-            // repeating the save each turn to shake it off.
-            List<Combatant> victims = ctl.aoeRadiusFt() != null
-                    ? ctx.roster().consciousOpponentsWithin(self, target.position(), ctl.aoeRadiusFt())
-                    : List.of(target);
-            int dc = self.spellSaveDc();
-            for (Combatant v : victims) {
-                SaveResult save = rolls.save(
-                        self.id() + ":" + spell.id() + ":" + v.id() + Rolls.SAVE_SUFFIX, v, ctl.save(), spell.id() + ":" + self.id(), dc);
-                if (!save.success()) {
-                    v.applyTimedCondition(new TimedConditionSpec(
-                            ctl.condition(),
-                            self.id(),
-                            ctl.rounds(),
-                            ctl.repeatSaveEndsEffect() ? new RepeatSave(ctl.save(), dc, true) : null,
-                            spell.concentration() ? self.id() : null));
-                    targetsHit++;
-                }
-            }
-        } else if (kind instanceof SpellKind.Buff buff) {
-            // Place a beneficial effect on up to maxTargets allies (the chosen target first, then any others in
-            // range), refreshing rather than stacking.
-            List<Combatant> chosen = new ArrayList<>();
-            if (buffEligible(self, spell, target)) {
-                chosen.add(target);
-            }
-            for (Combatant c : combatants) {
-                if (c != target && buffEligible(self, spell, c)) {
-                    chosen.add(c);
-                }
-            }
-            if (chosen.size() > buff.maxTargets()) {
-                chosen = chosen.subList(0, buff.maxTargets());
-            }
-            for (Combatant ally : chosen) {
-                ally.applyBuff(new BuffSpec(
-                        buff.buffId(),
-                        self.id(),
-                        buff.rounds(),
-                        buff.attackBonusDice(),
-                        buff.saveBonusDice(),
-                        buff.acBonus(),
-                        buff.extraAttackAction(),
-                        spell.concentration() ? self.id() : null));
-                log(new CombatEvent.BuffApplied(self.id(), buff.buffId(), ally.id()));
-                targetsHit++;
-            }
-            // A buff with no valid recipient should not consume the slot or action.
-            if (chosen.isEmpty()) {
-                return OptionalInt.empty();
-            }
-        } else {
-            SpellKind.SaveDamage sd = (SpellKind.SaveDamage) kind;
-            // Save-damage: gather targets (area or single).
-            List<Combatant> victims = sd.aoeRadiusFt() != null
-                    ? ctx.roster().consciousOpponentsWithin(self, sd.selfOrigin() ? self.position() : target.position(), sd.aoeRadiusFt())
-                    : List.of(target);
-            Dice damage = sd.damage().at(slotLevel, self.level());
-            int dc = self.spellSaveDc();
-            // Area damage is rolled once and shared (2024 rule).
-            int rolled = damage.roll(dmgStream);
-            for (Combatant v : victims) {
-                SaveResult save = rolls.save(
-                        self.id() + ":" + spell.id() + ":" + v.id() + Rolls.SAVE_SUFFIX, v, sd.save(), spell.id() + ":" + self.id(), dc);
-                int amount = rolled;
-                if (save.success()) {
-                    amount = sd.onSuccess() == SpellKind.OnSuccess.HALF ? rolled / 2 : 0;
-                }
-                int dealt = DamageMitigation.applyResponse(amount, v.damageResponseFor(sd.damageType()));
-                if (dealt > 0) {
-                    totalDamage += applier.applySpellDamage(self, v, dealt);
-                    targetsHit++;
-                }
-            }
-        }
-
-        // Spend resources.
-        if (quickened) {
-            resources.bonus = false;
-            self.spendResource(ResourceIds.SORCERY, QUICKEN_COST);
-        } else if (spell.action() == Spell.CastingTime.BONUS) {
-            resources.bonus = false;
-        } else {
-            resources.action = false;
-        }
-        if (spell.level() > 0) {
-            self.spendSlot(slotLevel);
-        }
-        if (spell.concentration()) {
-            self.setConcentratingOn(spell.id());
-        }
-
-        log(new CombatEvent.SpellCast(self.id(), spell.name(), slotLevel, targetsHit, totalDamage, totalHealing));
-        return OptionalInt.of(totalDamage);
-    }
-
-    private boolean buffEligible(Combatant self, Spell spell, Combatant c) {
-        return c.side() == self.side() && c != self && c.isConscious() && distanceFt(self, c) <= spell.rangeFt();
     }
 
     // ---- weapon attacks ------------------------------------------------------------------------

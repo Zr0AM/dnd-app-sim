@@ -14,5 +14,8 @@ public final class ResourceIds {
     public static final String SORCERY = "sorcery";
     public static final String WILD_SHAPE = "wild-shape";
 
+    /** Sorcery Points a Quickened Spell costs (Sorcerer Metamagic). */
+    public static final int QUICKENED_SPELL_COST = 2;
+
     private ResourceIds() {}
 }

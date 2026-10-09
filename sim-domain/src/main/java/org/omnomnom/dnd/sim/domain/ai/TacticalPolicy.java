@@ -34,7 +34,6 @@ public final class TacticalPolicy {
     /** Rounds a control effect is assumed to keep a target locked, for valuation. */
     private static final double ROUNDS_DENIED = 2;
     /** Sorcery Points a Quickened Spell costs (mirrors the engine's quicken cost). */
-    private static final int QUICKEN_COST = 2;
 
     /** The default shared policy. */
     public static final TurnPolicy DEFAULT = create(TacticsWeights.DEFAULT);
@@ -450,7 +449,7 @@ public final class TacticalPolicy {
      */
     private static void tryQuickenedCantrip(TurnApi api, Combatant damageTarget) {
         Combatant self = api.self();
-        if (!api.resources().bonus() || self.resourceCount(ResourceIds.SORCERY) < QUICKEN_COST) {
+        if (!api.resources().bonus() || self.resourceCount(ResourceIds.SORCERY) < ResourceIds.QUICKENED_SPELL_COST) {
             return;
         }
         Spell cantrip = null;
