@@ -1,0 +1,44 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "dnd-app-sim",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	// Set with `wrangler secret put`; the Worker hands them to the container as environment variables.
+	"secrets": {
+		"required": ["CF_ACCOUNT_ID", "CF_D1_DATABASE_ID", "CF_API_TOKEN", "SIM_API_KEYS"]
+	},
+	"containers": [
+		{
+			"class_name": "SimContainer",
+			"scheduling_policy": "durable_object",
+			// The repository-root Dockerfile builds sim-service with Gradle and runs it on a JRE 21.
+			// Durable Object-managed containers take their size, instance count and idle timeout from the code, not this file:
+			// see INSTANCE (standard-4), INSTANCE_NAME (one instance) and INACTIVITY_TIMEOUT_MS in src/index.ts.
+			"images": {
+				"base": {
+					"dockerfile": "../Dockerfile",
+					"build_context": ".."
+				}
+			}
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "SimContainer",
+				"name": "SIM_CONTAINER"
+			}
+		]
+	},
+	"upload_source_maps": true,
+	"exports": {
+		"SimContainer": {
+			"type": "durable-object",
+			"storage": "sqlite"
+		}
+	}
+}

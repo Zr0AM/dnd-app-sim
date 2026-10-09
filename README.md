@@ -50,3 +50,29 @@ into immutable catalogs, and then closed. See [NOTICE](NOTICE) for the SRD attri
 ```bash
 DND_APP_DIR=/path/to/dnd-app scripts/sync-seeds.sh
 ```
+
+## Deployment (Cloudflare Containers)
+
+The service runs as a Cloudflare Container behind the Worker in `worker/` (scaffolded from
+`cloudflare/templates/containers-template`). The repository-root `Dockerfile` builds the `sim-service` boot jar and runs
+it on a JRE 21 with the `prod` profile (`application-prod.yaml`): reports in D1, API keys required, rate limiting on, and
+an executor sized to the instance's vCPUs. The Worker proxies `/api/v1/*` and `/actuator/health` to one named container
+instance (jobs and rate-limit buckets are in memory) and returns `404` for everything else. Instance size, the idle
+timeout before the container sleeps and the readiness wait are constants in `worker/src/index.ts`; Durable
+Object-managed containers do not take them from `wrangler.jsonc`. Keep `INSTANCE` and `sim.executor.threads` in step.
+
+One-time setup, from `worker/`:
+
+```bash
+npm ci
+npx wrangler d1 create dnd-app-sim                       # prints the database ID
+npx wrangler secret put CF_ACCOUNT_ID
+npx wrangler secret put CF_D1_DATABASE_ID                # the ID from d1 create
+npx wrangler secret put CF_API_TOKEN                     # a token with D1 Edit on the account
+npx wrangler secret put SIM_API_KEYS                     # comma-separated keys
+npx wrangler deploy                                      # builds and pushes the image, deploys the Worker
+```
+
+The `sim_report` table is created on first use. `.github/workflows/deploy.yml` runs `./gradlew check` and the Worker tests
+on pull requests and `wrangler deploy` on pushes to `main`, using the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+repository secrets.
