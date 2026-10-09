@@ -25,14 +25,14 @@ jobs:
       checks: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-java-gradle
 
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Build & Test
         run: ./gradlew build --no-daemon
@@ -44,7 +44,7 @@ jobs:
           files: '**/build/test-results/test/TEST-*.xml'
 
       - name: Upload JaCoCo Coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: jacoco-coverage
           path: sim-service/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml
@@ -53,7 +53,7 @@ jobs:
 
       - name: Upload Boot JAR Artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sim-service-jar
           path: sim-service/build/libs/sim-service-*.jar
@@ -83,12 +83,12 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download Boot JAR Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: sim-service-jar
           path: dist
