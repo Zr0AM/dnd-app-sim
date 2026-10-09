@@ -92,4 +92,29 @@ class RateLimiterTest {
         limiter.tryAcquire("fresh", RateLimiter.Cost.ORDINARY);
         assertThat(limiter.tracked()).isLessThan(10);
     }
+
+    @Test
+    void anAllowedDecisionHasNoWait() {
+        RateLimiter.Decision d = limiter.tryAcquire("a", RateLimiter.Cost.ORDINARY);
+        assertThat(d.allowed()).isTrue();
+        assertThat(d.retryAfterSeconds()).isZero();
+    }
+
+    @Test
+    void recentlyUsedBucketsSurviveCleanupAndTenIdleMinutesIsTheBoundary() {
+        for (int i = 0; i < 10_001; i++) {
+            limiter.tryAcquire("client-" + i, RateLimiter.Cost.ORDINARY);
+        }
+        // Five idle minutes is not idle enough to forget anyone.
+        clock.advance(Duration.ofMinutes(5));
+        limiter.tryAcquire("probe", RateLimiter.Cost.ORDINARY);
+        assertThat(limiter.tracked()).isGreaterThan(10_000);
+        // Exactly ten minutes is still kept; only beyond it is a bucket forgotten.
+        clock.advance(Duration.ofMinutes(5));
+        limiter.tryAcquire("probe2", RateLimiter.Cost.ORDINARY);
+        assertThat(limiter.tracked()).isGreaterThan(10_000);
+        clock.advance(Duration.ofNanos(1));
+        limiter.tryAcquire("probe3", RateLimiter.Cost.ORDINARY);
+        assertThat(limiter.tracked()).isLessThan(10);
+    }
 }
