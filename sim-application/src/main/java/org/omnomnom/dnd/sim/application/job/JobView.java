@@ -24,7 +24,7 @@ public record JobView(
         List<String> warnings,
         Problem error) {
 
-    public enum Kind implements org.omnomnom.dnd.sim.domain.core.Coded {
+    public enum Kind implements Coded {
         OPTIMIZE("optimize"),
         CAMPAIGN("campaign");
 
@@ -40,7 +40,7 @@ public record JobView(
         }
     }
 
-    public enum Status implements org.omnomnom.dnd.sim.domain.core.Coded {
+    public enum Status implements Coded {
         QUEUED("queued"),
         RUNNING("running"),
         SUCCEEDED("succeeded"),

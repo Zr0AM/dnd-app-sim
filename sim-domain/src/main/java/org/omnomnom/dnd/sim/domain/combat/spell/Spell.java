@@ -25,14 +25,14 @@ public record Spell(
     public static DamageScaling cantripDice(int baseCount, int sides) {
         return (slot, level) -> {
             int extra = (level >= 5 ? 1 : 0) + (level >= 11 ? 1 : 0) + (level >= 17 ? 1 : 0);
-            return org.omnomnom.dnd.sim.domain.dice.Dice.of(baseCount + extra, sides);
+            return Dice.of(baseCount + extra, sides);
         };
     }
 
     /** Leveled dice that gain {@code perUpcast} dice per slot level above {@code baseLevel}. */
     public static DamageScaling upcastDice(int baseLevel, int baseCount, int sides, int perUpcast) {
         return (slot, level) ->
-                org.omnomnom.dnd.sim.domain.dice.Dice.of(baseCount + Math.max(0, slot - baseLevel) * perUpcast, sides);
+                Dice.of(baseCount + Math.max(0, slot - baseLevel) * perUpcast, sides);
     }
 
     public static DamageScaling upcastDice(int baseLevel, int baseCount, int sides) {

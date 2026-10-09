@@ -43,7 +43,9 @@ final class CombatTally implements EventSink {
             case CombatEvent.Heal h -> of(h.source()).healing += h.amount(); // Lay on Hands
             case CombatEvent.ControlDenied d -> of(d.source()).denied++;
             case CombatEvent.BuffBoost b -> of(b.source()).buffAssists++;
-            default -> {}
+            default -> {
+                // every other event carries nothing to tally
+            }
         }
     }
 }

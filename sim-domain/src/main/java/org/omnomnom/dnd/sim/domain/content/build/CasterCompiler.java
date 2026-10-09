@@ -1,6 +1,5 @@
 package org.omnomnom.dnd.sim.domain.content.build;
 
-import java.util.EnumSet;
 import java.util.List;
 import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;

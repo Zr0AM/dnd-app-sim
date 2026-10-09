@@ -9,6 +9,7 @@ import java.util.Map;
 import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
 import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Coded;
 import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.domain.opt.genome.MartialCatalog;
 import org.omnomnom.dnd.sim.domain.opt.report.Reports;
@@ -119,7 +120,7 @@ public final class ContentService {
 
     public List<PartyTemplateView> partyTemplates() {
         return PartyTemplate.ALL.stream()
-                .map(t -> new PartyTemplateView(t.id(), t.roles().stream().map(r -> r.code()).toList(), t.flex().code(), t.weight()))
+                .map(t -> new PartyTemplateView(t.id(), t.roles().stream().map(Coded::code).toList(), t.flex().code(), t.weight()))
                 .toList();
     }
 

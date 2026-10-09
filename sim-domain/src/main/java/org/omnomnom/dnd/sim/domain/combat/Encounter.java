@@ -115,16 +115,6 @@ public final class Encounter {
         sink.accept(event);
     }
 
-    private List<Combatant> conscious(Side side) {
-        List<Combatant> out = new ArrayList<>();
-        for (Combatant c : combatants) {
-            if (c.side() == side && c.isConscious()) {
-                out.add(c);
-            }
-        }
-        return out;
-    }
-
     private boolean anyConscious(Side side) {
         for (Combatant c : combatants) {
             if (c.side() == side && c.isConscious()) {

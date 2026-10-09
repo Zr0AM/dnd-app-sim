@@ -137,7 +137,7 @@ class MonsterCompilerTest {
                         new DefenseRow("immunity", 9, null), // poison
                         new DefenseRow("vulnerability", 7, null), // necrotic
                         new DefenseRow("immunity", null, 1)))); // a condition immunity: ignored for now
-        assertThat(t.saveBonuses().get(Ability.DEX)).isEqualTo(4);
+        assertThat(t.saveBonuses()).containsEntry(Ability.DEX, 4);
         assertThat(t.damageResponses()).containsEntry(DamageType.FIRE, DamageResponse.RESISTANT)
                 .containsEntry(DamageType.POISON, DamageResponse.IMMUNE)
                 .containsEntry(DamageType.NECROTIC, DamageResponse.VULNERABLE)

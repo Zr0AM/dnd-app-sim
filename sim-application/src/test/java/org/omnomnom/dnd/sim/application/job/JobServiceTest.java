@@ -113,8 +113,9 @@ class JobServiceTest {
         Reports.Report report = store.find(done.reportId()).orElseThrow().report();
         assertThat(report.runKey()).isEqualTo(done.reportId());
         assertThat(report.config()).containsEntry("level", 3).containsEntry("role", "tank").containsEntry("campaign", false).containsEntry("seed", 42L);
-        assertThat(report.config().get("classes")).isEqualTo(List.of("fighter", "wizard")); // duplicates removed
-        assertThat(report.config().get("ga")).isEqualTo(java.util.Map.of("populationSize", 4, "generations", 2, "evalRuns", 1, "mutationRate", 0.3));
+        assertThat(report.config())
+                .containsEntry("classes", List.of("fighter", "wizard")) // duplicates removed
+                .containsEntry("ga", java.util.Map.of("populationSize", 4, "generations", 2, "evalRuns", 1, "mutationRate", 0.3));
         assertThat(report.weights()).isEqualTo(java.util.Map.of("reliability", 2.0, "offense", 1.0, "survival", 3.0, "efficiency", 1.0));
         assertThat(report.paretoFront()).isNotEmpty();
         assertThat(report.paretoFront()).allSatisfy(e -> assertThat(e.campaignDayWinRate()).isNull());
@@ -210,7 +211,8 @@ class JobServiceTest {
         JobView running = jobs.startOptimization(longRun(1L));
         await(running.id(), v -> v.status() == JobView.Status.RUNNING);
         JobView queued = jobs.startOptimization(tiny(2L, false)); // takes the single queue slot
-        assertThatThrownBy(() -> jobs.startOptimization(tiny(3L, false))).isInstanceOf(BusyException.class);
+        OptimizeCommand overflow = tiny(3L, false);
+        assertThatThrownBy(() -> jobs.startOptimization(overflow)).isInstanceOf(BusyException.class);
         jobs.cancel(queued.id());
         jobs.cancel(running.id());
         awaitFinished(running.id());
@@ -322,7 +324,8 @@ class JobServiceTest {
             ids.add(awaitWith(keepTwo, keepTwo.startOptimization(tiny(seed, false)).id()).id());
         }
         keepTwo.startOptimization(tiny(4L, false));
-        assertThatThrownBy(() -> keepTwo.get(ids.get(0))).isInstanceOf(NotFoundException.class);
+        String forgotten = ids.get(0);
+        assertThatThrownBy(() -> keepTwo.get(forgotten)).isInstanceOf(NotFoundException.class);
         assertThat(keepTwo.get(ids.get(1)).status()).isEqualTo(JobView.Status.SUCCEEDED);
         assertThat(JobService.Settings.defaults()).isEqualTo(new JobService.Settings(200, 12, false));
     }

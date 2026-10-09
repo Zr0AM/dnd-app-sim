@@ -224,7 +224,7 @@ class OptimizerParityTest {
             assertThat(got.objectiveBounds().get(b.getKey())[1]).as(what + " max " + b.getKey()).isCloseTo(b.getValue().get(1).asDouble(), within(EPS));
         });
         want.get("weights").properties().forEach(w ->
-                assertThat(got.weights().get(w.getKey())).as(what + " weight " + w.getKey()).isEqualTo(w.getValue().asDouble()));
+                assertThat(got.weights()).as(what + " weight " + w.getKey()).containsEntry(w.getKey(), w.getValue().asDouble()));
         assertEntries(got.paretoFront(), want.get("paretoFront"), level, what + " front");
         assertEntries(got.leaderboard(), want.get("leaderboard"), level, what + " leaderboard");
     }

@@ -2,7 +2,6 @@ package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;

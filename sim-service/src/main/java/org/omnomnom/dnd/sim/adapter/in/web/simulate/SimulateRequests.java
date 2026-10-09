@@ -12,7 +12,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.omnomnom.dnd.sim.adapter.in.web.error.RequestValidationException;
 import org.omnomnom.dnd.sim.adapter.in.web.validation.ValidLevel;
 import org.omnomnom.dnd.sim.application.encounter.EncounterCommand;

@@ -2,7 +2,6 @@ package org.omnomnom.dnd.sim.config;
 
 import java.time.Duration;
 import java.util.List;
-import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 

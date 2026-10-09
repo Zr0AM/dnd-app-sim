@@ -23,9 +23,7 @@ import org.omnomnom.dnd.sim.application.job.JobService;
 import org.omnomnom.dnd.sim.application.job.JobView;
 import org.omnomnom.dnd.sim.application.job.OptimizeCommand;
 import org.omnomnom.dnd.sim.domain.content.build.Role;
-import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.testsupport.InMemoryReportStore;
-import org.omnomnom.dnd.sim.testsupport.TestReports;
 
 /** Operator limits turn too-large requests into {@code 422 limit-exceeded} before any work is queued. */
 class LimitsTest {
@@ -79,9 +77,10 @@ class LimitsTest {
         assertExceeded(() -> service.evaluate(new EvaluationService.EvalCommand(5, fighter, EvaluationService.Context.PARTY, null, null, 1L)), "runs");
         SimLimits twelve = new SimLimits(5, 12, 3, 8, 6, 2, 2_000);
         EvaluationService roomy = new EvaluationService(catalogs, executor, twelve);
-        assertThatCode(() -> roomy.evaluate(new EvaluationService.EvalCommand(5, fighter, EvaluationService.Context.PARTY, null, 1, 1L)))
-                .doesNotThrowAnyException();
-        assertThatThrownBy(() -> roomy.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, null, 1L)))
+        var partyWithinLimit = new EvaluationService.EvalCommand(5, fighter, EvaluationService.Context.PARTY, null, 1, 1L);
+        var soloOverLimit = new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, null, 1L);
+        assertThatCode(() -> roomy.evaluate(partyWithinLimit)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> roomy.evaluate(soloOverLimit))
                 .isInstanceOf(UnprocessableException.class);
         assertExceeded(() -> service.campaign(new EvaluationService.CampaignCommand(3, fighter, 4, 0.5, 1L)), "days");
         assertThatCode(() -> service.campaign(new EvaluationService.CampaignCommand(3, fighter, 3, 0.5, 1L))).doesNotThrowAnyException();

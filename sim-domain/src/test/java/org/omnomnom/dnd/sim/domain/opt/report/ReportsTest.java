@@ -100,7 +100,7 @@ class ReportsTest {
     @Test
     void describeListsShieldArmorAndFightingStyle() {
         String text = Reports.describe(new Genome(BuildClass.FIGHTER, List.of(2, 1, 0, 3, 4, 5), "Longsword", "Chain Mail", true, false,
-                org.omnomnom.dnd.sim.domain.content.build.FightingStyle.DEFENSE), 11);
+                FightingStyle.DEFENSE), 11);
         assertThat(text).isEqualTo("L11 fighter — Longsword, shield, Chain Mail, defense — CON 15, DEX 14");
     }
 

@@ -30,7 +30,8 @@ class DiceTest {
 
     @Test
     void rollDieRejectsNonPositiveSides() {
-        assertThatThrownBy(() -> Dice.rollDie(rng(), 0)).isInstanceOf(IllegalArgumentException.class);
+        Rng rng = rng();
+        assertThatThrownBy(() -> Dice.rollDie(rng, 0)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -64,7 +65,8 @@ class DiceTest {
 
     @Test
     void rollDiceRejectsNegativeCount() {
-        assertThatThrownBy(() -> Dice.rollDice(rng(), -1, 6)).isInstanceOf(IllegalArgumentException.class);
+        Rng rng = rng();
+        assertThatThrownBy(() -> Dice.rollDice(rng, -1, 6)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

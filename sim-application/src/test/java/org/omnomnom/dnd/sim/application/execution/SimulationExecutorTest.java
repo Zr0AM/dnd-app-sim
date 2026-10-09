@@ -55,7 +55,7 @@ class SimulationExecutorTest {
     }
 
     @Test
-    void zeroThreadsMeansOnePerProcessor() throws Exception {
+    void zeroThreadsMeansOnePerProcessor() {
         try (SimulationExecutor exec = new SimulationExecutor(0, 4)) {
             assertThat(exec.call(() -> "ok")).isEqualTo("ok");
         }
