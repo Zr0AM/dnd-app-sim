@@ -2,7 +2,6 @@ package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,33 +46,22 @@ public final class Combatant {
     private final List<AttackProfile> attacks;
     private final List<Feature> features;
     private final int extraAttacks;
-    private final Map<String, ResourcePool> pools = new LinkedHashMap<>();
+    private final ResourcePools pools;
 
     // Spellcasting (null / empty for non-casters).
     private final Ability spellAbility;
     private final List<Spell> cantrips;
     private final List<Spell> spells;
-    private final Map<Integer, SlotPool> slots = new LinkedHashMap<>();
-    private final boolean shortRestSlots;
 
     private String concentratingOn;
     private String markedTarget;
     private ActiveForm activeForm;
-    private final int legendaryMax;
-    private int legendaryRemaining;
 
-    private int hp;
-    private int tempHp;
+    private final Vitals vitals;
     private Cell position;
     private final Set<Condition> conditions = EnumSet.noneOf(Condition.class);
     private final List<ActiveCondition> timed = new ArrayList<>();
     private final List<ActiveBuff> buffs = new ArrayList<>();
-
-    private int exhaustionLevel;
-    private int deathSuccesses;
-    private int deathFailures;
-    private boolean stable;
-    private boolean dead;
 
     public Combatant(CombatantSpec spec) {
         this.id = spec.id();
@@ -84,7 +72,7 @@ public final class Combatant {
         this.abilities = spec.abilities();
         this.ac = spec.ac();
         this.maxHp = spec.maxHp();
-        this.hp = spec.maxHp();
+        this.vitals = new Vitals(spec.maxHp());
         this.speedFt = spec.speedFt();
         this.proficiencyBonus = CoreRules.proficiencyBonus(spec.level());
         this.saveProf = spec.saveProficiencies();
@@ -94,25 +82,17 @@ public final class Combatant {
         this.attacks = spec.attacks();
         this.features = spec.features().stream().map(FeatureFactory::create).toList();
         this.extraAttacks = spec.extraAttacks();
-        this.legendaryMax = spec.legendaryActions();
-        this.legendaryRemaining = this.legendaryMax;
         SpellcastingSpec sc = spec.spellcasting();
-        this.shortRestSlots = sc != null && sc.shortRestSlots();
         if (sc != null) {
             this.spellAbility = sc.ability();
             this.cantrips = sc.cantrips();
             this.spells = sc.spells();
-            for (SpellcastingSpec.Slot s : sc.slots()) {
-                slots.put(s.level(), new SlotPool(s.count(), s.count()));
-            }
         } else {
             this.spellAbility = null;
             this.cantrips = List.of();
             this.spells = List.of();
         }
-        for (ResourceSpec r : spec.resources()) {
-            pools.put(r.id(), new ResourcePool(r.max(), r.max(), r.rechargeShort(), r.rechargeLong()));
-        }
+        this.pools = new ResourcePools(spec.resources(), sc, spec.legendaryActions());
     }
 
     // ---- identity and static stats -------------------------------------------------------------
@@ -189,66 +169,64 @@ public final class Combatant {
     // ---- hit points and life state -------------------------------------------------------------
 
     public int hp() {
-        return hp;
+        return vitals.hp();
     }
 
     public int tempHp() {
-        return tempHp;
+        return vitals.tempHp();
     }
 
     public boolean dead() {
-        return dead;
+        return vitals.dead();
     }
 
     public boolean stable() {
-        return stable;
+        return vitals.stable();
     }
 
     public int deathSuccesses() {
-        return deathSuccesses;
+        return vitals.deathSuccesses();
     }
 
     public int deathFailures() {
-        return deathFailures;
+        return vitals.deathFailures();
     }
 
     public int exhaustionLevel() {
-        return exhaustionLevel;
+        return vitals.exhaustionLevel();
     }
 
     /** Alive and above 0 HP (not unconscious). */
     public boolean isConscious() {
-        return !dead && hp > 0;
+        return vitals.isConscious();
     }
 
     /** Not dead (may be unconscious at 0 HP). */
     public boolean isAlive() {
-        return !dead;
+        return vitals.isAlive();
     }
 
     /** At 0 HP, not dead: unconscious and dying (or stable). */
     public boolean isDying() {
-        return !dead && hp == 0;
+        return vitals.isDying();
     }
 
     // Package-private mutators for the engine and tests.
     void setHp(int v) {
-        this.hp = v;
+        vitals.setHp(v);
     }
 
     void setDead(boolean v) {
-        this.dead = v;
+        vitals.setDead(v);
     }
 
     void setDeathFailures(int v) {
-        this.deathFailures = v;
+        vitals.setDeathFailures(v);
     }
 
     /** Grant temporary HP. Temp HP does not stack; the larger pool wins. */
     public void grantTempHp(int amount) {
-        if (amount > tempHp) {
-            tempHp = amount;
-        }
+        vitals.grantTempHp(amount);
     }
 
     public DamageOutcome takeDamage(int amount) {
@@ -260,67 +238,23 @@ public final class Combatant {
      * at 0 HP, where a crit inflicts two death-save failures.
      */
     public DamageOutcome takeDamage(int amount, boolean critical) {
-        if (dead || amount <= 0) {
-            return DamageOutcome.NONE;
-        }
-
-        // Damage taken while already at 0 HP causes death-save failures, not HP loss.
-        if (hp == 0) {
-            int fails = critical ? 2 : 1;
-            stable = false;
-            if (amount >= maxHp) {
-                dead = true;
-                return new DamageOutcome(0, 0, false, true, fails);
-            }
-            deathFailures += fails;
-            boolean died = deathFailures >= 3;
-            if (died) {
-                dead = true;
-            }
-            return new DamageOutcome(0, 0, false, died, fails);
-        }
-
-        int absorbedByTemp = Math.min(tempHp, amount);
-        tempHp -= absorbedByTemp;
+        boolean bodyHit = isConscious() && amount > 0;
+        DamageOutcome outcome = vitals.takeDamage(amount, critical);
         // A Wild Shape form ends when its (temporary) Hit Points are used up.
-        if (activeForm != null && tempHp == 0) {
+        if (bodyHit && activeForm != null && vitals.tempHp() == 0) {
             activeForm = null;
         }
-        int toHp = amount - absorbedByTemp;
-        int newHp = hp - toHp;
-
-        if (newHp > 0) {
-            hp = newHp;
-            return new DamageOutcome(toHp, absorbedByTemp, false, false, 0);
+        if (outcome.dropped() && !outcome.died()) {
+            conditions.remove(Condition.UNCONSCIOUS); // represented by isDying()
         }
-
-        // Reduced to 0. Massive damage: if the overflow equals or exceeds max HP, die.
-        int overflow = -newHp;
-        hp = 0;
-        if (overflow >= maxHp) {
-            dead = true;
-            return new DamageOutcome(maxHp, absorbedByTemp, true, true, 0);
-        }
-        // Drop to 0: unconscious, death saves reset.
-        deathSuccesses = 0;
-        deathFailures = 0;
-        stable = false;
-        conditions.remove(Condition.UNCONSCIOUS); // represented by isDying()
-        return new DamageOutcome(toHp, absorbedByTemp, true, false, 0);
+        return outcome;
     }
 
     /** Restore HP. Healing from 0 revives: clears dying/stable and resets death saves. Returns HP restored. */
     public int heal(int amount) {
-        if (dead || amount <= 0) {
-            return 0;
-        }
-        int before = hp;
-        hp = Math.min(maxHp, hp + amount);
-        int healed = hp - before;
-        if (before == 0 && hp > 0) {
-            deathSuccesses = 0;
-            deathFailures = 0;
-            stable = false;
+        int before = vitals.hp();
+        int healed = vitals.heal(amount);
+        if (before == 0 && vitals.hp() > 0) {
             conditions.remove(Condition.UNCONSCIOUS);
         }
         return healed;
@@ -328,9 +262,7 @@ public final class Combatant {
 
     /** Stabilize a dying creature (for example a successful Medicine check). */
     public void stabilize() {
-        if (isDying()) {
-            stable = true;
-        }
+        vitals.stabilize();
     }
 
     /**
@@ -338,38 +270,16 @@ public final class Combatant {
      * 1 HP; a natural 1 is two failures; three successes stabilize; three failures kill.
      */
     public DeathSaveOutcome rollDeathSave(Rng rng) {
-        if (!isDying() || stable) {
-            return new DeathSaveOutcome(0, false, stable, dead, false);
+        DeathSaveOutcome outcome = vitals.rollDeathSave(rng);
+        if (outcome.revived()) {
+            conditions.remove(Condition.UNCONSCIOUS);
         }
-        int d20 = Dice.rollD20(rng);
-        if (d20 == 20) {
-            heal(1);
-            return new DeathSaveOutcome(d20, true, false, false, true);
-        }
-        if (d20 == 1) {
-            deathFailures += 2;
-        } else if (d20 >= 10) {
-            deathSuccesses += 1;
-        } else {
-            deathFailures += 1;
-        }
-        if (deathFailures >= 3) {
-            dead = true;
-            return new DeathSaveOutcome(d20, false, false, true, false);
-        }
-        if (deathSuccesses >= 3) {
-            stable = true;
-            return new DeathSaveOutcome(d20, d20 >= 10, true, false, false);
-        }
-        return new DeathSaveOutcome(d20, d20 >= 10, false, false, false);
+        return outcome;
     }
 
     /** Raise exhaustion by {@code n} levels (0-6); at level 6 the creature dies. */
     public void gainExhaustion(int n) {
-        exhaustionLevel = Math.clamp(exhaustionLevel + n, 0, 6);
-        if (exhaustionLevel >= 6) {
-            dead = true;
-        }
+        vitals.gainExhaustion(n);
     }
 
     // ---- position, concentration and per-fight markers -----------------------------------------
@@ -404,43 +314,26 @@ public final class Combatant {
 
     /** How many uses of a resource remain (0 if the pool is undefined). */
     public int resourceCount(String id) {
-        ResourcePool pool = pools.get(id);
-        return pool == null ? 0 : pool.current;
+        return pools.resourceCount(id);
     }
 
     public boolean spendResource(String id) {
-        return spendResource(id, 1);
+        return pools.spendResource(id);
     }
 
     /** Spend {@code n} of a resource if available; returns whether it was spent. */
     public boolean spendResource(String id, int n) {
-        ResourcePool pool = pools.get(id);
-        if (pool == null || pool.current < n) {
-            return false;
-        }
-        pool.current -= n;
-        return true;
+        return pools.spendResource(id, n);
     }
 
     /** Restore short-rest resources (and Pact Magic slots, for a Warlock). */
     public void shortRest() {
-        for (ResourcePool pool : pools.values()) {
-            pool.current = pool.rechargeShort.applyTo(pool.current, pool.max);
-        }
-        if (shortRestSlots) {
-            restoreSlots();
-        }
+        pools.shortRest();
     }
 
     /** Restore long-rest (and short-rest) resources and all spell slots. */
     public void longRest() {
-        for (ResourcePool pool : pools.values()) {
-            pool.current = pool.rechargeShort.applyTo(pool.current, pool.max);
-        }
-        for (ResourcePool pool : pools.values()) {
-            pool.current = pool.rechargeLong.applyTo(pool.current, pool.max);
-        }
-        restoreSlots();
+        pools.longRest();
         concentratingOn = null;
         markedTarget = null;
     }
@@ -448,25 +341,21 @@ public final class Combatant {
     // ---- legendary actions ---------------------------------------------------------------------
 
     public int legendaryMax() {
-        return legendaryMax;
+        return pools.legendaryMax();
     }
 
     public int legendaryRemaining() {
-        return legendaryRemaining;
+        return pools.legendaryRemaining();
     }
 
     /** Refresh legendary actions (at the start of the boss's turn). */
     public void refreshLegendary() {
-        legendaryRemaining = legendaryMax;
+        pools.refreshLegendary();
     }
 
     /** Spend one legendary action if available. */
     public boolean spendLegendary() {
-        if (legendaryRemaining <= 0) {
-            return false;
-        }
-        legendaryRemaining -= 1;
-        return true;
+        return pools.spendLegendary();
     }
 
     // ---- spellcasting --------------------------------------------------------------------------
@@ -496,34 +385,22 @@ public final class Combatant {
 
     /** Remaining slots of a given spell level. */
     public int slotCount(int level) {
-        SlotPool pool = slots.get(level);
-        return pool == null ? 0 : pool.current;
+        return pools.slotCount(level);
     }
 
     /** The spell levels (ascending) that currently have at least one slot. */
     public List<Integer> availableSlotLevels() {
-        return slots.entrySet().stream()
-                .filter(e -> e.getValue().current > 0)
-                .map(Map.Entry::getKey)
-                .sorted()
-                .toList();
+        return pools.availableSlotLevels();
     }
 
     /** Spend one slot of the given level; returns whether a slot was available. */
     public boolean spendSlot(int level) {
-        SlotPool pool = slots.get(level);
-        if (pool == null || pool.current <= 0) {
-            return false;
-        }
-        pool.current -= 1;
-        return true;
+        return pools.spendSlot(level);
     }
 
     /** Restore all spell slots (a long rest). */
     public void restoreSlots() {
-        for (SlotPool pool : slots.values()) {
-            pool.current = pool.max;
-        }
+        pools.restoreSlots();
     }
 
     // ---- damage response -----------------------------------------------------------------------
@@ -553,7 +430,7 @@ public final class Combatant {
             return isDying() || conditions.contains(Condition.UNCONSCIOUS);
         }
         if (c == Condition.EXHAUSTION) {
-            return exhaustionLevel > 0;
+            return exhaustionLevel() > 0;
         }
         return conditions.contains(c);
     }
@@ -572,7 +449,7 @@ public final class Combatant {
         if (isDying() && !conditions.contains(Condition.UNCONSCIOUS)) {
             list.add(Condition.UNCONSCIOUS);
         }
-        if (exhaustionLevel > 0 && !conditions.contains(Condition.EXHAUSTION)) {
+        if (exhaustionLevel() > 0 && !conditions.contains(Condition.EXHAUSTION)) {
             list.add(Condition.EXHAUSTION);
         }
         return list;
@@ -759,30 +636,6 @@ public final class Combatant {
     }
 
     // ---- internal state holders ----------------------------------------------------------------
-
-    private static final class ResourcePool {
-        int current;
-        final int max;
-        final Recharge rechargeShort;
-        final Recharge rechargeLong;
-
-        ResourcePool(int current, int max, Recharge rechargeShort, Recharge rechargeLong) {
-            this.current = current;
-            this.max = max;
-            this.rechargeShort = rechargeShort;
-            this.rechargeLong = rechargeLong;
-        }
-    }
-
-    private static final class SlotPool {
-        int current;
-        final int max;
-
-        SlotPool(int current, int max) {
-            this.current = current;
-            this.max = max;
-        }
-    }
 
     private static final class ActiveCondition {
         final Condition condition;
