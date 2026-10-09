@@ -1,10 +1,9 @@
 package org.omnomnom.dnd.sim.config;
 
 import java.time.Clock;
-import org.omnomnom.dnd.sim.adapter.in.web.AccessFilter;
-import org.omnomnom.dnd.sim.adapter.in.web.RateLimitInterceptor;
-import org.omnomnom.dnd.sim.adapter.out.SimProperties;
-import org.omnomnom.dnd.sim.application.RateLimiter;
+import org.omnomnom.dnd.sim.adapter.in.web.security.AccessFilter;
+import org.omnomnom.dnd.sim.adapter.in.web.security.RateLimitInterceptor;
+import org.omnomnom.dnd.sim.application.access.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;

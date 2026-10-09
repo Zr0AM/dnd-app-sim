@@ -3,8 +3,8 @@ package org.omnomnom.dnd.sim.domain.scenario;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.omnomnom.dnd.sim.domain.content.MonsterCatalog;
-import org.omnomnom.dnd.sim.domain.content.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
 
 /**
  * The curated library of solo-hero encounters a build is tested against: a single foe, a pack, a swarm and a mixed

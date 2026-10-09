@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.omnomnom.dnd.sim.domain.combat.event.CombatEvent;
+import org.omnomnom.dnd.sim.domain.combat.event.EventLog;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.Grid;

@@ -4,10 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.domain.combat.SpellKind.AttackDamage;
+import org.omnomnom.dnd.sim.domain.combat.spell.DamageScaling;
+import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind.AttackDamage;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
 
 /**

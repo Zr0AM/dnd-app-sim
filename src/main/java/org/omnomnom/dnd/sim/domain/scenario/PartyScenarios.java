@@ -4,11 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
-import org.omnomnom.dnd.sim.domain.combat.Side;
-import org.omnomnom.dnd.sim.domain.content.Fillers;
-import org.omnomnom.dnd.sim.domain.content.MonsterCatalog;
-import org.omnomnom.dnd.sim.domain.content.MonsterTemplate;
-import org.omnomnom.dnd.sim.domain.content.Role;
+import org.omnomnom.dnd.sim.domain.content.build.Fillers;
+import org.omnomnom.dnd.sim.domain.content.build.Role;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /**

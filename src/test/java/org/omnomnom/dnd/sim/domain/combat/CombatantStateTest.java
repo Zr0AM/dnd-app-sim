@@ -5,6 +5,7 @@ import static org.omnomnom.dnd.sim.domain.combat.TestCombatants.make;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.omnomnom.dnd.sim.domain.combat.spell.BuffSpec;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
 import org.omnomnom.dnd.sim.domain.core.DamageResponse;

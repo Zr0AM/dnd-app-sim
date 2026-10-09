@@ -6,10 +6,10 @@ import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
-import org.omnomnom.dnd.sim.domain.combat.Spell;
-import org.omnomnom.dnd.sim.domain.combat.SpellKind;
 import org.omnomnom.dnd.sim.domain.combat.TurnApi;
 import org.omnomnom.dnd.sim.domain.combat.TurnPolicy;
+import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.GridMath;
 

@@ -13,7 +13,8 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.application.ReportStore;
+import org.omnomnom.dnd.sim.application.error.BadRequestException;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.omnomnom.dnd.sim.testsupport.TestReports;
 
 /** The D1 store against a fake of the D1 HTTP API that runs the SQL on a real SQLite database. */
@@ -157,7 +158,7 @@ class D1ReportStoreTest {
         for (String bad : List.of("abc", "2026-10-08T12:00:00Z|0123abcd", "2026-10-08T12:00:00.000Z|bad id", "x|y", "' OR 1=1 --|0123abcd")) {
             assertThatThrownBy(() -> store.list(5, bad))
                     .as(bad)
-                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.BadRequestException.class,
+                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.error.BadRequestException.class,
                             e -> assertThat(e.code()).isEqualTo("invalid-cursor"));
         }
         assertThat(d1.statements).hasSize(before);

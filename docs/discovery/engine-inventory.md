@@ -20,36 +20,36 @@ tests.
 | 2 | `combat/attack.ts` | 4208 | Read | `combat` |
 | 2 | `combat/damage.ts` | 1737 | Read | `combat` |
 | 2 | `combat/conditions.ts` | 5312 | Read | `combat` |
-| 2 | `combat/spell.ts` | 5576 | Read | `combat` (sealed `SpellKind`) |
+| 2 | `combat/spell.ts` | 5576 | Read | `combat.spell` (sealed `SpellKind`) |
 | 3 | `combat/feature.ts` | 3299 | Read | `combat` (`Feature` interface) |
-| 3 | `combat/encounter.ts` | 36118 | Read | `combat` (`Encounter`, `CombatEvent`) |
+| 3 | `combat/encounter.ts` | 36118 | Read | `combat` (`Encounter`), `combat.event` (`CombatEvent`) |
 | 3 | `ai/policy.ts` | 17865 | First 180 lines read | `ai` |
 | 4 | `content/ids.ts` | 1654 | Not yet read | `content` |
-| 4 | `content/monster.ts` | 8519 | Read | `content` |
-| 4 | `content/multiattack.ts` | 2499 | Not yet read | `content` |
-| 4 | `content/character.ts` | 9947 | Not yet read | `content` |
-| 4 | `content/caster.ts` | 4426 | Not yet read | `content` |
-| 4 | `content/spells.ts` | 6917 | Not yet read | `content` |
-| 4 | `content/martial-features.ts` | 9971 | Not yet read | `content` (Feature implementations) |
-| 4 | `content/fillers.ts` | 5949 | Read | `content` |
-| 4 | `content/load-db.ts` | 9440 | Read | `adapter.out` seed catalog behind an `application` port |
+| 4 | `content/monster.ts` | 8519 | Read | `content.monster` |
+| 4 | `content/multiattack.ts` | 2499 | Not yet read | `content.monster` |
+| 4 | `content/character.ts` | 9947 | Not yet read | `content.build` |
+| 4 | `content/caster.ts` | 4426 | Not yet read | `content.build` |
+| 4 | `content/spells.ts` | 6917 | Not yet read | `content.build` |
+| 4 | `content/martial-features.ts` | 9971 | Not yet read | `content.feature` (Feature implementations) |
+| 4 | `content/fillers.ts` | 5949 | Read | `content.build` |
+| 4 | `content/load-db.ts` | 9440 | Read | `adapter.out.content` seed catalog behind the `content.ContentSource` port |
 | 5 | `scenario/maps.ts` | 1695 | Read | `scenario` |
 | 5 | `scenario/library.ts` | 7008 | Read | `scenario` |
 | 5 | `scenario/party.ts` | 7044 | Read | `scenario` |
-| 6 | `opt/stats.ts` | 2256 | Read | `opt` |
-| 6 | `opt/genome.ts` | 10192 | Read | `opt` |
-| 6 | `opt/catalog.ts` | 10752 | Read | `opt` |
-| 6 | `opt/evaluate.ts` | 6427 | Read | `opt` |
-| 6 | `opt/party-evaluate.ts` | 7384 | Read | `opt` |
-| 6 | `opt/nsga2.ts` | 7718 | Read | `opt` |
-| 6 | `opt/roles.ts` | 2238 | Read | `opt` |
-| 6 | `opt/reports.ts` | 7093 | Read | `opt` |
-| 6 | `opt/campaign.ts` | 4917 | Read | `opt` |
-| 6 | `opt/anchor.ts` | 2505 | Read | `opt` (see note) |
+| 6 | `opt/stats.ts` | 2256 | Read | `opt.evaluation` |
+| 6 | `opt/genome.ts` | 10192 | Read | `opt.genome` |
+| 6 | `opt/catalog.ts` | 10752 | Read | `opt.genome` |
+| 6 | `opt/evaluate.ts` | 6427 | Read | `opt.evaluation` |
+| 6 | `opt/party-evaluate.ts` | 7384 | Read | `opt.evaluation` |
+| 6 | `opt/nsga2.ts` | 7718 | Read | `opt.search` |
+| 6 | `opt/roles.ts` | 2238 | Read | `opt.report` |
+| 6 | `opt/reports.ts` | 7093 | Read | `opt.report` |
+| 6 | `opt/campaign.ts` | 4917 | Read | `opt.campaign` |
+| 6 | `opt/anchor.ts` | 2505 | Read | `opt.evaluation` (see note) |
 | 6 | `opt/ga.ts` | 3601 | Not yet read | `opt` (last; superseded by NSGA-II) |
 | 7 | `cli/config.ts` | 7110 | Read | `adapter.in.web` DTOs + validation |
 | 7 | `cli/engine.ts` | 8530 | Read | `application` use cases (`CliEngine` becomes the port) |
-| 7 | `cli/report-io.ts` | 1878 | Not yet read | `application` `ReportStore` port |
+| 7 | `cli/report-io.ts` | 1878 | Not yet read | `application.report.ReportStore` port |
 | - | `cli/prompt*.ts`, `cli/flows.ts`, `cli/main.ts` | ~24k | not ported | dropped |
 
 Notes:

@@ -3,6 +3,7 @@ package org.omnomnom.dnd.sim.domain.combat;
 import java.util.function.UnaryOperator;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /** Shared builders for combat tests. */

@@ -11,12 +11,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
-import org.omnomnom.dnd.sim.domain.content.Fillers;
-import org.omnomnom.dnd.sim.domain.content.MonsterCatalog;
-import org.omnomnom.dnd.sim.domain.content.Role;
 import org.omnomnom.dnd.sim.domain.combat.CombatantSpec;
-import org.omnomnom.dnd.sim.domain.combat.Side;
+import org.omnomnom.dnd.sim.domain.content.build.Fillers;
+import org.omnomnom.dnd.sim.domain.content.build.Role;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /** Ports of {@code library.spec.ts} and {@code party.spec.ts}, plus the layouts and XP totals the TypeScript only comments. */

@@ -14,8 +14,9 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.omnomnom.dnd.sim.application.ReportStore;
-import org.omnomnom.dnd.sim.domain.opt.Reports;
+import org.omnomnom.dnd.sim.application.error.BadRequestException;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
+import org.omnomnom.dnd.sim.domain.opt.report.Reports;
 import org.omnomnom.dnd.sim.testsupport.TestReports;
 
 class FilesystemReportStoreTest {
@@ -145,7 +146,7 @@ class FilesystemReportStoreTest {
         for (String bad : List.of("abc", "x:y", "12:NOTHEX", ":0123abcd", "99999999999999999999:0123abcd", "1:../../x")) {
             assertThatThrownBy(() -> store.list(5, bad))
                     .as(bad)
-                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.BadRequestException.class,
+                    .isInstanceOfSatisfying(org.omnomnom.dnd.sim.application.error.BadRequestException.class,
                             e -> assertThat(e.code()).isEqualTo("invalid-cursor"));
         }
     }

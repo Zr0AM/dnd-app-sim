@@ -1,20 +1,19 @@
 package org.omnomnom.dnd.sim.config;
 
-import org.omnomnom.dnd.sim.adapter.json.SimJacksonModule;
-import org.omnomnom.dnd.sim.adapter.out.SimProperties;
-import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
-import org.omnomnom.dnd.sim.application.ContentCatalogs;
-import org.omnomnom.dnd.sim.application.ContentService;
-import org.omnomnom.dnd.sim.application.EncounterService;
-import org.omnomnom.dnd.sim.application.EvaluationService;
-import org.omnomnom.dnd.sim.application.JobService;
-import org.omnomnom.dnd.sim.application.ReportService;
-import org.omnomnom.dnd.sim.application.ReportStore;
-import org.omnomnom.dnd.sim.application.SimLimits;
-import org.omnomnom.dnd.sim.application.SimulationExecutor;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import java.time.Clock;
+import org.omnomnom.dnd.sim.adapter.json.SimJacksonModule;
+import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
+import org.omnomnom.dnd.sim.application.content.ContentCatalogs;
+import org.omnomnom.dnd.sim.application.content.ContentService;
+import org.omnomnom.dnd.sim.application.encounter.EncounterService;
+import org.omnomnom.dnd.sim.application.evaluation.EvaluationService;
+import org.omnomnom.dnd.sim.application.execution.SimLimits;
+import org.omnomnom.dnd.sim.application.execution.SimulationExecutor;
+import org.omnomnom.dnd.sim.application.job.JobService;
+import org.omnomnom.dnd.sim.application.report.ReportService;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

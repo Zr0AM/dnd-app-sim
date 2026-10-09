@@ -1,5 +1,6 @@
 package org.omnomnom.dnd.sim.domain.combat;
 
+import org.omnomnom.dnd.sim.domain.combat.event.CombatEvent;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;

@@ -2,7 +2,9 @@ package org.omnomnom.dnd.sim.domain.content;
 
 import java.util.List;
 import java.util.Map;
-import org.omnomnom.dnd.sim.domain.combat.SpellcastingSpec;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
+import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
+import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 
 /**
  * The domain's view of the SRD reference data (a driven port). Implemented by an outbound adapter backed by the seed

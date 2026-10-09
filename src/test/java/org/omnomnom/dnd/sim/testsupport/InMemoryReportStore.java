@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.omnomnom.dnd.sim.application.ReportStore;
-import org.omnomnom.dnd.sim.domain.opt.Reports;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
+import org.omnomnom.dnd.sim.domain.opt.report.Reports;
 
 /** A trivial report store for tests of the application layer. Can be told to fail on save. */
 public final class InMemoryReportStore implements ReportStore {

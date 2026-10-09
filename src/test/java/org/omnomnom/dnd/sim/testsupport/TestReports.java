@@ -3,13 +3,13 @@ package org.omnomnom.dnd.sim.testsupport;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.omnomnom.dnd.sim.domain.opt.BuildClass;
-import org.omnomnom.dnd.sim.domain.opt.Genome;
-import org.omnomnom.dnd.sim.domain.opt.Objectives;
-import org.omnomnom.dnd.sim.domain.opt.Reports;
+import org.omnomnom.dnd.sim.adapter.json.SimJacksonModule;
+import org.omnomnom.dnd.sim.domain.opt.evaluation.Objectives;
+import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
+import org.omnomnom.dnd.sim.domain.opt.genome.Genome;
+import org.omnomnom.dnd.sim.domain.opt.report.Reports;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
-import org.omnomnom.dnd.sim.adapter.json.SimJacksonModule;
 
 /** Hand-made reports and the JSON mapper the service uses, for the storage and API tests. */
 public final class TestReports {

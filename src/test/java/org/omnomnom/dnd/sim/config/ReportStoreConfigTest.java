@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Clock;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.adapter.out.SimProperties;
 import org.omnomnom.dnd.sim.adapter.out.report.D1ReportStore;
 import org.omnomnom.dnd.sim.adapter.out.report.FilesystemReportStore;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.omnomnom.dnd.sim.testsupport.TestReports;
 
 class ReportStoreConfigTest {

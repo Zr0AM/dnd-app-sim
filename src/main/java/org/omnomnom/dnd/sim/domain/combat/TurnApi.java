@@ -2,6 +2,7 @@ package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.List;
 import java.util.OptionalInt;
+import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /**

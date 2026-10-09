@@ -7,7 +7,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.adapter.out.SimProperties;
+import org.omnomnom.dnd.sim.application.report.ReportStore;
 
 class AccessConfigTest {
 

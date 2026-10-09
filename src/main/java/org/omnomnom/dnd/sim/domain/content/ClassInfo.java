@@ -13,7 +13,7 @@ public record ClassInfo(String slug, int hitDieSides, List<Ability> saveProficie
     }
 
     /** The saving-throw proficiencies as a set (empty-safe, unlike {@code EnumSet.copyOf}). */
-    static Set<Ability> saveSet(ClassInfo c) {
+    public static Set<Ability> saveSet(ClassInfo c) {
         Set<Ability> set = EnumSet.noneOf(Ability.class);
         set.addAll(c.saveProficiencies());
         return set;

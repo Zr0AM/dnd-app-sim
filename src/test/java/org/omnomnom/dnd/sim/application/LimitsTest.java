@@ -10,8 +10,22 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
-import org.omnomnom.dnd.sim.domain.content.Role;
+import org.omnomnom.dnd.sim.application.content.ContentCatalogs;
+import org.omnomnom.dnd.sim.application.encounter.EncounterCommand;
+import org.omnomnom.dnd.sim.application.encounter.EncounterService;
+import org.omnomnom.dnd.sim.application.encounter.PartyMemberSpec;
+import org.omnomnom.dnd.sim.application.error.UnprocessableException;
+import org.omnomnom.dnd.sim.application.evaluation.EvaluationService;
+import org.omnomnom.dnd.sim.application.evaluation.GenomeInput;
+import org.omnomnom.dnd.sim.application.execution.SimLimits;
+import org.omnomnom.dnd.sim.application.execution.SimulationExecutor;
+import org.omnomnom.dnd.sim.application.job.JobService;
+import org.omnomnom.dnd.sim.application.job.JobView;
+import org.omnomnom.dnd.sim.application.job.OptimizeCommand;
+import org.omnomnom.dnd.sim.domain.content.build.Role;
+import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.testsupport.InMemoryReportStore;
+import org.omnomnom.dnd.sim.testsupport.TestReports;
 
 /** Operator limits turn too-large requests into {@code 422 limit-exceeded} before any work is queued. */
 class LimitsTest {
@@ -56,7 +70,7 @@ class LimitsTest {
     @Test
     void evaluationRunsAndCampaignDaysAreCapped() {
         EvaluationService service = new EvaluationService(catalogs, executor, TIGHT);
-        GenomeInput fighter = GenomeInput.of(org.omnomnom.dnd.sim.domain.opt.BuildClass.FIGHTER);
+        GenomeInput fighter = GenomeInput.of(org.omnomnom.dnd.sim.domain.opt.genome.BuildClass.FIGHTER);
         assertExceeded(() -> service.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, 5, 1L)), "runs");
         assertThatCode(() -> service.evaluate(new EvaluationService.EvalCommand(3, fighter, EvaluationService.Context.SOLO, null, 4, 1L)))
                 .doesNotThrowAnyException();

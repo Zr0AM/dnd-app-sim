@@ -12,7 +12,9 @@ tracked automatically; diff `sim/` and `docs/sim/` against it before each phase.
 - `POST /api/v1/simulate/encounter` is new (not in the TypeScript sim).
 - Parity target is statistical equivalence, not bit-exact. Determinism within Java (same seed, same output)
   and label-addressed RNG streams (common random numbers) are still required.
-- Hexagonal layout: `domain` (pure Java) / `application` (use cases, ports) / `adapter.in.web` / `adapter.out`.
+- Hexagonal layout: `domain` (pure Java) / `application` (use cases, ports) / `adapter.in.web` / `adapter.out`, with
+  Spring wiring in `config`. Each layer is split into feature subpackages; `ArchitectureTest` keeps the layers
+  pointing inward and the subpackages of `domain`, `application` and `adapter.in.web` free of cycles.
 - Simulation runs on a bounded, core-sized executor, not virtual threads (CPU-bound).
 - Reference data is loaded once at startup into an immutable catalog; no JPA, no `@Cacheable`.
 - Reports persist to Cloudflare D1 via its HTTP query API (no JDBC driver exists). `sim.d1.*` holds the
@@ -26,13 +28,23 @@ tracked automatically; diff `sim/` and `docs/sim/` against it before each phase.
 | TypeScript (`sim/src/`) | Java (`org.omnomnom.dnd.sim`) |
 | --- | --- |
 | `rng`, `dice`, `core`, `grid` | `domain.rng`, `domain.dice`, `domain.core`, `domain.grid` |
-| `combat` (`actor`=`Combatant`, attack, damage, spell, conditions, feature, encounter) | `domain.combat` |
+| `combat` (`actor`=`Combatant`, attack, damage, conditions, feature, encounter) | `domain.combat`; events in `domain.combat.event` |
+| `combat/spell` | `domain.combat.spell` |
 | `ai/policy` | `domain.ai` |
-| `content` compilers (character, caster, monster, spells, multiattack, fillers, martial-features, ids) | `domain.content` |
-| `content/load-db` | `adapter.out` seed catalog behind an `application` port |
+| `content/ids` and the raw catalog records | `domain.content` (the `ContentSource` port) |
+| `content/monster`, `content/multiattack` | `domain.content.monster` |
+| `content/character`, `content/caster`, `content/spells`, `content/fillers` | `domain.content.build` |
+| `content/martial-features` | `domain.content.feature` |
+| `content/load-db` | `adapter.out.content` seed catalog behind the `ContentSource` port |
 | `scenario` | `domain.scenario` |
-| `opt` (genome, catalog, evaluate, party-evaluate, nsga2, anchor, stats, roles, reports, campaign; `ga` last) | `domain.opt` |
-| `cli/config`, `cli/engine`, `cli/report-io` | `adapter.in.web` DTOs, `application` ports |
+| `opt/genome`, `opt/catalog` | `domain.opt.genome` |
+| `opt/evaluate`, `opt/party-evaluate`, `opt/stats`, `opt/anchor` | `domain.opt.evaluation` |
+| `opt/nsga2` (`ga` dropped) | `domain.opt.search` |
+| `opt/reports`, `opt/roles` | `domain.opt.report` |
+| `opt/campaign` | `domain.opt.campaign` |
+| `cli/config` | `adapter.in.web.*` request records and validation |
+| `cli/engine` | `application.{encounter,evaluation,job,content}` use cases |
+| `cli/report-io` | `application.report.ReportStore` port; `adapter.out.report` filesystem and D1 stores |
 | `cli/prompt*`, `cli/flows`, `cli/main` | dropped |
 
 ## Stacked PR plan

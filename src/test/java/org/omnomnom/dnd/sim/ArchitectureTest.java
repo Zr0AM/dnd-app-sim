@@ -1,6 +1,7 @@
 package org.omnomnom.dnd.sim;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -48,4 +49,40 @@ class ArchitectureTest {
             .that().resideInAPackage(ROOT + ".application..")
             .should().dependOnClassesThat().resideInAnyPackage("org.springframework..", "jakarta..", "tools.jackson..", "com.fasterxml..")
             .allowEmptyShould(true);
+
+    // ---- inside the domain: the engine at the bottom, the optimizer at the top ----------------------
+
+    @ArchTest
+    static final ArchRule combatDoesNotReachUp = noClasses()
+            .that().resideInAPackage(ROOT + ".domain.combat..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    ROOT + ".domain.content..", ROOT + ".domain.scenario..", ROOT + ".domain.opt..", ROOT + ".domain.ai..");
+
+    @ArchTest
+    static final ArchRule contentDoesNotReachUp = noClasses()
+            .that().resideInAPackage(ROOT + ".domain.content..")
+            .should().dependOnClassesThat().resideInAnyPackage(ROOT + ".domain.scenario..", ROOT + ".domain.opt..");
+
+    @ArchTest
+    static final ArchRule scenariosDoNotReachUp = noClasses()
+            .that().resideInAPackage(ROOT + ".domain.scenario..")
+            .should().dependOnClassesThat().resideInAPackage(ROOT + ".domain.opt..");
+
+    @ArchTest
+    static final ArchRule foundationsStandAlone = noClasses()
+            .that().resideInAnyPackage(ROOT + ".domain.core..", ROOT + ".domain.rng..", ROOT + ".domain.dice..", ROOT + ".domain.grid..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    ROOT + ".domain.combat..", ROOT + ".domain.content..", ROOT + ".domain.scenario..", ROOT + ".domain.opt..",
+                    ROOT + ".domain.ai..");
+
+    // ---- no package cycles at any level ------------------------------------------------------------
+
+    @ArchTest
+    static final ArchRule domainPackagesAreAcyclic = slices().matching(ROOT + ".domain.(**)").should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule applicationPackagesAreAcyclic = slices().matching(ROOT + ".application.(**)").should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule webPackagesAreAcyclic = slices().matching(ROOT + ".adapter.in.web.(**)").should().beFreeOfCycles();
 }

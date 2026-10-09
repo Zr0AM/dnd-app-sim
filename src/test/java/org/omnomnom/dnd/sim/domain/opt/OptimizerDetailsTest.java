@@ -9,8 +9,17 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
-import org.omnomnom.dnd.sim.domain.content.FightingStyle;
-import org.omnomnom.dnd.sim.domain.content.MonsterCatalog;
+import org.omnomnom.dnd.sim.domain.content.build.FightingStyle;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
+import org.omnomnom.dnd.sim.domain.opt.campaign.Campaign;
+import org.omnomnom.dnd.sim.domain.opt.evaluation.Anchor;
+import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
+import org.omnomnom.dnd.sim.domain.opt.genome.Genome;
+import org.omnomnom.dnd.sim.domain.opt.genome.Genomes;
+import org.omnomnom.dnd.sim.domain.opt.genome.MartialCatalog;
+import org.omnomnom.dnd.sim.domain.opt.report.Reports;
+import org.omnomnom.dnd.sim.domain.opt.report.RolePresets;
+import org.omnomnom.dnd.sim.domain.opt.search.Nsga2;
 import org.omnomnom.dnd.sim.domain.rng.LabeledRandom;
 
 /** Pins found by mutation testing the optimizer: constants, catalog data, role weights, run keys and edge cases. */

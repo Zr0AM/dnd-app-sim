@@ -5,10 +5,12 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.DamageResponse;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.core.Size;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 

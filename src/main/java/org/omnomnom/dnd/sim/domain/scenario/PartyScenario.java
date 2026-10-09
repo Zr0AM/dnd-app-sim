@@ -3,9 +3,9 @@ package org.omnomnom.dnd.sim.domain.scenario;
 import java.util.ArrayList;
 import java.util.List;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
-import org.omnomnom.dnd.sim.domain.combat.Side;
-import org.omnomnom.dnd.sim.domain.content.MonsterCompiler;
-import org.omnomnom.dnd.sim.domain.content.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCompiler;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.Grid;
 

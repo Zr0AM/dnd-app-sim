@@ -1,7 +1,7 @@
 package org.omnomnom.dnd.sim.domain.scenario;
 
 import java.util.List;
-import org.omnomnom.dnd.sim.domain.content.Role;
+import org.omnomnom.dnd.sim.domain.content.build.Role;
 
 /**
  * A reference-party template: the roles present, in a fixed order.

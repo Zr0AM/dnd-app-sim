@@ -11,15 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.omnomnom.dnd.sim.domain.combat.AttackKind;
-import org.omnomnom.dnd.sim.domain.combat.SpellcastingSpec;
-import org.omnomnom.dnd.sim.domain.content.ArmorInfo;
+import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
 import org.omnomnom.dnd.sim.domain.content.BuildProgression;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
 import org.omnomnom.dnd.sim.domain.content.ContentIds;
 import org.omnomnom.dnd.sim.domain.content.ContentSource;
 import org.omnomnom.dnd.sim.domain.content.MonsterSource;
-import org.omnomnom.dnd.sim.domain.content.WeaponInfo;
-import org.omnomnom.dnd.sim.domain.content.WeaponProperty;
+import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
+import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
+import org.omnomnom.dnd.sim.domain.content.equipment.WeaponProperty;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 
 /**

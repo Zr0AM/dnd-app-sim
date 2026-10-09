@@ -10,32 +10,34 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.domain.ai.TacticalPolicy;
+import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
-import org.omnomnom.dnd.sim.domain.combat.CombatEvent;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.Encounter;
-import org.omnomnom.dnd.sim.domain.combat.EventLog;
-import org.omnomnom.dnd.sim.domain.combat.Side;
 import org.omnomnom.dnd.sim.domain.combat.TurnPolicy;
+import org.omnomnom.dnd.sim.domain.combat.event.CombatEvent;
+import org.omnomnom.dnd.sim.domain.combat.event.EventLog;
 import org.omnomnom.dnd.sim.domain.content.BuildProgression;
-import org.omnomnom.dnd.sim.domain.content.BuildSpec;
-import org.omnomnom.dnd.sim.domain.content.CasterBuildSpec;
-import org.omnomnom.dnd.sim.domain.content.CasterCompiler;
-import org.omnomnom.dnd.sim.domain.content.CharacterCompiler;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
-import org.omnomnom.dnd.sim.domain.content.Fillers;
-import org.omnomnom.dnd.sim.domain.content.FightingStyle;
-import org.omnomnom.dnd.sim.domain.content.MonsterCompiler;
-import org.omnomnom.dnd.sim.domain.content.MonsterTemplate;
-import org.omnomnom.dnd.sim.domain.content.Role;
-import org.omnomnom.dnd.sim.domain.content.SpellCatalog;
-import org.omnomnom.dnd.sim.domain.content.UnarmoredDefense;
-import org.omnomnom.dnd.sim.domain.content.WeaponInfo;
+import org.omnomnom.dnd.sim.domain.content.build.BuildSpec;
+import org.omnomnom.dnd.sim.domain.content.build.CasterBuildSpec;
+import org.omnomnom.dnd.sim.domain.content.build.CasterCompiler;
+import org.omnomnom.dnd.sim.domain.content.build.CharacterCompiler;
+import org.omnomnom.dnd.sim.domain.content.build.FightingStyle;
+import org.omnomnom.dnd.sim.domain.content.build.Fillers;
+import org.omnomnom.dnd.sim.domain.content.build.Role;
+import org.omnomnom.dnd.sim.domain.content.build.SpellCatalog;
+import org.omnomnom.dnd.sim.domain.content.build.UnarmoredDefense;
+import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 import org.omnomnom.dnd.sim.domain.content.feature.RageFeature;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterCompiler;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterOverrides;
+import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.DamageResponse;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
+import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.Grid;
 import org.omnomnom.dnd.sim.domain.grid.GridMath;
@@ -62,9 +64,9 @@ class ContentIntegrationTest {
     private static MonsterTemplate monster(String slug, boolean withMultiattack) {
         var src = source.monsterSources().stream().filter(s -> s.monster().monsterSlug().equals(slug)).findFirst().orElseThrow();
         var overrides = withMultiattack
-                ? new org.omnomnom.dnd.sim.domain.content.MonsterOverrides(
+                ? new org.omnomnom.dnd.sim.domain.content.monster.MonsterOverrides(
                         List.of(new MonsterTemplate.MultiattackEntry(src.actions().get(0).actionName(), 1)), 0)
-                : org.omnomnom.dnd.sim.domain.content.MonsterOverrides.NONE;
+                : org.omnomnom.dnd.sim.domain.content.monster.MonsterOverrides.NONE;
         return MonsterCompiler.compile(src, overrides);
     }
 
