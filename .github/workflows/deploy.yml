@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Explicit bash adds -o pipefail, so a failing command piped into tee fails its step.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
