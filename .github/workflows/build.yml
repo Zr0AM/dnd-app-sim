@@ -9,9 +9,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  checks: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +20,10 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,13 +32,13 @@ jobs:
       - uses: ./.github/actions/setup-java-gradle
 
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v4
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
       - name: Build & Test
         run: ./gradlew build --no-daemon
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
         if: always()
         with:
           files: '**/build/test-results/test/TEST-*.xml'
@@ -64,6 +66,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     concurrency:
       group: release-main
       cancel-in-progress: false
