@@ -1,0 +1,17 @@
+# Production profile for the Cloudflare Containers deployment (worker/): SPRING_PROFILES_ACTIVE=prod, set by the Dockerfile.
+# Container disks are ephemeral, so reports go to Cloudflare D1. Credentials and keys arrive as environment variables
+# (Worker secrets CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN and SIM_API_KEYS) and are never committed.
+server:
+  port: ${SERVER_PORT:8080}
+
+sim:
+  report-store:
+    type: d1
+  d1:
+    enabled: true
+  executor:
+    threads: 4 # the vCPUs of the standard-4 instance in worker/wrangler.jsonc; keep the two in step
+  security:
+    mode: api-key
+  rate-limit:
+    enabled: true

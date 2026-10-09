@@ -1,0 +1,15 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "dnd-app-sim-test",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": ["nodejs_compat"],
+	// Unit tests replace only the container and namespace boundaries.
+	// Keep Docker out of these tests; exercise the real image with wrangler dev.
+	"durable_objects": {
+		"bindings": [{ "name": "SIM_CONTAINER", "class_name": "SimContainer" }]
+	},
+	"exports": {
+		"SimContainer": { "type": "durable-object", "storage": "sqlite" }
+	}
+}
