@@ -1,0 +1,38 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    # The PR author, not github.actor, which is whoever last pushed or re-ran
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch update metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      # Majors need a human. This only queues the merge: GitHub merges once every check required by
+      # branch protection passes, so "Build and test" and "PR Governance Gate" must be required
+      # checks on main, or the PR would merge immediately.
+      # A merge made with GITHUB_TOKEN doesn't trigger push workflows, so the Build (release tag)
+      # and SonarQube runs on main are skipped unless the DEPENDABOT_AUTOMERGE_TOKEN Dependabot
+      # secret is set.
+      - name: Enable auto-merge for patch and minor updates
+        if: >-
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT_AUTOMERGE_TOKEN || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --merge "$PR_URL"
