@@ -101,7 +101,7 @@ jobs:
           echo "Packaging release $VERSION for commit $GITHUB_SHA"
           
           cd dist
-          sha256sum *.jar > checksums.txt
+          sha256sum -- *.jar > checksums.txt
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
