@@ -1,0 +1,42 @@
+plugins {
+    id 'sim.java-conventions'
+    id 'jacoco-report-aggregation'
+    alias(libs.plugins.spring.boot)
+}
+
+description = 'The Spring Boot service: REST adapter, security and the composition root.'
+
+dependencies {
+    implementation project(':sim-application')
+    implementation project(':sim-content')
+    implementation project(':sim-json')
+    implementation project(':sim-reports')
+
+    implementation libs.spring.boot.starter.webmvc
+    implementation libs.spring.boot.starter.validation
+    implementation libs.spring.boot.starter.actuator
+    implementation libs.springdoc.webmvc.ui
+
+    testImplementation libs.spring.boot.starter.test
+    testImplementation libs.spring.boot.starter.webmvc.test
+    testImplementation libs.archunit.junit5
+    testImplementation testFixtures(project(':sim-domain'))
+    testImplementation testFixtures(project(':sim-json'))
+}
+
+// Run from the repository root, so relative paths (out/reports, docs/api/openapi.yaml) mean what the docs say.
+tasks.named('bootRun') {
+    workingDir = rootDir
+}
+
+tasks.named('test') {
+    workingDir = rootDir
+    // The service is closed by default; most tests exercise it open. The security tests set their own mode.
+    systemProperty 'sim.security.mode', 'none'
+    systemProperty 'sim.rate-limit.enabled', 'false'
+}
+
+// One coverage report across every module the service is built from.
+tasks.named('check') {
+    dependsOn tasks.named('testCodeCoverageReport')
+}

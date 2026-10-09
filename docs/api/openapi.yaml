@@ -1,0 +1,1243 @@
+openapi: 3.1.0
+info:
+  title: dnd-app-sim API
+  version: 0.1.0-draft
+  summary: REST replacement for the dnd-app `sim/` CLI, plus the new encounter simulator.
+  description: |
+    Contract-first design for the Spring Boot port of the build-optimization simulator.
+    See `docs/api/README.md` for conventions (determinism, seeds, common random numbers,
+    jobs, limits, errors) and the CLI-to-REST mapping.
+
+    Status: DRAFT for review. Limits quoted in descriptions are proposed defaults
+    (`sim.limits.*`), not measured values.
+servers:
+  - url: http://localhost:8080
+    description: Local development (`local` profile)
+
+# Every operation needs an API key except /actuator/health and /actuator/info (see docs/api/README.md, Security).
+# The `local` profile switches authentication off.
+security:
+  - ApiKeyHeader: []
+  - BearerKey: []
+
+tags:
+  - name: Simulate
+    description: Run simulations. Cheap calls are synchronous; optimization is a job.
+  - name: Jobs
+    description: Long-running work started by `simulate` endpoints.
+  - name: Reports
+    description: Persisted `RunReport`s (replaces `sim/out/<runKey>.json`).
+  - name: Content
+    description: Read-only reference data (replaces the CLI `browse` mode).
+
+paths:
+  /api/v1/simulate/encounter:
+    post:
+      tags: [Simulate]
+      operationId: simulateEncounter
+      summary: Simulate one encounter, once or many times.
+      description: |
+        NEW capability (not in the TypeScript sim). Runs the party against the enemies
+        `runs` times and returns aggregate statistics. The full `CombatEvent` log of one
+        run (`logRun`, default 0) is included when `includeLog` is true.
+
+        Exactly one of `enemies` or `scenarioId` must be given. Run `i` is seeded from
+        `(seed, scenarioKey, i)` where `scenarioKey` identifies the enemies and map only,
+        so two requests with the same seed and enemies but different parties are paired
+        (common random numbers).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EncounterRequest' }
+            examples:
+              soloVersusGoblins:
+                summary: Level 3 Champion fighter vs two goblins, one logged run
+                value:
+                  level: 3
+                  party:
+                    - type: build
+                      genome:
+                        classSlug: fighter
+                        weaponName: Longsword
+                        armorName: Chain Mail
+                        shield: true
+                        fightingStyle: defense
+                  enemies:
+                    - { monsterSlug: goblin-warrior, count: 2 }
+                  map: open-field
+                  runs: 1
+                  seed: 7
+                  includeLog: true
+              referenceParty:
+                summary: Hero plus five reference fillers vs a scaled library encounter
+                value:
+                  level: 5
+                  party:
+                    - type: build
+                      genome: { classSlug: wizard }
+                    - { type: filler, role: tank }
+                    - { type: filler, role: healer }
+                    - { type: filler, role: burst }
+                    - { type: filler, role: sustained-dps }
+                    - { type: filler, role: buffer }
+                  scenarioId: horde
+                  runs: 200
+                  seed: 11
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Aggregate results (and optionally one run's log).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EncounterResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/simulate/eval:
+    post:
+      tags: [Simulate]
+      operationId: simulateEval
+      summary: Evaluate one build across the level's scenario library (CLI `eval`).
+      description: |
+        `context: solo` runs the build alone against the solo scenario library;
+        `context: party` runs it in the reference parties (R6/R4/R3) in the slot for
+        `role`. Control and support only carry signal in the party context.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvalRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: The build's metric vector with confidence intervals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvalResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/simulate/campaign:
+    post:
+      tags: [Simulate]
+      operationId: simulateCampaign
+      summary: Adventuring-day viability for one build (CLI `campaign`, single build).
+      description: |
+        Runs the level's solo scenario set in order on one persisted hero with short
+        rests only. To annotate a whole saved report instead, use
+        `POST /api/v1/reports/{reportId}/campaign`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Day win rate and encounters cleared, with a CI.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/simulate/optimize:
+    post:
+      tags: [Simulate]
+      operationId: startOptimization
+      summary: Start an NSGA-II optimization (CLI `optimize`).
+      description: |
+        Always asynchronous. Returns `202` with a `Job`; poll `GET /api/v1/jobs/{jobId}`
+        until `status` is `succeeded`, then fetch the report named by `reportId`.
+        Only `context: solo` is supported (status.md gap: party-context optimization is
+        not implemented upstream); `party` returns `422`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OptimizeRequest' }
+            examples:
+              controllerL11:
+                value:
+                  level: 11
+                  role: controller
+                  preset: thorough
+                  campaign: true
+                  seed: 7
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '202':
+          description: Accepted; the job is queued.
+          headers:
+            Location:
+              description: URL of the job resource.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/jobs/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Jobs]
+      operationId: getJob
+      summary: Job status and progress.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: The job.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+    delete:
+      tags: [Jobs]
+      operationId: cancelJob
+      summary: Cancel a queued or running job.
+      description: 'Cooperative: the job stops at the next generation boundary.'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: The job after the cancel request (status `cancelled` once honored).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The job already finished.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/reports:
+    get:
+      tags: [Reports]
+      operationId: listReports
+      summary: List saved reports, newest first.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: A page of report summaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReportSummary' }
+                  nextCursor: { type: [string, 'null'] }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/reports/{reportId}:
+    parameters:
+      - $ref: '#/components/parameters/ReportId'
+    get:
+      tags: [Reports]
+      operationId: getReport
+      summary: Fetch a full `RunReport`.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: The report. Same shape the Angular `/lab` view and D1 export consume.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunReport' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/reports/{reportId}/rescore:
+    parameters:
+      - $ref: '#/components/parameters/ReportId'
+    post:
+      tags: [Reports]
+      operationId: rescoreReport
+      summary: Re-rank a report under new weights without re-simulating (CLI `rescore`).
+      description: Pure and cheap. Not persisted unless `save` is true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RescoreRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: The re-scored report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunReport' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/reports/{reportId}/campaign:
+    parameters:
+      - $ref: '#/components/parameters/ReportId'
+    post:
+      tags: [Reports]
+      operationId: annotateReportCampaign
+      summary: Annotate a saved report with adventuring-day win rates (CLI `campaign`).
+      description: |
+        Asynchronous (re-simulates every reported build). On success the report with
+        the same id is overwritten, matching the CLI's overwrite-by-runKey behavior.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days: { type: integer, minimum: 1, maximum: 100, default: 12, description: 'Defaults to the sim.jobs.campaign-days setting.' }
+                seed:
+                  $ref: '#/components/schemas/Seed'
+                  description: Seeds the simulated days (every build faces the same days). Drawn and echoed on the job when omitted.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '202':
+          description: Accepted.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/classes:
+    get:
+      tags: [Content]
+      operationId: listClasses
+      summary: The twelve buildable classes and their subclass at the level.
+      parameters:
+        - $ref: '#/components/parameters/LevelQuery'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Classes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ClassInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/roles:
+    get:
+      tags: [Content]
+      operationId: listRoles
+      summary: Role weight presets over the six objective axes.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Roles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RoleInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/scenarios:
+    get:
+      tags: [Content]
+      operationId: listScenarios
+      summary: Library scenarios (solo and party) available at the level.
+      parameters:
+        - $ref: '#/components/parameters/LevelQuery'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Scenarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ScenarioInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/monsters:
+    get:
+      tags: [Content]
+      operationId: listMonsters
+      summary: SRD monsters usable as enemies.
+      parameters:
+        - { name: q, in: query, description: Case-insensitive name/slug substring., schema: { type: string } }
+        - { name: minCr, in: query, schema: { type: number } }
+        - { name: maxCr, in: query, schema: { type: number } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 400, default: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: A page of monsters ordered by slug.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/MonsterInfo' }
+                  nextCursor: { type: [string, 'null'] }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/weapons:
+    get:
+      tags: [Content]
+      operationId: listWeapons
+      summary: Weapons legal in the genome at the level.
+      parameters:
+        - $ref: '#/components/parameters/LevelQuery'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Weapons.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WeaponInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/armors:
+    get:
+      tags: [Content]
+      operationId: listArmors
+      summary: Armors legal in the genome at the level.
+      parameters:
+        - $ref: '#/components/parameters/LevelQuery'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Armors.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ArmorInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/maps:
+    get:
+      tags: [Content]
+      operationId: listMaps
+      summary: Battle maps and their deployment capacity.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Maps.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MapInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+  /api/v1/content/party-templates:
+    get:
+      tags: [Content]
+      operationId: listPartyTemplates
+      summary: Reference party templates (R6, R4, R3).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Templates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PartyTemplateInfo' }
+        '429': { $ref: '#/components/responses/Busy' }
+
+components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerKey:
+      type: http
+      scheme: bearer
+      description: "The same key, sent as `Authorization: Bearer <key>`."
+
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string }
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      description: The report's `runKey`.
+      schema: { type: string, pattern: '^[0-9a-f]{8,64}$' }
+    LevelQuery:
+      name: level
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Level' }
+
+  responses:
+    BadRequest:
+      description: Malformed JSON or a field that fails validation.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Unknown job or report.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: Well-formed but semantically invalid (unknown monster, over capacity, unsupported option).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: The API key is missing or not accepted.
+      headers:
+        WWW-Authenticate: { schema: { type: string, const: Bearer } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Busy:
+      description: |
+        Too much work right now: the simulation executor queue is full, or this client's request budget is spent
+        (`code` is `busy` or `rate-limited`). Retry after the delay in `Retry-After`.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    # ---- vocabulary -------------------------------------------------------
+    Level:
+      type: integer
+      enum: [3, 5, 11, 17]
+      description: Checkpoint levels the content and scenarios are authored for.
+    Seed:
+      type: integer
+      minimum: 0
+      maximum: 4294967295
+      description: Root seed (unsigned 32-bit). Omit to have the server pick one; it is echoed back.
+    BuildClass:
+      type: string
+      enum: [fighter, barbarian, rogue, ranger, paladin, monk, wizard, cleric, bard, sorcerer, warlock, druid]
+    FightingStyle:
+      type: string
+      enum: [archery, defense, great-weapon, two-weapon]
+    PartyRole:
+      type: string
+      enum: [tank, sustained-dps, burst, healer, controller, buffer]
+    RoleName:
+      type: string
+      enum: [equal, sustained-dps, burst, tank, generalist, controller, healer, buffer]
+      description: A role weight preset, or `equal` for equal weights.
+    ObjectiveName:
+      type: string
+      enum: [reliability, offense, survival, efficiency, control, support]
+    MapId:
+      type: string
+      enum: [open-field, corridor-chokepoint, party-field]
+    Side:
+      type: string
+      enum: [party, enemy]
+    Cell:
+      type: object
+      required: [x, y]
+      properties:
+        x: { type: integer }
+        y: { type: integer }
+    Interval:
+      type: object
+      description: A 95% confidence interval (Wilson for proportions, normal approximation for means).
+      required: [point, lo, hi]
+      properties:
+        point: { type: number }
+        lo: { type: number }
+        hi: { type: number }
+
+    # ---- builds -----------------------------------------------------------
+    Genome:
+      type: object
+      description: |
+        A complete, legal build (the TypeScript `MartialGenome`). Casters and the Monk
+        use a fixed gear/spell package, so their gear fields are ignored.
+      required: [classSlug, abilityAssignment, weaponName, armorName, shield, twoHanded]
+      properties:
+        classSlug: { $ref: '#/components/schemas/BuildClass' }
+        abilityAssignment:
+          type: array
+          description: A permutation of 0..5; the standard array [15,14,13,12,10,8] value each of str,dex,con,int,wis,cha gets.
+          minItems: 6
+          maxItems: 6
+          items: { type: integer, minimum: 0, maximum: 5 }
+        weaponName: { type: string }
+        armorName: { type: [string, 'null'], description: null means unarmored. }
+        shield: { type: boolean }
+        twoHanded: { type: boolean }
+        fightingStyle: { $ref: '#/components/schemas/FightingStyle' }
+    GenomeInput:
+      type: object
+      description: |
+        A partial build. Only `classSlug` is required. Omitted fields are filled the way
+        the CLI did (random from the request seed), then the genome is repaired to be
+        legal. The effective genome is echoed back in responses.
+      required: [classSlug]
+      properties:
+        classSlug: { $ref: '#/components/schemas/BuildClass' }
+        abilityAssignment:
+          type: array
+          minItems: 6
+          maxItems: 6
+          items: { type: integer, minimum: 0, maximum: 5 }
+        weaponName: { type: string }
+        armorName: { type: [string, 'null'] }
+        shield: { type: boolean }
+        twoHanded: { type: boolean }
+        fightingStyle: { $ref: '#/components/schemas/FightingStyle' }
+
+    # ---- encounter --------------------------------------------------------
+    BuildMember:
+      type: object
+      required: [type, genome]
+      properties:
+        type: { const: build }
+        id: { type: string, description: 'Defaults to `hero` for the first build, `hero-2`, `hero-3`, ... after.' }
+        genome: { $ref: '#/components/schemas/GenomeInput' }
+    FillerMember:
+      type: object
+      description: A frozen reference-party filler for a role.
+      required: [type, role]
+      properties:
+        type: { const: filler }
+        id: { type: string, description: 'Defaults to `ally-<role>-<index>`.' }
+        role: { $ref: '#/components/schemas/PartyRole' }
+    PartyMember:
+      oneOf:
+        - $ref: '#/components/schemas/BuildMember'
+        - $ref: '#/components/schemas/FillerMember'
+      discriminator:
+        propertyName: type
+        mapping:
+          build: '#/components/schemas/BuildMember'
+          filler: '#/components/schemas/FillerMember'
+    EnemyGroup:
+      type: object
+      required: [monsterSlug, count]
+      properties:
+        monsterSlug: { type: string, description: A slug from `/api/v1/content/monsters`. }
+        count: { type: integer, minimum: 1, maximum: 30 }
+    EncounterRequest:
+      type: object
+      required: [level, party]
+      description: Exactly one of `enemies` or `scenarioId`.
+      properties:
+        level: { $ref: '#/components/schemas/Level' }
+        party:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items: { $ref: '#/components/schemas/PartyMember' }
+        enemies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/EnemyGroup' }
+        scenarioId:
+          type: string
+          description: A library scenario id. Party scenarios scale their enemy count with party size.
+        map:
+          $ref: '#/components/schemas/MapId'
+        runs: { type: integer, minimum: 1, maximum: 2000, default: 1 }
+        seed: { $ref: '#/components/schemas/Seed' }
+        roundCap: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        includeLog: { type: boolean, default: false }
+        logRun: { type: integer, minimum: 0, default: 0, description: Index of the run whose log is returned. }
+    MemberStats:
+      type: object
+      description: Per-combatant means over all runs, attributed from the event log.
+      required: [id, name, side, avgDamageDealt, avgHealingDone, avgBuffAssists, avgActionsDenied, avgHpFracRetained, survivalRate]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        side: { $ref: '#/components/schemas/Side' }
+        genome:
+          $ref: '#/components/schemas/Genome'
+          description: Effective (repaired) genome, for build members.
+        avgDamageDealt: { type: number, description: 'Attacks, opportunity attacks, spells and legendary actions.' }
+        avgHealingDone: { type: number }
+        avgBuffAssists: { type: number }
+        avgActionsDenied: { type: number }
+        avgHpFracRetained: { type: number, description: 0 when downed. }
+        survivalRate: { type: number, description: Fraction of runs the combatant was not dead. }
+    CombatLog:
+      type: object
+      required: [runIndex, rounds, winner, events]
+      properties:
+        runIndex: { type: integer }
+        rounds: { type: integer }
+        winner: { type: [string, 'null'], enum: [party, enemy, null] }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/CombatEvent' }
+    EncounterResponse:
+      type: object
+      required: [seed, level, map, runs, roundCap, winRate, avgRounds, avgRoundsEffective, members]
+      properties:
+        seed: { $ref: '#/components/schemas/Seed' }
+        level: { $ref: '#/components/schemas/Level' }
+        map: { $ref: '#/components/schemas/MapId' }
+        runs: { type: integer }
+        roundCap: { type: integer }
+        winRate: { $ref: '#/components/schemas/Interval' }
+        avgRounds: { type: number }
+        avgRoundsEffective: { type: number, description: A loss counts as the round cap. }
+        members:
+          type: array
+          description: Every combatant, party first then enemies.
+          items: { $ref: '#/components/schemas/MemberStats' }
+        log:
+          oneOf:
+            - $ref: '#/components/schemas/CombatLog'
+            - { type: 'null' }
+
+    # ---- combat events ----------------------------------------------------
+    CombatEvent:
+      description: |
+        One logged combat event. `kind` discriminates. Field names and meanings match
+        the TypeScript `CombatEvent` union in `sim/src/combat/encounter.ts`.
+      oneOf:
+        - $ref: '#/components/schemas/InitiativeEvent'
+        - $ref: '#/components/schemas/RoundEvent'
+        - $ref: '#/components/schemas/TurnEvent'
+        - $ref: '#/components/schemas/MoveEvent'
+        - $ref: '#/components/schemas/AttackEvent'
+        - $ref: '#/components/schemas/OpportunityEvent'
+        - $ref: '#/components/schemas/SpellEvent'
+        - $ref: '#/components/schemas/DownEvent'
+        - $ref: '#/components/schemas/DeathEvent'
+        - $ref: '#/components/schemas/DeathSaveEvent'
+        - $ref: '#/components/schemas/ControlDeniedEvent'
+        - $ref: '#/components/schemas/ConcentrationBrokenEvent'
+        - $ref: '#/components/schemas/HealEvent'
+        - $ref: '#/components/schemas/MarkedEvent'
+        - $ref: '#/components/schemas/LegendaryEvent'
+        - $ref: '#/components/schemas/BuffAppliedEvent'
+        - $ref: '#/components/schemas/BuffBoostEvent'
+        - $ref: '#/components/schemas/EndEvent'
+      discriminator:
+        propertyName: kind
+        mapping:
+          initiative: '#/components/schemas/InitiativeEvent'
+          round: '#/components/schemas/RoundEvent'
+          turn: '#/components/schemas/TurnEvent'
+          move: '#/components/schemas/MoveEvent'
+          attack: '#/components/schemas/AttackEvent'
+          opportunity: '#/components/schemas/OpportunityEvent'
+          spell: '#/components/schemas/SpellEvent'
+          down: '#/components/schemas/DownEvent'
+          death: '#/components/schemas/DeathEvent'
+          deathSave: '#/components/schemas/DeathSaveEvent'
+          controlDenied: '#/components/schemas/ControlDeniedEvent'
+          concentrationBroken: '#/components/schemas/ConcentrationBrokenEvent'
+          heal: '#/components/schemas/HealEvent'
+          marked: '#/components/schemas/MarkedEvent'
+          legendary: '#/components/schemas/LegendaryEvent'
+          buffApplied: '#/components/schemas/BuffAppliedEvent'
+          buffBoost: '#/components/schemas/BuffBoostEvent'
+          end: '#/components/schemas/EndEvent'
+    InitiativeEvent:
+      type: object
+      required: [kind, order]
+      properties:
+        kind: { const: initiative }
+        order:
+          type: array
+          items:
+            type: object
+            required: [id, total]
+            properties:
+              id: { type: string }
+              total: { type: integer }
+    RoundEvent:
+      type: object
+      required: [kind, round]
+      properties:
+        kind: { const: round }
+        round: { type: integer }
+    TurnEvent:
+      type: object
+      required: [kind, id, round]
+      properties:
+        kind: { const: turn }
+        id: { type: string }
+        round: { type: integer }
+    MoveEvent:
+      type: object
+      required: [kind, id, from, to, costFt]
+      properties:
+        kind: { const: move }
+        id: { type: string }
+        from: { $ref: '#/components/schemas/Cell' }
+        to: { $ref: '#/components/schemas/Cell' }
+        costFt: { type: integer }
+    AttackEvent:
+      type: object
+      required: [kind, attacker, target, weapon, d20, hit, crit, damage]
+      properties:
+        kind: { const: attack }
+        attacker: { type: string }
+        target: { type: string }
+        weapon: { type: string }
+        d20: { type: integer, minimum: 1, maximum: 20 }
+        hit: { type: boolean }
+        crit: { type: boolean }
+        damage: { type: integer, minimum: 0 }
+    OpportunityEvent:
+      type: object
+      required: [kind, attacker, target, hit, damage]
+      properties:
+        kind: { const: opportunity }
+        attacker: { type: string }
+        target: { type: string }
+        hit: { type: boolean }
+        damage: { type: integer, minimum: 0 }
+    SpellEvent:
+      type: object
+      required: [kind, caster, spell, slotLevel, targets, damage, healing]
+      properties:
+        kind: { const: spell }
+        caster: { type: string }
+        spell: { type: string }
+        slotLevel: { type: integer, minimum: 0 }
+        targets: { type: integer, minimum: 0 }
+        damage: { type: integer, minimum: 0 }
+        healing: { type: integer, minimum: 0 }
+    DownEvent:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { const: down }
+        id: { type: string }
+    DeathEvent:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { const: death }
+        id: { type: string }
+    DeathSaveEvent:
+      type: object
+      required: [kind, id, d20, success]
+      properties:
+        kind: { const: deathSave }
+        id: { type: string }
+        d20: { type: integer }
+        success: { type: boolean }
+    ControlDeniedEvent:
+      type: object
+      required: [kind, victim, source]
+      properties:
+        kind: { const: controlDenied }
+        victim: { type: string }
+        source: { type: string }
+    ConcentrationBrokenEvent:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { const: concentrationBroken }
+        id: { type: string }
+    HealEvent:
+      type: object
+      description: Non-spell healing (Paladin Lay on Hands).
+      required: [kind, source, target, amount]
+      properties:
+        kind: { const: heal }
+        source: { type: string }
+        target: { type: string }
+        amount: { type: integer, minimum: 0 }
+    MarkedEvent:
+      type: object
+      description: The Ranger placed Hunter's Mark on a target.
+      required: [kind, source, target]
+      properties:
+        kind: { const: marked }
+        source: { type: string }
+        target: { type: string }
+    LegendaryEvent:
+      type: object
+      description: A legendary action; a boss attacked between other creatures' turns.
+      required: [kind, source, target, damage]
+      properties:
+        kind: { const: legendary }
+        source: { type: string }
+        target: { type: string }
+        damage: { type: integer, minimum: 0 }
+    BuffAppliedEvent:
+      type: object
+      required: [kind, source, buff, target]
+      properties:
+        kind: { const: buffApplied }
+        source: { type: string }
+        buff: { type: string }
+        target: { type: string }
+    BuffBoostEvent:
+      type: object
+      required: [kind, source, buff, beneficiary, amount]
+      properties:
+        kind: { const: buffBoost }
+        source: { type: string }
+        buff: { type: string }
+        beneficiary: { type: string }
+        amount: { type: integer }
+    EndEvent:
+      type: object
+      required: [kind, round, winner]
+      properties:
+        kind: { const: end }
+        round: { type: integer }
+        winner: { type: [string, 'null'], enum: [party, enemy, null] }
+
+    # ---- eval / campaign --------------------------------------------------
+    EvalRequest:
+      type: object
+      required: [level, genome]
+      properties:
+        level: { $ref: '#/components/schemas/Level' }
+        genome: { $ref: '#/components/schemas/GenomeInput' }
+        context: { type: string, enum: [solo, party], default: solo }
+        role:
+          $ref: '#/components/schemas/RoleName'
+          description: Labels the result and picks the party slot. Roles with no party slot (`generalist`, `equal`) fall back to `controller`.
+        runs: { type: integer, minimum: 1, maximum: 200, description: 'Runs per scenario. Default 16 (solo) or 12 (party).' }
+        seed: { $ref: '#/components/schemas/Seed' }
+    EvalResponse:
+      type: object
+      required: [description, level, context, seed, genome, runs, winRate, objectives]
+      properties:
+        description: { type: string }
+        level: { $ref: '#/components/schemas/Level' }
+        context: { type: string, enum: [solo, party] }
+        seed: { $ref: '#/components/schemas/Seed' }
+        genome: { $ref: '#/components/schemas/Genome' }
+        runs: { type: integer, description: Total runs across all scenarios. }
+        winRate: { $ref: '#/components/schemas/Interval' }
+        objectives:
+          $ref: '#/components/schemas/Objectives'
+        ci:
+          type: object
+          description: Present for solo context only (the party evaluator reports a win-rate CI only).
+          properties:
+            damage: { $ref: '#/components/schemas/Interval' }
+            hpRetained: { $ref: '#/components/schemas/Interval' }
+        warnings:
+          type: array
+          items: { type: string }
+    Objectives:
+      type: object
+      description: Named objective vector, all oriented so higher is better (efficiency is negative effective rounds).
+      propertyNames: { $ref: '#/components/schemas/ObjectiveName' }
+      additionalProperties: { type: number }
+    CampaignRequest:
+      type: object
+      required: [level, genome]
+      properties:
+        level: { $ref: '#/components/schemas/Level' }
+        genome: { $ref: '#/components/schemas/GenomeInput' }
+        days: { type: integer, minimum: 1, maximum: 100, default: 16 }
+        shortRestHealFrac: { type: number, minimum: 0, maximum: 1, default: 0.5 }
+        seed:
+          $ref: '#/components/schemas/Seed'
+          description: Completes an under-specified genome and seeds the simulated days. Drawn and echoed when omitted.
+    CampaignResult:
+      type: object
+      required: [seed, genome, dayWinRate, avgEncountersCleared, encountersPerDay, days]
+      properties:
+        seed: { $ref: '#/components/schemas/Seed' }
+        genome: { $ref: '#/components/schemas/Genome' }
+        dayWinRate: { $ref: '#/components/schemas/Interval' }
+        avgEncountersCleared: { type: number }
+        encountersPerDay: { type: integer }
+        days: { type: integer }
+
+    # ---- optimize / jobs / reports ---------------------------------------
+    GaParams:
+      type: object
+      properties:
+        populationSize: { type: integer, minimum: 2, maximum: 128 }
+        generations: { type: integer, minimum: 0, maximum: 100 }
+        evalRuns: { type: integer, minimum: 1, maximum: 64, description: Runs per scenario per evaluation. }
+        mutationRate: { type: number, minimum: 0, maximum: 1 }
+    OptimizeRequest:
+      type: object
+      required: [level]
+      description: |
+        The CLI `RunConfig`. `outDir` is dropped (the server owns storage). Effort:
+        `preset`, else the explicit `ga` fields, else the default for the level
+        (`thorough` for level >= 11, otherwise `standard`). Explicit `ga` fields override
+        the chosen preset field by field.
+      properties:
+        level: { $ref: '#/components/schemas/Level' }
+        role: { $ref: '#/components/schemas/RoleName', default: equal }
+        classes:
+          type: array
+          description: Restrict the genome pool. Empty or omitted means all twelve classes.
+          items: { $ref: '#/components/schemas/BuildClass' }
+          uniqueItems: true
+        context: { type: string, enum: [solo], default: solo }
+        preset: { type: string, enum: [quick, standard, thorough] }
+        ga: { $ref: '#/components/schemas/GaParams' }
+        campaign: { type: boolean, default: false, description: Also score each reported build's adventuring-day win rate (slower). }
+        seed: { $ref: '#/components/schemas/Seed' }
+    JobProgress:
+      type: object
+      required: [phase, completed, total]
+      properties:
+        phase: { type: string, enum: [initial-population, generation, campaign] }
+        completed: { type: integer }
+        total: { type: integer }
+    Job:
+      type: object
+      required: [id, kind, status, createdAt]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [optimize, campaign] }
+        status: { type: string, enum: [queued, running, succeeded, failed, cancelled] }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        seed: { $ref: '#/components/schemas/Seed' }
+        progress:
+          oneOf:
+            - $ref: '#/components/schemas/JobProgress'
+            - { type: 'null' }
+        reportId: { type: [string, 'null'], description: Set when `status` is `succeeded`. }
+        warnings:
+          type: array
+          items: { type: string }
+          description: For example, a solo run scored for a party-only role (healer, buffer, controller).
+        error:
+          oneOf:
+            - $ref: '#/components/schemas/Problem'
+            - { type: 'null' }
+    BuildMetrics:
+      type: object
+      required: [winRate, avgDamageDealt, avgHpFracRetained, avgRounds, runs]
+      properties:
+        winRate: { type: number }
+        avgDamageDealt: { type: number }
+        avgHpFracRetained: { type: number }
+        avgRounds: { type: number }
+        runs: { type: integer }
+    BuildReportEntry:
+      type: object
+      required: [key, rank, genome, description, metrics, objectives, weightedScore]
+      properties:
+        key: { type: string, description: Stable genome key, used to de-duplicate. }
+        rank: { type: integer, description: Pareto front index (0 = non-dominated). }
+        genome: { $ref: '#/components/schemas/Genome' }
+        description: { type: string, description: 'Human summary. Unlike the TypeScript `L?` placeholder, includes the level.' }
+        metrics: { $ref: '#/components/schemas/BuildMetrics' }
+        ci:
+          type: object
+          description: Additive over report version 1 (feeds the D1 `SimResult` per-metric intervals).
+          properties:
+            winRate: { $ref: '#/components/schemas/Interval' }
+            damage: { $ref: '#/components/schemas/Interval' }
+            hpRetained: { $ref: '#/components/schemas/Interval' }
+        objectives: { $ref: '#/components/schemas/Objectives' }
+        weightedScore: { type: number, minimum: 0, maximum: 1 }
+        campaignDayWinRate: { type: number, minimum: 0, maximum: 1 }
+    RunReport:
+      type: object
+      description: |
+        The TypeScript `RunReport` (version 1), field for field, plus additive optional
+        fields. Weighting-agnostic: raw objectives and per-objective bounds are stored so
+        clients can reweight without re-simulating.
+      required: [version, runKey, config, objectiveNames, objectiveBounds, weights, paretoFront, leaderboard]
+      properties:
+        version: { type: integer, const: 1 }
+        runKey: { type: string, description: 'Stable hash of the config. The hash algorithm differs from the TypeScript one; keys are not comparable across implementations.' }
+        config: { type: object, additionalProperties: true }
+        objectiveNames:
+          type: array
+          items: { $ref: '#/components/schemas/ObjectiveName' }
+        objectiveBounds:
+          type: object
+          description: Per-objective [min, max] over the whole population.
+          additionalProperties:
+            type: array
+            prefixItems: [{ type: number }, { type: number }]
+            minItems: 2
+            maxItems: 2
+        weights:
+          type: object
+          additionalProperties: { type: number }
+        paretoFront:
+          type: array
+          items: { $ref: '#/components/schemas/BuildReportEntry' }
+        leaderboard:
+          type: array
+          items: { $ref: '#/components/schemas/BuildReportEntry' }
+        engine:
+          type: object
+          description: Additive. Identifies the producer, for the D1 `SimRun` engine/content hash.
+          properties:
+            name: { type: string }
+            version: { type: string }
+            contentHash: { type: string }
+    ReportSummary:
+      type: object
+      required: [id, createdAt, config]
+      properties:
+        id: { type: string }
+        createdAt: { type: string, format: date-time }
+        config: { type: object, additionalProperties: true }
+        top:
+          type: object
+          properties:
+            description: { type: string }
+            weightedScore: { type: number }
+    RescoreRequest:
+      type: object
+      description: Provide `role` or `weights`.
+      properties:
+        role: { $ref: '#/components/schemas/RoleName' }
+        weights:
+          type: object
+          propertyNames: { $ref: '#/components/schemas/ObjectiveName' }
+          additionalProperties: { type: number, minimum: 0 }
+        save: { type: boolean, default: false }
+      oneOf:
+        - required: [role]
+        - required: [weights]
+
+    # ---- content ----------------------------------------------------------
+    ClassInfo:
+      type: object
+      required: [slug, subclass, kind]
+      properties:
+        slug: { $ref: '#/components/schemas/BuildClass' }
+        subclass: { type: string }
+        kind: { type: string, enum: [martial, caster] }
+    RoleInfo:
+      type: object
+      required: [name, weights, partyOnly]
+      properties:
+        name: { $ref: '#/components/schemas/RoleName' }
+        weights: { $ref: '#/components/schemas/Objectives' }
+        partyOnly:
+          type: boolean
+          description: Signal lives only in the party harness (healer, buffer, controller).
+    ScenarioInfo:
+      type: object
+      required: [id, level, kind, mapId, enemies]
+      properties:
+        id: { type: string }
+        level: { $ref: '#/components/schemas/Level' }
+        kind: { type: string, enum: [solo, party] }
+        difficulty: { type: string, enum: [low, moderate, high], description: Solo scenarios only. }
+        shape: { type: string, description: 'Solo scenarios only: single, pack, swarm, mixed.' }
+        mapId: { $ref: '#/components/schemas/MapId' }
+        xp: { type: integer, description: Solo scenarios only. }
+        enemies:
+          type: array
+          items:
+            type: object
+            required: [monsterSlug]
+            properties:
+              monsterSlug: { type: string }
+              count: { type: integer, description: Fixed count. }
+              perMember: { type: integer, description: Count per party member (party scenarios). }
+    MonsterInfo:
+      type: object
+      required: [slug, name, cr, ac, hp, hasAttack]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        cr: { type: number }
+        ac: { type: integer }
+        hp: { type: integer }
+        hasAttack: { type: boolean, description: False for swarms, non-combatants and save-only attackers; these are rejected as enemies. }
+        legendaryActions: { type: integer }
+    WeaponInfo:
+      type: object
+      required: [name, category, range, damage, damageType, properties]
+      properties:
+        name: { type: string }
+        category: { type: string, enum: [simple, martial] }
+        range: { type: string, enum: [melee, ranged] }
+        damage: { type: string, examples: ['1d8'] }
+        versatileDamage: { type: [string, 'null'] }
+        damageType: { type: string }
+        properties:
+          type: array
+          items: { type: string }
+    ArmorInfo:
+      type: object
+      required: [name, category, baseAc, addsDex]
+      properties:
+        name: { type: string }
+        category: { type: string, enum: [light, medium, heavy] }
+        baseAc: { type: integer }
+        addsDex: { type: boolean }
+        dexCap: { type: [integer, 'null'] }
+    MapInfo:
+      type: object
+      required: [id, width, height, partyCapacity, enemyCapacity]
+      properties:
+        id: { $ref: '#/components/schemas/MapId' }
+        width: { type: integer }
+        height: { type: integer }
+        partyCapacity: { type: integer }
+        enemyCapacity: { type: integer }
+    PartyTemplateInfo:
+      type: object
+      required: [id, roles, flex, weight]
+      properties:
+        id: { type: string, enum: [R6, R4, R3] }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/PartyRole' }
+        flex: { $ref: '#/components/schemas/PartyRole' }
+        weight: { type: number }
+
+    # ---- errors -----------------------------------------------------------
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          description: Stable machine-readable code, for example `unknown-monster`, `over-capacity`, `unsupported-context`.
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+              code: { type: string }

@@ -1,0 +1,13 @@
+plugins {
+    id 'sim.library-conventions'
+}
+
+description = 'Use cases and ports: plain Java over the domain.'
+
+dependencies {
+    api project(':sim-domain')
+    implementation libs.slf4j.api
+
+    testImplementation project(':sim-content')
+    testImplementation testFixtures(project(':sim-domain'))
+}

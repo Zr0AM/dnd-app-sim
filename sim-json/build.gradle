@@ -1,0 +1,13 @@
+plugins {
+    id 'sim.library-conventions'
+}
+
+description = 'Jackson mapping for domain and application types, so neither depends on Jackson.'
+
+dependencies {
+    api project(':sim-application')
+    api libs.jackson.databind
+    implementation libs.jackson.annotations
+
+    testFixturesApi libs.jackson.databind
+}

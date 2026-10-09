@@ -1,0 +1,10 @@
+rootProject.name = 'dnd-app-sim'
+
+// Hexagonal modules, innermost first. Each may depend only on the ones above it:
+//   sim-domain       the engine and optimizer; plain Java, no dependencies
+//   sim-application  use cases and ports (ReportStore); plain Java plus SLF4J
+//   sim-content      outbound adapter: the SQLite seed catalog behind domain's ContentSource
+//   sim-json         Jackson mapping of domain and application types, shared by the stores and the web layer
+//   sim-reports      outbound adapter: the filesystem and Cloudflare D1 report stores
+//   sim-service      the Spring Boot application: REST controllers, security and the composition root
+include 'sim-domain', 'sim-application', 'sim-content', 'sim-json', 'sim-reports', 'sim-service'
