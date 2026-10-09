@@ -79,12 +79,15 @@ public final class MartialCatalog {
     private final SpellcastingSpec paladinSpells;
     private final List<Scenario> scenarios;
 
-    private MartialCatalog(int level, List<WeaponInfo> weapons, List<ArmorInfo> armors, Map<BuildClass, ClassInfo> classes,
+    /** The weapons and armors a genome picks from. */
+    private record Armory(List<WeaponInfo> weapons, List<ArmorInfo> armors) {}
+
+    private MartialCatalog(int level, Armory armory, Map<BuildClass, ClassInfo> classes,
             Map<BuildClass, BuildProgression> progression, Map<BuildClass, CasterPackage> casterPackages,
             SpellcastingSpec paladinSpells, List<Scenario> scenarios) {
         this.level = level;
-        this.weapons = List.copyOf(weapons);
-        this.armors = List.copyOf(armors);
+        this.weapons = List.copyOf(armory.weapons());
+        this.armors = List.copyOf(armory.armors());
         this.classes = Map.copyOf(classes);
         this.progression = Map.copyOf(progression);
         this.casterPackages = Map.copyOf(casterPackages);
@@ -113,7 +116,7 @@ public final class MartialCatalog {
             packages.put(c, casterPackage(source, c, level));
         }
         List<Scenario> scenarios = ScenarioLibrary.load(monsters, source.xpByChallengeRating(), level);
-        return new MartialCatalog(level, weapons, armors, classes, progression, packages, paladinSpells, scenarios);
+        return new MartialCatalog(level, new Armory(weapons, armors), classes, progression, packages, paladinSpells, scenarios);
     }
 
     private static CasterPackage casterPackage(ContentSource source, BuildClass c, int level) {

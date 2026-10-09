@@ -19,12 +19,6 @@ public final class EventLog implements EventSink {
     }
 
     public <T extends CombatEvent> List<T> of(Class<T> type) {
-        List<T> out = new ArrayList<>();
-        for (CombatEvent e : events) {
-            if (type.isInstance(e)) {
-                out.add(type.cast(e));
-            }
-        }
-        return out;
+        return events.stream().filter(type::isInstance).map(type::cast).toList();
     }
 }

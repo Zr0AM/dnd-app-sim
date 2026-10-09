@@ -101,7 +101,7 @@ public final class PartyScenarios {
         boolean heroPlaced = false;
         for (int i = 0; i < template.roles().size(); i++) {
             Role role = template.roles().get(i);
-            Cell position = i < partyCells.size() ? partyCells.get(i) : partyCells.get(partyCells.size() - 1);
+            Cell position = partyCells.get(Math.min(i, partyCells.size() - 1)); // extra slots share the last cell
             // The hero takes the first slot matching its role; duplicate role slots are filled normally.
             if (role == heroSlot && !heroPlaced) {
                 hero.setPosition(position);

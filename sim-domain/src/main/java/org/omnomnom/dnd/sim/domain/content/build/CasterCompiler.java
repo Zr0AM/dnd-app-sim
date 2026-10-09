@@ -26,10 +26,7 @@ public final class CasterCompiler {
         int dexMod = spec.abilities().modifier(Ability.DEX);
         int ac;
         if (spec.armor() != null) {
-            int dexPart = spec.armor().addsDex()
-                    ? (spec.armor().dexCap() != null ? Math.min(dexMod, spec.armor().dexCap()) : dexMod)
-                    : 0;
-            ac = spec.armor().baseAc() + dexPart;
+            ac = spec.armor().baseAc() + spec.armor().dexBonus(dexMod);
         } else if (spec.unarmoredAcAbility() != null) {
             ac = 10 + dexMod + spec.abilities().modifier(spec.unarmoredAcAbility());
         } else {

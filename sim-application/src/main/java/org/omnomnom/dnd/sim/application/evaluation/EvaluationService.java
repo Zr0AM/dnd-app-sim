@@ -110,11 +110,14 @@ public final class EvaluationService {
         }
     }
 
+    private static int defaultRuns(Context context) {
+        return context == Context.PARTY ? PartyEvaluator.DEFAULT_RUNS_PER_SCENARIO : SoloEvaluator.DEFAULT_RUNS_PER_SCENARIO;
+    }
+
     public EvalOutcome evaluate(EvalCommand cmd) {
         ContentCatalogs.LevelContent level = catalogs.level(cmd.level());
         requireKnownRole(cmd.role());
-        int runs = cmd.runsPerScenario() != null ? cmd.runsPerScenario()
-                : cmd.context() == Context.PARTY ? PartyEvaluator.DEFAULT_RUNS_PER_SCENARIO : SoloEvaluator.DEFAULT_RUNS_PER_SCENARIO;
+        int runs = cmd.runsPerScenario() != null ? cmd.runsPerScenario() : defaultRuns(cmd.context());
         // The effective value is checked, defaults included, as campaign and optimize do.
         SimLimits.require(runs, limits.evalRunsPerScenario(), "runs", "runs per scenario");
         long seed = cmd.seed() != null ? cmd.seed() : Seeds.randomSeed();

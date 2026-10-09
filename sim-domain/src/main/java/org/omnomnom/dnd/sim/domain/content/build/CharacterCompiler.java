@@ -56,10 +56,7 @@ public final class CharacterCompiler {
         int dexMod = spec.abilities().modifier(Ability.DEX);
         int ac;
         if (spec.armor() != null) {
-            int dexPart = spec.armor().addsDex()
-                    ? (spec.armor().dexCap() != null ? Math.min(dexMod, spec.armor().dexCap()) : dexMod)
-                    : 0;
-            ac = spec.armor().baseAc() + dexPart;
+            ac = spec.armor().baseAc() + spec.armor().dexBonus(dexMod);
         } else if (spec.unarmoredDefense() == UnarmoredDefense.BARBARIAN) {
             ac = 10 + dexMod + spec.abilities().modifier(Ability.CON);
         } else if (spec.unarmoredDefense() == UnarmoredDefense.MONK) {
@@ -109,12 +106,17 @@ public final class CharacterCompiler {
         int critRange = "champion".equals(spec.subclass()) && spec.level() >= 3 ? 19 : 20;
 
         AttackKind kind = weapon.range();
+        boolean melee = kind == AttackKind.MELEE;
+        Integer reach = melee ? meleeReachFt(weapon) : null;
         return new AttackProfile(
-                weapon.name(), kind,
-                kind == AttackKind.MELEE ? (weapon.has(WeaponProperty.REACH) ? 10 : 5) : null,
-                kind == AttackKind.RANGED ? weapon.rangeNormalFt() : null,
-                kind == AttackKind.RANGED ? weapon.rangeLongFt() : null,
+                weapon.name(), kind, reach,
+                melee ? null : weapon.rangeNormalFt(),
+                melee ? null : weapon.rangeLongFt(),
                 toHit, damage, weapon.damageType(), List.of(), critRange, weapon.has(WeaponProperty.FINESSE));
+    }
+
+    private static int meleeReachFt(WeaponInfo weapon) {
+        return weapon.has(WeaponProperty.REACH) ? 10 : 5;
     }
 
     /** The features and resource pools a build has. Features are factories so each combatant owns its instances. */

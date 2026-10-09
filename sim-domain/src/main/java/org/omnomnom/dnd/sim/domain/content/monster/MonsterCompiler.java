@@ -107,15 +107,22 @@ public final class MonsterCompiler {
 
         // melee_or_ranged is modeled as melee (its in-melee use); the range is still recorded.
         AttackKind kind = action.attackKind().equals("ranged") ? AttackKind.RANGED : AttackKind.MELEE;
-        List<ExtraDamage> extra = new ArrayList<>();
-        for (DamageRow r : rows.subList(1, rows.size())) {
-            extra.add(new ExtraDamage(damageDice(r), ContentIds.damageTypeById(r.damageTypeID())));
-        }
-        Integer reach = action.attackReachFt() != null ? action.attackReachFt() : (kind == AttackKind.MELEE ? 5 : null);
+        List<ExtraDamage> extra = rows.subList(1, rows.size()).stream()
+                .map(r -> new ExtraDamage(damageDice(r), ContentIds.damageTypeById(r.damageTypeID())))
+                .toList();
+        Integer reach = reachFt(action, kind);
         return new AttackProfile(
                 action.actionName(), kind, reach, action.attackRangeFt(), action.attackRangeLongFt(),
                 action.attackBonus(), damageDice(rows.get(0)), ContentIds.damageTypeById(rows.get(0).damageTypeID()),
                 extra, null, false);
+    }
+
+    /** The stated reach, else the standard 5 ft for a melee attack; ranged attacks have none. */
+    private static Integer reachFt(ActionRow action, AttackKind kind) {
+        if (action.attackReachFt() != null) {
+            return action.attackReachFt();
+        }
+        return kind == AttackKind.MELEE ? 5 : null;
     }
 
     /** Where a spawned monster goes. */

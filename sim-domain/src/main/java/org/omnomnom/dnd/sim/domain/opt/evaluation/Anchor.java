@@ -44,7 +44,11 @@ public final class Anchor {
         for (int i = 0; i < objectives.length; i++) {
             double floor = OBJECTIVE_FLOORS.get(Objectives.NAMES.get(i));
             double denom = anchor[i] - floor;
-            out[i] = denom == 0 ? (objectives[i] >= anchor[i] ? 1 : 0) : (objectives[i] - floor) / denom;
+            if (denom == 0) {
+                out[i] = objectives[i] >= anchor[i] ? 1 : 0;
+            } else {
+                out[i] = (objectives[i] - floor) / denom;
+            }
         }
         return out;
     }

@@ -93,7 +93,7 @@ public record Dice(int count, int sides, int bonus) {
      * and nat-20 rules on top.
      */
     public static double chanceToHit(int target, Advantage adv) {
-        int need = Math.min(21, Math.max(1, target));
+        int need = Math.clamp(target, 1, 21);
         double p = (21 - need) / 20.0;
         return switch (adv) {
             case ADVANTAGE -> 1 - (1 - p) * (1 - p);

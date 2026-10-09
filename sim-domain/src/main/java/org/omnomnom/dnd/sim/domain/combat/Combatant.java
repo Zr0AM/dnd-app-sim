@@ -1,7 +1,6 @@
 package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,11 +92,7 @@ public final class Combatant {
         this.damageResponses = spec.damageResponses();
         this.position = spec.position();
         this.attacks = spec.attacks();
-        List<Feature> owned = new ArrayList<>(spec.features().size());
-        for (FeatureFactory f : spec.features()) {
-            owned.add(f.create());
-        }
-        this.features = Collections.unmodifiableList(owned);
+        this.features = spec.features().stream().map(FeatureFactory::create).toList();
         this.extraAttacks = spec.extraAttacks();
         this.legendaryMax = spec.legendaryActions();
         this.legendaryRemaining = this.legendaryMax;
@@ -371,7 +366,7 @@ public final class Combatant {
 
     /** Raise exhaustion by {@code n} levels (0-6); at level 6 the creature dies. */
     public void gainExhaustion(int n) {
-        exhaustionLevel = Math.max(0, Math.min(6, exhaustionLevel + n));
+        exhaustionLevel = Math.clamp(exhaustionLevel + n, 0, 6);
         if (exhaustionLevel >= 6) {
             dead = true;
         }
@@ -595,13 +590,7 @@ public final class Combatant {
 
     /** The source ids of any active timed conditions that stop this creature acting (may repeat). */
     public List<String> controlSources() {
-        List<String> out = new ArrayList<>();
-        for (ActiveCondition t : timed) {
-            if (DISABLING.contains(t.condition)) {
-                out.add(t.source);
-            }
-        }
-        return out;
+        return timed.stream().filter(t -> DISABLING.contains(t.condition)).map(t -> t.source).toList();
     }
 
     /** Remove the base flag for a condition if no remaining timed entry grants it. */
@@ -655,9 +644,7 @@ public final class Combatant {
 
     /** Apply (or refresh) a beneficial buff for a duration. Re-applying the same buff refreshes it (2024 rule). */
     public void applyBuff(BuffSpec spec) {
-        ActiveBuff buff = new ActiveBuff(
-                spec.id(), spec.source(), spec.rounds(), spec.attackBonusDice(), spec.saveBonusDice(),
-                spec.acBonus(), spec.extraAttackAction(), spec.concentrationOwner());
+        ActiveBuff buff = new ActiveBuff(spec);
         for (int i = 0; i < buffs.size(); i++) {
             if (buffs.get(i).id.equals(spec.id())) {
                 buffs.set(i, buff);
@@ -678,24 +665,18 @@ public final class Combatant {
 
     /** Dice (with their source) to add to each attack roll, from active buffs. */
     public List<BuffBonus> buffAttackBonuses() {
-        List<BuffBonus> out = new ArrayList<>();
-        for (ActiveBuff b : buffs) {
-            if (b.attackBonusDice != null) {
-                out.add(new BuffBonus(b.attackBonusDice, b.id, b.source));
-            }
-        }
-        return out;
+        return buffs.stream()
+                .filter(b -> b.attackBonusDice != null)
+                .map(b -> new BuffBonus(b.attackBonusDice, b.id, b.source))
+                .toList();
     }
 
     /** Dice (with their source) to add to each saving throw, from active buffs. */
     public List<BuffBonus> buffSaveBonuses() {
-        List<BuffBonus> out = new ArrayList<>();
-        for (ActiveBuff b : buffs) {
-            if (b.saveBonusDice != null) {
-                out.add(new BuffBonus(b.saveBonusDice, b.id, b.source));
-            }
-        }
-        return out;
+        return buffs.stream()
+                .filter(b -> b.saveBonusDice != null)
+                .map(b -> new BuffBonus(b.saveBonusDice, b.id, b.source))
+                .toList();
     }
 
     /** Net AC bonus from active buffs. */
@@ -725,11 +706,7 @@ public final class Combatant {
 
     /** The caster ids of buffs currently active on this creature (for attribution). */
     public List<String> buffSources() {
-        List<String> out = new ArrayList<>();
-        for (ActiveBuff b : buffs) {
-            out.add(b.source);
-        }
-        return out;
+        return buffs.stream().map(b -> b.source).toList();
     }
 
     /** The caster id that granted a specific active buff, or null if not present. */
@@ -833,17 +810,15 @@ public final class Combatant {
         final boolean extraAttackAction;
         final String concentrationOwner;
 
-        ActiveBuff(
-                String id, String source, int roundsLeft, Dice attackBonusDice, Dice saveBonusDice, int acBonus,
-                boolean extraAttackAction, String concentrationOwner) {
-            this.id = id;
-            this.source = source;
-            this.roundsLeft = roundsLeft;
-            this.attackBonusDice = attackBonusDice;
-            this.saveBonusDice = saveBonusDice;
-            this.acBonus = acBonus;
-            this.extraAttackAction = extraAttackAction;
-            this.concentrationOwner = concentrationOwner;
+        ActiveBuff(BuffSpec spec) {
+            this.id = spec.id();
+            this.source = spec.source();
+            this.roundsLeft = spec.rounds();
+            this.attackBonusDice = spec.attackBonusDice();
+            this.saveBonusDice = spec.saveBonusDice();
+            this.acBonus = spec.acBonus();
+            this.extraAttackAction = spec.extraAttackAction();
+            this.concentrationOwner = spec.concentrationOwner();
         }
     }
 }
