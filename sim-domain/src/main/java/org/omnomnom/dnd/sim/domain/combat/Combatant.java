@@ -1,7 +1,6 @@
 package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +15,6 @@ import org.omnomnom.dnd.sim.domain.core.DamageResponse;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
 import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.core.Size;
-import org.omnomnom.dnd.sim.domain.dice.Dice;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.rng.Rng;
 
@@ -58,10 +56,8 @@ public final class Combatant {
     private ActiveForm activeForm;
 
     private final Vitals vitals;
+    private final StatusEffects effects = new StatusEffects();
     private Cell position;
-    private final Set<Condition> conditions = EnumSet.noneOf(Condition.class);
-    private final List<ActiveCondition> timed = new ArrayList<>();
-    private final List<ActiveBuff> buffs = new ArrayList<>();
 
     public Combatant(CombatantSpec spec) {
         this.id = spec.id();
@@ -245,7 +241,7 @@ public final class Combatant {
             activeForm = null;
         }
         if (outcome.dropped() && !outcome.died()) {
-            conditions.remove(Condition.UNCONSCIOUS); // represented by isDying()
+            effects.remove(Condition.UNCONSCIOUS); // represented by isDying()
         }
         return outcome;
     }
@@ -255,7 +251,7 @@ public final class Combatant {
         int before = vitals.hp();
         int healed = vitals.heal(amount);
         if (before == 0 && vitals.hp() > 0) {
-            conditions.remove(Condition.UNCONSCIOUS);
+            effects.remove(Condition.UNCONSCIOUS);
         }
         return healed;
     }
@@ -272,7 +268,7 @@ public final class Combatant {
     public DeathSaveOutcome rollDeathSave(Rng rng) {
         DeathSaveOutcome outcome = vitals.rollDeathSave(rng);
         if (outcome.revived()) {
-            conditions.remove(Condition.UNCONSCIOUS);
+            effects.remove(Condition.UNCONSCIOUS);
         }
         return outcome;
     }
@@ -427,29 +423,29 @@ public final class Combatant {
 
     public boolean hasCondition(Condition c) {
         if (c == Condition.UNCONSCIOUS) {
-            return isDying() || conditions.contains(Condition.UNCONSCIOUS);
+            return isDying() || effects.has(Condition.UNCONSCIOUS);
         }
         if (c == Condition.EXHAUSTION) {
             return exhaustionLevel() > 0;
         }
-        return conditions.contains(c);
+        return effects.has(c);
     }
 
     public void addCondition(Condition c) {
-        conditions.add(c);
+        effects.add(c);
     }
 
     public void removeCondition(Condition c) {
-        conditions.remove(c);
+        effects.remove(c);
     }
 
     /** The conditions currently affecting this creature, including the implicit unconscious and exhaustion. */
     public List<Condition> conditionList() {
-        List<Condition> list = new ArrayList<>(conditions);
-        if (isDying() && !conditions.contains(Condition.UNCONSCIOUS)) {
+        List<Condition> list = new ArrayList<>(effects.baseConditions());
+        if (isDying() && !effects.has(Condition.UNCONSCIOUS)) {
             list.add(Condition.UNCONSCIOUS);
         }
-        if (exhaustionLevel() > 0 && !conditions.contains(Condition.EXHAUSTION)) {
+        if (exhaustionLevel() > 0 && !effects.has(Condition.EXHAUSTION)) {
             list.add(Condition.EXHAUSTION);
         }
         return list;
@@ -457,27 +453,12 @@ public final class Combatant {
 
     /** Apply a condition for a duration, with optional repeat save and concentration link. */
     public void applyTimedCondition(TimedConditionSpec spec) {
-        conditions.add(spec.condition());
-        timed.add(new ActiveCondition(
-                spec.condition(), spec.source(), spec.rounds(), spec.repeatSave(), spec.concentrationOwner()));
+        effects.applyTimedCondition(spec);
     }
-
-    private static final Set<Condition> DISABLING =
-            EnumSet.of(Condition.PARALYZED, Condition.STUNNED, Condition.INCAPACITATED, Condition.UNCONSCIOUS);
 
     /** The source ids of any active timed conditions that stop this creature acting (may repeat). */
     public List<String> controlSources() {
-        return timed.stream().filter(t -> DISABLING.contains(t.condition)).map(t -> t.source).toList();
-    }
-
-    /** Remove the base flag for a condition if no remaining timed entry grants it. */
-    private void syncConditionFlag(Condition c) {
-        for (ActiveCondition t : timed) {
-            if (t.condition == c) {
-                return;
-            }
-        }
-        conditions.remove(c);
+        return effects.controlSources();
     }
 
     /**
@@ -485,84 +466,38 @@ public final class Combatant {
      * that end. Returns the conditions that ended this turn.
      */
     public List<Condition> tickTimedConditions(Rng rng) {
-        List<Condition> ended = new ArrayList<>();
-        for (ActiveCondition t : new ArrayList<>(timed)) {
-            boolean remove = false;
-            if (t.repeatSave != null) {
-                int total = Dice.rollD20(rng) + saveBonus(t.repeatSave.ability());
-                if (t.repeatSave.endsOnSuccess() && total >= t.repeatSave.dc()) {
-                    remove = true;
-                }
-            }
-            t.roundsLeft -= 1;
-            if (t.roundsLeft <= 0) {
-                remove = true;
-            }
-            if (remove) {
-                timed.remove(t);
-                syncConditionFlag(t.condition);
-                ended.add(t.condition);
-            }
-        }
-        return ended;
+        return effects.tickTimedConditions(rng, this::saveBonus);
     }
 
     /** End all timed conditions sustained by {@code casterId}'s concentration. */
     public void endConcentrationConditions(String casterId) {
-        for (ActiveCondition t : new ArrayList<>(timed)) {
-            if (casterId.equals(t.concentrationOwner)) {
-                timed.remove(t);
-                syncConditionFlag(t.condition);
-            }
-        }
+        effects.endConcentrationConditions(casterId);
     }
 
     // ---- buffs ---------------------------------------------------------------------------------
 
     /** Apply (or refresh) a beneficial buff for a duration. Re-applying the same buff refreshes it (2024 rule). */
     public void applyBuff(BuffSpec spec) {
-        ActiveBuff buff = new ActiveBuff(spec);
-        for (int i = 0; i < buffs.size(); i++) {
-            if (buffs.get(i).id.equals(spec.id())) {
-                buffs.set(i, buff);
-                return;
-            }
-        }
-        buffs.add(buff);
+        effects.applyBuff(spec);
     }
 
     public boolean hasBuff(String id) {
-        for (ActiveBuff b : buffs) {
-            if (b.id.equals(id)) {
-                return true;
-            }
-        }
-        return false;
+        return effects.hasBuff(id);
     }
 
     /** Dice (with their source) to add to each attack roll, from active buffs. */
     public List<BuffBonus> buffAttackBonuses() {
-        return buffs.stream()
-                .filter(b -> b.attackBonusDice != null)
-                .map(b -> new BuffBonus(b.attackBonusDice, b.id, b.source))
-                .toList();
+        return effects.buffAttackBonuses();
     }
 
     /** Dice (with their source) to add to each saving throw, from active buffs. */
     public List<BuffBonus> buffSaveBonuses() {
-        return buffs.stream()
-                .filter(b -> b.saveBonusDice != null)
-                .map(b -> new BuffBonus(b.saveBonusDice, b.id, b.source))
-                .toList();
+        return effects.buffSaveBonuses();
     }
 
     /** Net AC bonus from active buffs. */
     public int buffAcBonus() {
-        int sum = 0;
-        for (ActiveBuff b : buffs) {
-            sum += b.acBonus;
-        }
-        return sum;
+        return effects.buffAcBonus();
     }
 
     /** Armor Class including active buffs (Haste's +2) and any Wild Shape form. */
@@ -573,45 +508,27 @@ public final class Combatant {
 
     /** Whether a buff grants an extra action usable for a single weapon attack. */
     public boolean hasExtraAttackAction() {
-        for (ActiveBuff b : buffs) {
-            if (b.extraAttackAction) {
-                return true;
-            }
-        }
-        return false;
+        return effects.hasExtraAttackAction();
     }
 
     /** The caster ids of buffs currently active on this creature (for attribution). */
     public List<String> buffSources() {
-        return buffs.stream().map(b -> b.source).toList();
+        return effects.buffSources();
     }
 
     /** The caster id that granted a specific active buff, or null if not present. */
     public String buffSourceFor(String id) {
-        for (ActiveBuff b : buffs) {
-            if (b.id.equals(id)) {
-                return b.source;
-            }
-        }
-        return null;
+        return effects.buffSourceFor(id);
     }
 
     /** End-of-turn decrement of buff durations; returns the ids that ended. */
     public List<String> tickBuffs() {
-        List<String> ended = new ArrayList<>();
-        for (ActiveBuff b : new ArrayList<>(buffs)) {
-            b.roundsLeft -= 1;
-            if (b.roundsLeft <= 0) {
-                buffs.remove(b);
-                ended.add(b.id);
-            }
-        }
-        return ended;
+        return effects.tickBuffs();
     }
 
     /** End all buffs sustained by {@code casterId}'s concentration. */
     public void endConcentrationBuffs(String casterId) {
-        buffs.removeIf(b -> casterId.equals(b.concentrationOwner));
+        effects.endConcentrationBuffs(casterId);
     }
 
     // ---- Wild Shape ----------------------------------------------------------------------------
@@ -635,43 +552,4 @@ public final class Combatant {
         return activeForm != null ? List.of(activeForm.attack()) : attacks;
     }
 
-    // ---- internal state holders ----------------------------------------------------------------
-
-    private static final class ActiveCondition {
-        final Condition condition;
-        final String source;
-        int roundsLeft;
-        final RepeatSave repeatSave;
-        final String concentrationOwner;
-
-        ActiveCondition(Condition condition, String source, int roundsLeft, RepeatSave repeatSave, String concentrationOwner) {
-            this.condition = condition;
-            this.source = source;
-            this.roundsLeft = roundsLeft;
-            this.repeatSave = repeatSave;
-            this.concentrationOwner = concentrationOwner;
-        }
-    }
-
-    private static final class ActiveBuff {
-        final String id;
-        final String source;
-        int roundsLeft;
-        final Dice attackBonusDice;
-        final Dice saveBonusDice;
-        final int acBonus;
-        final boolean extraAttackAction;
-        final String concentrationOwner;
-
-        ActiveBuff(BuffSpec spec) {
-            this.id = spec.id();
-            this.source = spec.source();
-            this.roundsLeft = spec.rounds();
-            this.attackBonusDice = spec.attackBonusDice();
-            this.saveBonusDice = spec.saveBonusDice();
-            this.acBonus = spec.acBonus();
-            this.extraAttackAction = spec.extraAttackAction();
-            this.concentrationOwner = spec.concentrationOwner();
-        }
-    }
 }

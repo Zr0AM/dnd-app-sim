@@ -35,7 +35,7 @@ class ArchitectureTest {
      * class (Combatant) uses today: lower it when a class is split, never raise it. SonarCloud's "Monster Class" rule
      * (limit 20) counts differently and stays the authority.
      */
-    private static final int MAX_COLLABORATORS = 26;
+    private static final int MAX_COLLABORATORS = 25;
 
     /** Counts the distinct other classes of this project a class refers to, nested classes counted as their outer class. */
     private static ArchCondition<JavaClass> useAtMostProjectClasses(int max) {
