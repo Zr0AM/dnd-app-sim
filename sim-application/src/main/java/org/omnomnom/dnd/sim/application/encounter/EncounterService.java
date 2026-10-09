@@ -97,7 +97,7 @@ public final class EncounterService {
         }
 
         /** Add one fight's outcome for this member. */
-        void record(Combatant c, CombatTally.Counts counts) {
+        void add(Combatant c, CombatTally.Counts counts) {
             name = c.name();
             damage += counts.damage;
             healing += counts.healing;
@@ -286,7 +286,7 @@ public final class EncounterService {
             Fight fight = fight(cmd, level, seed, party, arena, i);
             totals.add(fight.result(), cmd.roundCap());
             for (Combatant c : fight.combatants()) {
-                accs.get(c.id()).record(c, fight.tally().counts(c.id()));
+                accs.get(c.id()).add(c, fight.tally().counts(c.id()));
             }
             int run = i;
             Encounter.RunResult res = fight.result();

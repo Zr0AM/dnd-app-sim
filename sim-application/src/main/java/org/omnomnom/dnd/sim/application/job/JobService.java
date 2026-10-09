@@ -344,18 +344,18 @@ public final class JobService {
             job.cancelled();
         } catch (Exception e) {
             LOG.error("job {} failed", job.id, e);
-            job.fail(failure(job, detailFor(job, e)));
+            job.fail(failure(detailFor(job, e)));
         } finally {
             // An Error (out of memory, a stack overflow) is not caught above and ends the thread's task; the job must
             // still reach a final state rather than stay RUNNING forever.
-            if (job.failUnlessFinished(failure(job, genericDetail(job)))) {
+            if (job.failUnlessFinished(failure(genericDetail(job)))) {
                 LOG.error("job {} ended without being settled; it was failed", job.id);
             }
         }
         return null;
     }
 
-    private JobView.Problem failure(Job job, String detail) {
+    private static JobView.Problem failure(String detail) {
         return new JobView.Problem("urn:dnd-app-sim:problem:job-failed", "Job failed", 500, detail, "job-failed");
     }
 

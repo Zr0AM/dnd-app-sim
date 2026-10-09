@@ -225,7 +225,7 @@ class JobServiceTest {
     }
 
     @Test
-    void aJobThatDiesWithAnErrorStillEndsAsFailed() throws Exception {
+    void aJobThatDiesWithAnErrorStillEndsAsFailed() {
         store.errorOnSave.set(true);
         JobView done = awaitFinished(jobs.startOptimization(tiny(1L, false)).id());
         assertThat(done.status()).isEqualTo(JobView.Status.FAILED);

@@ -58,9 +58,10 @@ class LegendaryActionsTest {
         e.rollInitiative();
         e.runRound();
         var firstRound = log.of(CombatEvent.Legendary.class);
-        assertThat(firstRound).isNotEmpty();
-        assertThat(firstRound).hasSizeLessThanOrEqualTo(3);
-        assertThat(firstRound).allMatch(x -> x.source().equals("boss"));
+        assertThat(firstRound)
+                .isNotEmpty()
+                .hasSizeLessThanOrEqualTo(3)
+                .allMatch(x -> x.source().equals("boss"));
 
         int afterFirst = firstRound.size();
         e.runRound();
