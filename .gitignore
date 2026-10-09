@@ -26,10 +26,11 @@ replay_pid*
 # Gradle wrapper jar must be committed
 !gradle/wrapper/gradle-wrapper.jar
 
-# Gradle / build output
+# Gradle / build output (anchored: a Java package may be named "build")
 .gradle/
-build/
-/out/
+/build/
+/*/build/
+out/
 
 # IDEs
 .idea/
