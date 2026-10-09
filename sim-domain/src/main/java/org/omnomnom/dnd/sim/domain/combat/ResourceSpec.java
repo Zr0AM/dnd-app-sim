@@ -8,7 +8,7 @@ public record ResourceSpec(String id, int max, Recharge rechargeShort, Recharge 
 
     public ResourceSpec {
         rechargeShort = rechargeShort == null ? Recharge.NONE : rechargeShort;
-        rechargeLong = rechargeLong == null ? Recharge.ALL : rechargeLong;
+        rechargeLong = rechargeLong == null ? Recharge.FULL : rechargeLong;
     }
 
     public static ResourceSpec longRest(String id, int max) {

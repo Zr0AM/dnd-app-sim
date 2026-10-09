@@ -8,6 +8,7 @@ import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.CombatantSpec;
 import org.omnomnom.dnd.sim.domain.combat.FeatureFactory;
 import org.omnomnom.dnd.sim.domain.combat.Recharge;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.ResourceSpec;
 import org.omnomnom.dnd.sim.domain.content.BuildProgression;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
@@ -128,7 +129,7 @@ public final class CharacterCompiler {
 
         if (slug.equals("barbarian")) {
             if (p.rageUses() > 0) {
-                resources.add(new ResourceSpec("rage", p.rageUses(), Recharge.of(1), Recharge.ALL));
+                resources.add(new ResourceSpec(ResourceIds.RAGE, p.rageUses(), Recharge.of(1), Recharge.FULL));
                 int bonus = p.rageDamageBonus();
                 features.add(() -> new RageFeature(bonus));
             }
@@ -143,7 +144,7 @@ public final class CharacterCompiler {
         // Ranger: Favored Enemy grants free Hunter's Mark casts (uses = proficiency bonus).
         if (slug.equals("ranger")) {
             features.add(HuntersMarkFeature::new);
-            resources.add(new ResourceSpec("hunters-mark", CoreRules.proficiencyBonus(spec.level()), null, Recharge.ALL));
+            resources.add(new ResourceSpec(ResourceIds.HUNTERS_MARK, CoreRules.proficiencyBonus(spec.level()), null, Recharge.FULL));
             // Hunter subclass (level 3): Hunter's Prey - Colossus Slayer.
             if ("hunter".equals(spec.subclass()) && spec.level() >= 3) {
                 features.add(ColossusSlayerFeature::new);
@@ -155,7 +156,7 @@ public final class CharacterCompiler {
         }
         // Paladin's Lay on Hands: a healing pool of 5 HP per level (a Bonus Action to spend).
         if (slug.equals("paladin")) {
-            resources.add(new ResourceSpec("lay-on-hands", 5 * spec.level(), null, Recharge.ALL));
+            resources.add(new ResourceSpec(ResourceIds.LAY_ON_HANDS, 5 * spec.level(), null, Recharge.FULL));
             // Aura of Protection comes online at level 6.
             if (spec.level() >= 6) {
                 features.add(AuraOfProtectionFeature::new);
@@ -166,7 +167,7 @@ public final class CharacterCompiler {
         if (slug.equals("monk")) {
             features.add(MartialArtsFeature::new);
             if (spec.level() >= 2) {
-                resources.add(new ResourceSpec("focus", spec.level(), Recharge.ALL, Recharge.ALL));
+                resources.add(new ResourceSpec(ResourceIds.FOCUS, spec.level(), Recharge.FULL, Recharge.FULL));
             }
             if (spec.level() >= 5) {
                 features.add(StunningStrikeFeature::new);

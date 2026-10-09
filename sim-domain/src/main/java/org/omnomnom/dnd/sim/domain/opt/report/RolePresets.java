@@ -3,6 +3,7 @@ package org.omnomnom.dnd.sim.domain.opt.report;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.omnomnom.dnd.sim.domain.opt.evaluation.Objectives;
 
 /**
  * Roles as weight presets over the objective axes. A role is a named weight vector; applying it to a report re-ranks
@@ -26,19 +27,19 @@ public final class RolePresets {
 
     static {
         // Steady damage that also survives the day.
-        role("sustained-dps", "reliability", 1, "offense", 3, "survival", 1, "efficiency", 2);
+        role("sustained-dps", Objectives.RELIABILITY, 1, Objectives.OFFENSE, 3, Objectives.SURVIVAL, 1, Objectives.EFFICIENCY, 2);
         // Drop targets fast; damage and pace over endurance.
-        role("burst", "reliability", 1, "offense", 3, "survival", 0, "efficiency", 3);
+        role("burst", Objectives.RELIABILITY, 1, Objectives.OFFENSE, 3, Objectives.SURVIVAL, 0, Objectives.EFFICIENCY, 3);
         // Absorb punishment and stay standing.
-        role("tank", "reliability", 2, "offense", 1, "survival", 3, "efficiency", 1);
+        role("tank", Objectives.RELIABILITY, 2, Objectives.OFFENSE, 1, Objectives.SURVIVAL, 3, Objectives.EFFICIENCY, 1);
         // A balanced all-rounder.
-        role("generalist", "reliability", 1, "offense", 1, "survival", 1, "efficiency", 1);
+        role("generalist", Objectives.RELIABILITY, 1, Objectives.OFFENSE, 1, Objectives.SURVIVAL, 1, Objectives.EFFICIENCY, 1);
         // Lock down enemies: the control axis carries the weight.
-        role("controller", "reliability", 1, "offense", 1, "survival", 1, "control", 3, "efficiency", 1);
+        role("controller", Objectives.RELIABILITY, 1, Objectives.OFFENSE, 1, Objectives.SURVIVAL, 1, Objectives.CONTROL, 3, Objectives.EFFICIENCY, 1);
         // Keep the party standing: healing (and other support) over personal offense.
-        role("healer", "reliability", 2, "offense", 0, "survival", 1, "support", 3, "efficiency", 1);
+        role("healer", Objectives.RELIABILITY, 2, Objectives.OFFENSE, 0, Objectives.SURVIVAL, 1, Objectives.SUPPORT, 3, Objectives.EFFICIENCY, 1);
         // Make the party hit harder: buffs (support) plus a little of everything.
-        role("buffer", "reliability", 1, "offense", 1, "survival", 1, "control", 1, "support", 3, "efficiency", 1);
+        role("buffer", Objectives.RELIABILITY, 1, Objectives.OFFENSE, 1, Objectives.SURVIVAL, 1, Objectives.CONTROL, 1, Objectives.SUPPORT, 3, Objectives.EFFICIENCY, 1);
     }
 
     /**

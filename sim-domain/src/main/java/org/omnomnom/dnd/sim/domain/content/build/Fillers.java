@@ -9,6 +9,7 @@ import org.omnomnom.dnd.sim.domain.content.BuildProgression;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
 import org.omnomnom.dnd.sim.domain.content.ContentSource;
 import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
+import org.omnomnom.dnd.sim.domain.content.equipment.Gear;
 import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
@@ -50,15 +51,15 @@ public final class Fillers {
         ClassInfo wizard = source.classInfo("wizard");
         ClassInfo bard = source.classInfo("bard");
 
-        WeaponInfo longsword = source.weapon("Longsword");
-        WeaponInfo longbow = source.weapon("Longbow");
-        WeaponInfo rapier = source.weapon("Rapier");
-        WeaponInfo mace = source.weapon("Mace");
-        WeaponInfo dagger = source.weapon("Dagger");
-        ArmorInfo chainMail = source.armor("Chain Mail");
-        ArmorInfo studded = source.armor("Studded Leather Armor");
-        ArmorInfo scaleMail = source.armor("Scale Mail");
-        ArmorInfo leather = source.armor("Leather Armor");
+        WeaponInfo longsword = source.weapon(Gear.LONGSWORD);
+        WeaponInfo longbow = source.weapon(Gear.LONGBOW);
+        WeaponInfo rapier = source.weapon(Gear.RAPIER);
+        WeaponInfo mace = source.weapon(Gear.MACE);
+        WeaponInfo dagger = source.weapon(Gear.DAGGER);
+        ArmorInfo chainMail = source.armor(Gear.CHAIN_MAIL);
+        ArmorInfo studded = source.armor(Gear.STUDDED_LEATHER_ARMOR);
+        ArmorInfo scaleMail = source.armor(Gear.SCALE_MAIL);
+        ArmorInfo leather = source.armor(Gear.LEATHER_ARMOR);
 
         BuildProgression rogueProgression = source.progression("rogue", level);
         BuildProgression rangerProgression = source.progression("ranger", level);

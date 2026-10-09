@@ -6,6 +6,7 @@ import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
 import org.omnomnom.dnd.sim.domain.combat.Feature;
 import org.omnomnom.dnd.sim.domain.combat.OnHitContext;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
 
@@ -32,7 +33,7 @@ public final class RageFeature implements Feature {
 
     @Override
     public void onTurnStart(Combatant self) {
-        if (!raging && self.spendResource("rage", 1)) {
+        if (!raging && self.spendResource(ResourceIds.RAGE, 1)) {
             raging = true;
         }
     }

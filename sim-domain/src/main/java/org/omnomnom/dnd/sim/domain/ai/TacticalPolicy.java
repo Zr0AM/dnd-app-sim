@@ -6,6 +6,7 @@ import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.TurnApi;
 import org.omnomnom.dnd.sim.domain.combat.TurnPolicy;
 import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
@@ -449,7 +450,7 @@ public final class TacticalPolicy {
      */
     private static void tryQuickenedCantrip(TurnApi api, Combatant damageTarget) {
         Combatant self = api.self();
-        if (!api.resources().bonus() || self.resourceCount("sorcery") < QUICKEN_COST) {
+        if (!api.resources().bonus() || self.resourceCount(ResourceIds.SORCERY) < QUICKEN_COST) {
             return;
         }
         Spell cantrip = null;
@@ -473,7 +474,7 @@ public final class TacticalPolicy {
      * spell slot. It uses only the bonus action, so the paladin still takes its action normally this turn.
      */
     private static void tryLayOnHands(TurnApi api) {
-        if (api.self().resourceCount("lay-on-hands") <= 0 || !api.resources().bonus()) {
+        if (api.self().resourceCount(ResourceIds.LAY_ON_HANDS) <= 0 || !api.resources().bonus()) {
             return;
         }
         Combatant target = pickHealTarget(api);
@@ -494,7 +495,7 @@ public final class TacticalPolicy {
         if (self.features().stream().noneMatch(f -> f.id().equals("hunters-mark"))) {
             return;
         }
-        if (self.resourceCount("hunters-mark") <= 0) {
+        if (self.resourceCount(ResourceIds.HUNTERS_MARK) <= 0) {
             return;
         }
         api.markTarget(damageTarget);

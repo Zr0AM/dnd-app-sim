@@ -3,6 +3,7 @@ package org.omnomnom.dnd.sim.domain.opt.evaluation;
 import java.util.List;
 import java.util.Map;
 import org.omnomnom.dnd.sim.domain.content.build.FightingStyle;
+import org.omnomnom.dnd.sim.domain.content.equipment.Gear;
 import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.domain.opt.genome.Genome;
 import org.omnomnom.dnd.sim.domain.opt.genome.Genomes;
@@ -26,7 +27,7 @@ public final class Anchor {
             "reliability", 0.0, "offense", 0.0, "survival", 0.0, "efficiency", -50.0, "control", 0.0, "support", 0.0);
 
     /** The frozen benchmark: a sword-and-board Champion fighter (a modest baseline). */
-    public static final Genome BENCHMARK = new Genome(BuildClass.FIGHTER, List.of(0, 3, 1, 4, 5, 2), "Longsword", "Chain Mail", true,
+    public static final Genome BENCHMARK = new Genome(BuildClass.FIGHTER, List.of(0, 3, 1, 4, 5, 2), Gear.LONGSWORD, Gear.CHAIN_MAIL, true,
             false, FightingStyle.DEFENSE);
 
     /** The benchmark's objective vector across the catalog's scenario library. */

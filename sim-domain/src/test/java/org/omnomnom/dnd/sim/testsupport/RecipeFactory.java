@@ -122,7 +122,7 @@ public final class RecipeFactory {
             return null;
         }
         JsonNode v = r.get(field);
-        return v.isString() ? Recharge.ALL : Recharge.of(v.asInt());
+        return v.isString() ? Recharge.FULL : Recharge.of(v.asInt());
     }
 
     private Combatant caster(JsonNode c) {

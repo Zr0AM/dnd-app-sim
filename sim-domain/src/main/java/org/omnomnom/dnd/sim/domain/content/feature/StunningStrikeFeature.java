@@ -6,6 +6,7 @@ import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.Feature;
 import org.omnomnom.dnd.sim.domain.combat.HitEffect;
 import org.omnomnom.dnd.sim.domain.combat.OnHitContext;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
 
@@ -33,7 +34,7 @@ public final class StunningStrikeFeature implements Feature {
         if (usedThisTurn || ctx.weapon().kind() != AttackKind.MELEE) {
             return Optional.empty();
         }
-        if (!ctx.self().spendResource("focus", 1)) {
+        if (!ctx.self().spendResource(ResourceIds.FOCUS, 1)) {
             return Optional.empty();
         }
         usedThisTurn = true;

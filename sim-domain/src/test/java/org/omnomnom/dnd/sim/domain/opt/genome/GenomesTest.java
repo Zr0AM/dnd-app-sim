@@ -138,8 +138,8 @@ class GenomesTest {
 
     @Test
     void everyClassCompilesToAValidCombatant() {
-        assertThat(BuildClass.ALL).hasSize(12);
-        for (BuildClass c : BuildClass.ALL) {
+        assertThat(BuildClass.ALL_CLASSES).hasSize(12);
+        for (BuildClass c : BuildClass.ALL_CLASSES) {
             Combatant hero = Genomes.build(genome(c, IDENTITY, "Longsword", c == BuildClass.BARBARIAN ? null : "Chain Mail", false, false,
                     FightingStyle.DEFENSE), catalog, "hero");
             assertThat(hero.hp()).as(c.code()).isPositive();

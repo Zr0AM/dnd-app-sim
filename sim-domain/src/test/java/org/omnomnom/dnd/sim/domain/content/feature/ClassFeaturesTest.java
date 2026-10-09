@@ -251,7 +251,7 @@ class ClassFeaturesTest {
             AttackProfile.builder("Unarmed Strike", AttackKind.MELEE, 5, Dice.of(1, 6, 3), DamageType.BLUDGEONING).reachFt(5).build();
 
     private static Combatant monk() {
-        return combatant("monk", b -> b.resources(List.of(new ResourceSpec("focus", 5, Recharge.ALL, null))));
+        return combatant("monk", b -> b.resources(List.of(new ResourceSpec("focus", 5, Recharge.FULL, null))));
     }
 
     @Test
@@ -293,7 +293,7 @@ class ClassFeaturesTest {
     @Test
     void stunningStrikeDcUsesTheMonksWisdomAndProficiency() {
         Combatant self = new Combatant(CombatantSpec.builder("monk", "monk", Side.PARTY, 5, AbilityScores.of(10, 16, 14, 10, 14, 10), 15, 30)
-                .resources(List.of(new ResourceSpec("focus", 5, Recharge.ALL, null))).build());
+                .resources(List.of(new ResourceSpec("focus", 5, Recharge.FULL, null))).build());
         var effect = new StunningStrikeFeature().onHitEffect(ctx(self, combatant("t"), FIST));
         assertThat(effect.get().dc()).isEqualTo(8 + 3 + 2); // PB 3 (L5) + Wis +2
     }
@@ -364,7 +364,7 @@ class ClassFeaturesTest {
         AttackProfile fist = AttackProfile.builder("Unarmed Strike", AttackKind.MELEE, 20, Dice.of(1, 6, 3), DamageType.BLUDGEONING).reachFt(5).build();
         Combatant monk = new Combatant(CombatantSpec.builder("monk", "monk", Side.PARTY, 5, AbilityScores.of(10, 16, 14, 10, 16, 10), 15, 30)
                 .extraAttacks(1).attacks(List.of(fist))
-                .resources(List.of(new ResourceSpec("focus", 5, Recharge.ALL, null)))
+                .resources(List.of(new ResourceSpec("focus", 5, Recharge.FULL, null)))
                 .features(List.<FeatureFactory>of(MartialArtsFeature::new, StunningStrikeFeature::new))
                 .position(new Cell(0, 0)).build());
         // A foe sure to fail the Con save, so Stunning Strike reliably lands.
@@ -446,7 +446,7 @@ class ClassFeaturesTest {
         AttackProfile bite = AttackProfile.builder("Bite", AttackKind.MELEE, 5, Dice.of(2, 6, 2), DamageType.PIERCING).reachFt(5).build();
         WildShapeFeature w = new WildShapeFeature(new BeastForm(10, 13, bite));
         Combatant druid = combatant("druid", b -> b.ac(11).maxHp(40)
-                .resources(List.of(new ResourceSpec("wild-shape", 2, Recharge.ALL, null))));
+                .resources(List.of(new ResourceSpec("wild-shape", 2, Recharge.FULL, null))));
         w.onTurnStart(druid); // forms
         assertThat(druid.tempHp()).isEqualTo(10);
         assertThat(druid.effectiveAc()).isEqualTo(13);
@@ -478,7 +478,7 @@ class ClassFeaturesTest {
     @Test
     void auraOfProtectionIsAMarkerFeature() {
         assertThat(new AuraOfProtectionFeature().id()).isEqualTo("aura-of-protection");
-        assertThat(new AuraOfProtectionFeature().id()).isEqualTo(AuraOfProtectionFeature.ID);
+        assertThat(new AuraOfProtectionFeature().id()).isEqualTo(AuraOfProtectionFeature.FEATURE_ID);
     }
 
     @Test

@@ -36,6 +36,12 @@ public final class JobService {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
 
+    /** The progress stage reported while a campaign (adventuring-day) pass runs. */
+    private static final String STAGE_CAMPAIGN = "campaign";
+
+    /** The run-configuration key that records whether the campaign pass was asked for. */
+    private static final String CONFIG_CAMPAIGN = "campaign";
+
     /** Effort presets: population, generations, evaluation runs per scenario, mutation rate. */
     record Effort(int populationSize, int generations, int evalRuns, double mutationRate) {}
 
@@ -206,7 +212,7 @@ public final class JobService {
         ga.put("evalRuns", effort.evalRuns());
         ga.put("mutationRate", effort.mutationRate());
         config.put("ga", ga);
-        config.put("campaign", cmd.campaign());
+        config.put(CONFIG_CAMPAIGN, cmd.campaign());
         config.put("seed", seed);
 
         Job job = new Job(JobView.Kind.OPTIMIZE, seed, warnings);
@@ -233,9 +239,9 @@ public final class JobService {
             Map<String, Double> weights = role.equals("equal") ? Reports.equalWeights() : RolePresets.weights(role);
             Reports.Report report = Reports.build(result, config, cmd.level(), weights, 20);
             if (cmd.campaign()) {
-                job.progress("campaign", 0, 1);
+                job.progress(STAGE_CAMPAIGN, 0, 1);
                 report = Campaign.annotate(report, level.martial(), settings.campaignDays(), Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, seed);
-                job.progress("campaign", 1, 1);
+                job.progress(STAGE_CAMPAIGN, 1, 1);
             }
             if (job.cancelRequested()) {
                 throw new Nsga2.CancelledException();
@@ -261,13 +267,13 @@ public final class JobService {
 
         Job job = new Job(JobView.Kind.CAMPAIGN, daySeed, List.of());
         return submit(job, () -> {
-            job.progress("campaign", 0, 1);
+            job.progress(STAGE_CAMPAIGN, 0, 1);
             Reports.Report annotated = Campaign.annotate(report, content.martial(), simulatedDays, Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, daySeed);
             if (job.cancelRequested()) {
                 throw new Nsga2.CancelledException();
             }
             store.save(annotated);
-            job.progress("campaign", 1, 1);
+            job.progress(STAGE_CAMPAIGN, 1, 1);
             return annotated.runKey();
         });
     }

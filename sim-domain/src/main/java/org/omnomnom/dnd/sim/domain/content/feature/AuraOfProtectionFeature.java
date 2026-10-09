@@ -9,10 +9,10 @@ import org.omnomnom.dnd.sim.domain.combat.Feature;
  */
 public final class AuraOfProtectionFeature implements Feature {
 
-    public static final String ID = "aura-of-protection";
+    public static final String FEATURE_ID = "aura-of-protection";
 
     @Override
     public String id() {
-        return ID;
+        return FEATURE_ID;
     }
 }

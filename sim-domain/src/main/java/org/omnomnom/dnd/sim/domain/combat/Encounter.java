@@ -41,6 +41,9 @@ public final class Encounter {
     /** Sorcery Points a Quickened Spell costs (Metamagic). */
     private static final int QUICKEN_COST = 2;
 
+    /** Suffix of the random-stream label for a saving throw (keeps each save's draws distinct and reproducible). */
+    private static final String SAVE_LABEL = ":save";
+
     /** Default round cap for {@link #run()}. */
     public static final int DEFAULT_MAX_ROUNDS = 100;
 
@@ -394,12 +397,12 @@ public final class Encounter {
         if (!resources.bonus || target.side() == self.side()) {
             return false;
         }
-        if (self.resourceCount("hunters-mark") <= 0) {
+        if (self.resourceCount(ResourceIds.HUNTERS_MARK) <= 0) {
             return false;
         }
-        self.spendResource("hunters-mark", 1);
+        self.spendResource(ResourceIds.HUNTERS_MARK, 1);
         self.setMarkedTarget(target.id());
-        self.setConcentratingOn("hunters-mark");
+        self.setConcentratingOn(ResourceIds.HUNTERS_MARK);
         resources.bonus = false;
         log(new CombatEvent.Marked(self.id(), target.id()));
         return true;
@@ -410,14 +413,14 @@ public final class Encounter {
         if (!resources.bonus) {
             return OptionalInt.empty();
         }
-        int pool = self.resourceCount("lay-on-hands");
+        int pool = self.resourceCount(ResourceIds.LAY_ON_HANDS);
         if (pool <= 0 || !target.isAlive()) {
             return OptionalInt.empty();
         }
         int missing = Math.max(1, target.maxHp() - target.hp());
         int draw = Math.min(pool, missing);
         int healed = target.heal(draw);
-        self.spendResource("lay-on-hands", draw);
+        self.spendResource(ResourceIds.LAY_ON_HANDS, draw);
         resources.bonus = false;
         log(new CombatEvent.Heal(self.id(), target.id(), healed));
         return OptionalInt.of(healed);
@@ -436,7 +439,7 @@ public final class Encounter {
         // Action economy: a spell normally uses the action (bonus-action spells use the bonus). Quickened Spell
         // (Sorcerer Metamagic) casts it as a Bonus Action for 2 Sorcery Points instead.
         if (quickened) {
-            if (!resources.bonus || self.resourceCount("sorcery") < QUICKEN_COST) {
+            if (!resources.bonus || self.resourceCount(ResourceIds.SORCERY) < QUICKEN_COST) {
                 return OptionalInt.empty();
             }
         } else if (spell.action() == Spell.CastingTime.BONUS) {
@@ -512,7 +515,7 @@ public final class Encounter {
             int dc = self.spellSaveDc();
             for (Combatant v : victims) {
                 SaveResult save = AttackResolver.resolveSave(
-                        rng.stream(self.id() + ":" + spell.id() + ":" + v.id() + ":save"),
+                        rng.stream(self.id() + ":" + spell.id() + ":" + v.id() + SAVE_LABEL),
                         SaveParams.of(
                                 v.saveBonus(ctl.save())
                                         + rollBuffSaveBonus(v, spell.id() + ":" + self.id())
@@ -572,7 +575,7 @@ public final class Encounter {
             int rolled = damage.roll(dmgStream);
             for (Combatant v : victims) {
                 SaveResult save = AttackResolver.resolveSave(
-                        rng.stream(self.id() + ":" + spell.id() + ":" + v.id() + ":save"),
+                        rng.stream(self.id() + ":" + spell.id() + ":" + v.id() + SAVE_LABEL),
                         SaveParams.of(
                                 v.saveBonus(sd.save())
                                         + rollBuffSaveBonus(v, spell.id() + ":" + self.id())
@@ -593,7 +596,7 @@ public final class Encounter {
         // Spend resources.
         if (quickened) {
             resources.bonus = false;
-            self.spendResource("sorcery", QUICKEN_COST);
+            self.spendResource(ResourceIds.SORCERY, QUICKEN_COST);
         } else if (spell.action() == Spell.CastingTime.BONUS) {
             resources.bonus = false;
         } else {
@@ -950,7 +953,7 @@ public final class Encounter {
                 }
                 HitEffect he = effect.get();
                 SaveResult save = AttackResolver.resolveSave(
-                        rng.stream(self.id() + ":" + f.id() + ":" + target.id() + ":save"),
+                        rng.stream(self.id() + ":" + f.id() + ":" + target.id() + SAVE_LABEL),
                         SaveParams.of(
                                 target.saveBonus(he.save()) + rollBuffSaveBonus(target, f.id()) + auraSaveBonus(target),
                                 he.dc()));

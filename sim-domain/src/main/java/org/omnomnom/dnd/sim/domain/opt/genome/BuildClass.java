@@ -20,10 +20,10 @@ public enum BuildClass implements Coded {
     DRUID("druid", true);
 
     /** All classes in declaration order (martial first), as the random picks index them. */
-    public static final List<BuildClass> ALL = List.of(values());
+    public static final List<BuildClass> ALL_CLASSES = List.of(values());
 
-    public static final List<BuildClass> MARTIAL = Arrays.stream(values()).filter(c -> !c.caster).toList();
-    public static final List<BuildClass> CASTER = Arrays.stream(values()).filter(c -> c.caster).toList();
+    public static final List<BuildClass> MARTIAL_CLASSES = Arrays.stream(values()).filter(c -> !c.caster).toList();
+    public static final List<BuildClass> CASTER_CLASSES = Arrays.stream(values()).filter(c -> c.caster).toList();
 
     private final String code;
     private final boolean caster;

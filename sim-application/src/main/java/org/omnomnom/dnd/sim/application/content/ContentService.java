@@ -52,7 +52,7 @@ public final class ContentService {
 
     public List<ClassView> classes(int level) {
         MartialCatalog cat = catalogs.level(level).martial();
-        return BuildClass.ALL.stream().map(c -> new ClassView(c, cat.subclassFor(c), c.isCaster() ? "caster" : "martial")).toList();
+        return BuildClass.ALL_CLASSES.stream().map(c -> new ClassView(c, cat.subclassFor(c), c.isCaster() ? "caster" : "martial")).toList();
     }
 
     public List<RoleView> roles() {
@@ -70,7 +70,7 @@ public final class ContentService {
         for (Scenario s : content.martial().scenarios()) {
             Map<String, Integer> counts = new LinkedHashMap<>();
             s.plan().forEach(t -> counts.merge(t.slug(), 1, Integer::sum));
-            out.add(new ScenarioView(s.id(), level, "solo", s.difficulty().code(), s.shape(), s.mapId(), s.xp(),
+            out.add(new ScenarioView(s.id(), level, "solo", s.difficulty().code(), s.shape().code(), s.mapId(), s.xp(),
                     counts.entrySet().stream().map(e -> new EnemyView(e.getKey(), e.getValue(), null)).toList()));
         }
         for (PartyScenarios.Description d : PartyScenarios.describe(level)) {

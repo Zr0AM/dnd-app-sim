@@ -61,7 +61,7 @@ public final class Genomes {
     /** A random legal genome. {@code classes} restricts the class pool; null or empty means every class. */
     public static Genome randomGenome(MartialCatalog catalog, LabeledRandom random, String label, List<BuildClass> classes) {
         Rng rng = random.stream(label);
-        BuildClass classSlug = pick(classes == null || classes.isEmpty() ? BuildClass.ALL : classes, rng);
+        BuildClass classSlug = pick(classes == null || classes.isEmpty() ? BuildClass.ALL_CLASSES : classes, rng);
         List<Integer> assignment = shuffle(List.of(0, 1, 2, 3, 4, 5), rng);
         WeaponInfo weapon = pick(catalog.weapons(), rng);
         FightingStyle style = classSlug == BuildClass.FIGHTER ? pick(FIGHTING_STYLES, rng) : null;
@@ -111,7 +111,7 @@ public final class Genomes {
     /** Mutate one gene at random, returning a repaired genome. */
     public static Genome mutate(Genome g, MartialCatalog catalog, LabeledRandom random, String label, List<BuildClass> classes) {
         Rng rng = random.stream(label);
-        List<BuildClass> pool = classes == null || classes.isEmpty() ? BuildClass.ALL : classes;
+        List<BuildClass> pool = classes == null || classes.isEmpty() ? BuildClass.ALL_CLASSES : classes;
         int choice = (int) Math.floor(rng.next() * 6);
         Genome next = switch (choice) {
             case 0 -> new Genome(pick(pool, rng), g.abilityAssignment(), g.weaponName(), g.armorName(), g.shield(), g.twoHanded(), g.fightingStyle());

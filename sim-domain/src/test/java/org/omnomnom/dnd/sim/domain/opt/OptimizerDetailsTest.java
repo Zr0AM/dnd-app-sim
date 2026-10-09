@@ -142,7 +142,7 @@ class OptimizerDetailsTest {
     @Test
     void casterPackagesCarryTheirClassFeatures() {
         assertThat(catalog3.casterPackageFor(BuildClass.WARLOCK).shortRestSlots()).isTrue();
-        for (BuildClass c : BuildClass.CASTER) {
+        for (BuildClass c : BuildClass.CASTER_CLASSES) {
             if (c != BuildClass.WARLOCK) {
                 assertThat(catalog3.casterPackageFor(c).shortRestSlots()).as(c.code()).isFalse();
             }
