@@ -75,61 +75,85 @@ public final class FilesystemReportStore implements ReportStore {
         }
     }
 
-    @Override
-    public Page list(int limit, String cursor) {
-        record Entry(String id, Instant savedAt) {}
-        List<Entry> entries = new ArrayList<>();
-        if (Files.isDirectory(directory)) {
-            try (Stream<Path> files = Files.list(directory)) {
-                for (Path p : (Iterable<Path>) files::iterator) {
-                    String name = p.getFileName().toString();
-                    if (name.endsWith(".json") && ID.matcher(name.substring(0, name.length() - 5)).matches()) {
-                        // Millisecond precision throughout: the sort, the cursor and the comparison must all agree.
-                        entries.add(new Entry(name.substring(0, name.length() - 5),
-                                Files.getLastModifiedTime(p).toInstant().truncatedTo(ChronoUnit.MILLIS)));
-                    }
-                }
-            } catch (IOException e) {
-                throw new UncheckedIOException("could not list reports", e);
-            }
-        }
-        // Newest first; the id breaks ties so pages are stable.
-        entries.sort(Comparator.comparing(Entry::savedAt).thenComparing(Entry::id).reversed());
+    /** A report file on disk: its id and save time, at the millisecond precision the sort and the cursor share. */
+    private record Entry(String id, Instant savedAt) {
 
-        Instant afterTime = null;
-        String afterId = null;
-        if (cursor != null) {
-            Matcher m = CURSOR.matcher(cursor);
+        /** Newest first; the id breaks ties so pages are stable. */
+        static final Comparator<Entry> NEWEST_FIRST = Comparator.comparing(Entry::savedAt).thenComparing(Entry::id).reversed();
+    }
+
+    /** Where the previous page ended. */
+    private record Cursor(Instant savedAt, String id) {
+
+        static Cursor parse(String text) {
+            Matcher m = CURSOR.matcher(text);
             if (!m.matches()) {
                 throw new BadRequestException("invalid-cursor", "cursor is not one this service issued", "cursor");
             }
-            afterTime = Instant.ofEpochMilli(Long.parseLong(m.group(1)));
-            afterId = m.group(2);
+            return new Cursor(Instant.ofEpochMilli(Long.parseLong(m.group(1))), m.group(2));
         }
+
+        /** Whether {@code e} comes after this cursor in newest-first order. */
+        boolean precedes(Entry e) {
+            int cmp = e.savedAt().compareTo(savedAt);
+            return cmp < 0 || (cmp == 0 && e.id().compareTo(id) < 0);
+        }
+    }
+
+    @Override
+    public Page list(int limit, String cursor) {
+        Cursor after = cursor == null ? null : Cursor.parse(cursor);
+        List<Entry> candidates = scan().stream().filter(e -> after == null || after.precedes(e)).toList();
         List<Summary> items = new ArrayList<>();
         String next = null;
-        for (Entry e : entries) {
-            if (afterTime != null) {
-                int cmp = e.savedAt().compareTo(afterTime);
-                if (cmp > 0 || (cmp == 0 && e.id().compareTo(afterId) >= 0)) {
-                    continue;
-                }
-            }
+        for (Entry e : candidates) {
             if (items.size() == limit) {
                 Summary last = items.get(items.size() - 1);
                 next = last.createdAt().toEpochMilli() + ":" + last.id();
                 break;
             }
-            try {
-                Reports.Report r = mapper.readValue(file(e.id()), Reports.Report.class);
-                Top top = r.leaderboard().isEmpty() ? null
-                        : new Top(r.leaderboard().get(0).description(), r.leaderboard().get(0).weightedScore());
-                items.add(new Summary(e.id(), e.savedAt(), r.config(), top));
-            } catch (RuntimeException ex) {
-                LOG.warn("skipping unreadable report file {}: {}", e.id(), ex.toString());
-            }
+            summaryOf(e).ifPresent(items::add);
         }
         return new Page(items, next);
+    }
+
+    /** Every report file in the directory, newest first. */
+    private List<Entry> scan() {
+        if (!Files.isDirectory(directory)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.list(directory)) {
+            List<Entry> entries = new ArrayList<>();
+            for (Path p : (Iterable<Path>) files::iterator) {
+                entryOf(p).ifPresent(entries::add);
+            }
+            entries.sort(Entry.NEWEST_FIRST);
+            return entries;
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not list reports", e);
+        }
+    }
+
+    private static Optional<Entry> entryOf(Path p) throws IOException {
+        String name = p.getFileName().toString();
+        if (!name.endsWith(".json") || !ID.matcher(name.substring(0, name.length() - 5)).matches()) {
+            return Optional.empty();
+        }
+        // Millisecond precision throughout: the sort, the cursor and the comparison must all agree.
+        return Optional.of(new Entry(name.substring(0, name.length() - 5), Files.getLastModifiedTime(p).toInstant().truncatedTo(ChronoUnit.MILLIS)));
+    }
+
+    /** The summary of a report file, or empty if the file cannot be read (it is skipped, not fatal). */
+    private Optional<Summary> summaryOf(Entry e) {
+        try {
+            Reports.Report r = mapper.readValue(file(e.id()), Reports.Report.class);
+            Top top = r.leaderboard().isEmpty() ? null
+                    : new Top(r.leaderboard().get(0).description(), r.leaderboard().get(0).weightedScore());
+            return Optional.of(new Summary(e.id(), e.savedAt(), r.config(), top));
+        } catch (RuntimeException ex) {
+            LOG.warn("skipping unreadable report file {}: {}", e.id(), ex.toString());
+            return Optional.empty();
+        }
     }
 
     private Path file(String id) {

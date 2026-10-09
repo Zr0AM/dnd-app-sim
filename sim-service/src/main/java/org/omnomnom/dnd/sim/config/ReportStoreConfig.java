@@ -17,10 +17,12 @@ import tools.jackson.databind.ObjectMapper;
  * the {@code local} profile) or Cloudflare D1 over its HTTP query API. Only the chosen store's beans exist. Choosing D1
  * without credentials fails at startup rather than at the first save.
  */
-@Configuration
-class ReportStoreConfig {
+@Configuration(proxyBeanMethods = false)
+final class ReportStoreConfig {
 
     static final String TYPE = "sim.report-store.type";
+
+    private ReportStoreConfig() {}
 
     @Configuration
     @ConditionalOnProperty(name = TYPE, havingValue = "filesystem", matchIfMissing = true)

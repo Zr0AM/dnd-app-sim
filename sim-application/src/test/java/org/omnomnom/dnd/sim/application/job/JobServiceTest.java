@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Predicate;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,19 +56,11 @@ class JobServiceTest {
         return new OptimizeCommand(3, null, List.of(BuildClass.FIGHTER, BuildClass.WIZARD), null, TINY, false, campaign, seed);
     }
 
-    private JobView await(String id, Predicate<JobView> done) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            JobView v = jobs.get(id);
-            if (done.test(v)) {
-                return v;
-            }
-            Thread.sleep(20);
-        }
-        throw new AssertionError("timed out waiting for job " + id + ": " + jobs.get(id));
+    private JobView await(String id, Predicate<JobView> done) {
+        return awaitJob(jobs, id, done);
     }
 
-    private JobView awaitFinished(String id) throws InterruptedException {
+    private JobView awaitFinished(String id) {
         return await(id, v -> v.status().finished());
     }
 
@@ -113,8 +107,9 @@ class JobServiceTest {
         Reports.Report report = store.find(done.reportId()).orElseThrow().report();
         assertThat(report.runKey()).isEqualTo(done.reportId());
         assertThat(report.config()).containsEntry("level", 3).containsEntry("role", "tank").containsEntry("campaign", false).containsEntry("seed", 42L);
-        assertThat(report.config().get("classes")).isEqualTo(List.of("fighter", "wizard")); // duplicates removed
-        assertThat(report.config().get("ga")).isEqualTo(java.util.Map.of("populationSize", 4, "generations", 2, "evalRuns", 1, "mutationRate", 0.3));
+        assertThat(report.config())
+                .containsEntry("classes", List.of("fighter", "wizard")) // duplicates removed
+                .containsEntry("ga", java.util.Map.of("populationSize", 4, "generations", 2, "evalRuns", 1, "mutationRate", 0.3));
         assertThat(report.weights()).isEqualTo(java.util.Map.of("reliability", 2.0, "offense", 1.0, "survival", 3.0, "efficiency", 1.0));
         assertThat(report.paretoFront()).isNotEmpty();
         assertThat(report.paretoFront()).allSatisfy(e -> assertThat(e.campaignDayWinRate()).isNull());
@@ -210,7 +205,8 @@ class JobServiceTest {
         JobView running = jobs.startOptimization(longRun(1L));
         await(running.id(), v -> v.status() == JobView.Status.RUNNING);
         JobView queued = jobs.startOptimization(tiny(2L, false)); // takes the single queue slot
-        assertThatThrownBy(() -> jobs.startOptimization(tiny(3L, false))).isInstanceOf(BusyException.class);
+        OptimizeCommand overflow = tiny(3L, false);
+        assertThatThrownBy(() -> jobs.startOptimization(overflow)).isInstanceOf(BusyException.class);
         jobs.cancel(queued.id());
         jobs.cancel(running.id());
         awaitFinished(running.id());
@@ -226,6 +222,15 @@ class JobServiceTest {
         assertThat(done.error().status()).isEqualTo(500);
         // The exception text stays in the log; clients get a generic detail naming the job.
         assertThat(done.error().detail()).doesNotContain("disk on fire").contains(done.id());
+    }
+
+    @Test
+    void aJobThatDiesWithAnErrorStillEndsAsFailed() throws Exception {
+        store.errorOnSave.set(true);
+        JobView done = awaitFinished(jobs.startOptimization(tiny(1L, false)).id());
+        assertThat(done.status()).isEqualTo(JobView.Status.FAILED);
+        assertThat(done.error().code()).isEqualTo("job-failed");
+        assertThat(done.error().detail()).doesNotContain("heap on fire").contains(done.id());
     }
 
     // ---- annotating a saved report -------------------------------------------------------------
@@ -253,16 +258,16 @@ class JobServiceTest {
 
     // ---- adversarial review fixes ----------------------------------------------------------------
 
-    private static JobView awaitWith(JobService service, String id) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            JobView v = service.get(id);
-            if (v.status().finished()) {
-                return v;
-            }
-            Thread.sleep(20);
-        }
-        throw new AssertionError("timed out waiting for job " + id);
+    private static JobView awaitWith(JobService service, String id) {
+        return awaitJob(service, id, v -> v.status().finished());
+    }
+
+    /** Poll the service until the job satisfies {@code done}, failing with the job's last state if it never does. */
+    private static JobView awaitJob(JobService service, String id, Predicate<JobView> done) {
+        return Awaitility.await("job " + id)
+                .atMost(Duration.ofSeconds(120))
+                .pollInterval(Duration.ofMillis(20))
+                .until(() -> service.get(id), done);
     }
 
     @Test
@@ -322,7 +327,8 @@ class JobServiceTest {
             ids.add(awaitWith(keepTwo, keepTwo.startOptimization(tiny(seed, false)).id()).id());
         }
         keepTwo.startOptimization(tiny(4L, false));
-        assertThatThrownBy(() -> keepTwo.get(ids.get(0))).isInstanceOf(NotFoundException.class);
+        String forgotten = ids.get(0);
+        assertThatThrownBy(() -> keepTwo.get(forgotten)).isInstanceOf(NotFoundException.class);
         assertThat(keepTwo.get(ids.get(1)).status()).isEqualTo(JobView.Status.SUCCEEDED);
         assertThat(JobService.Settings.defaults()).isEqualTo(new JobService.Settings(200, 12, false));
     }

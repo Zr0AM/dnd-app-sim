@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.Arrays;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
@@ -27,9 +26,6 @@ class GenomesTest {
             catalog = MartialCatalog.load(source, MonsterCatalog.load(source), 3);
         }
     }
-
-    @AfterAll
-    static void done() {}
 
     private static Genome genome(BuildClass c, List<Integer> assignment, String weapon, String armor, boolean shield, boolean twoHanded,
             FightingStyle style) {
@@ -142,8 +138,8 @@ class GenomesTest {
 
     @Test
     void everyClassCompilesToAValidCombatant() {
-        assertThat(BuildClass.ALL).hasSize(12);
-        for (BuildClass c : BuildClass.ALL) {
+        assertThat(BuildClass.ALL_CLASSES).hasSize(12);
+        for (BuildClass c : BuildClass.ALL_CLASSES) {
             Combatant hero = Genomes.build(genome(c, IDENTITY, "Longsword", c == BuildClass.BARBARIAN ? null : "Chain Mail", false, false,
                     FightingStyle.DEFENSE), catalog, "hero");
             assertThat(hero.hp()).as(c.code()).isPositive();

@@ -8,6 +8,7 @@ import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.FeatureFactory;
 import org.omnomnom.dnd.sim.domain.combat.Recharge;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.ResourceSpec;
 import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
@@ -16,6 +17,7 @@ import org.omnomnom.dnd.sim.domain.content.ClassInfo;
 import org.omnomnom.dnd.sim.domain.content.ContentSource;
 import org.omnomnom.dnd.sim.domain.content.build.SpellCatalog;
 import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
+import org.omnomnom.dnd.sim.domain.content.equipment.Gear;
 import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 import org.omnomnom.dnd.sim.domain.content.feature.DarkOnesBlessingFeature;
 import org.omnomnom.dnd.sim.domain.content.feature.WildShapeFeature;
@@ -35,8 +37,8 @@ import org.omnomnom.dnd.sim.domain.scenario.ScenarioLibrary;
 public final class MartialCatalog {
 
     private static final List<String> WEAPON_NAMES =
-            List.of("Greataxe", "Greatsword", "Longsword", "Rapier", "Shortsword", "Handaxe", "Longbow", "Shortbow");
-    private static final List<String> ARMOR_NAMES = List.of("Studded Leather Armor", "Chain Shirt", "Breastplate", "Chain Mail");
+            List.of(Gear.GREATAXE, Gear.GREATSWORD, Gear.LONGSWORD, Gear.RAPIER, Gear.SHORTSWORD, Gear.HANDAXE, Gear.LONGBOW, Gear.SHORTBOW);
+    private static final List<String> ARMOR_NAMES = List.of(Gear.STUDDED_LEATHER_ARMOR, Gear.CHAIN_SHIRT, Gear.BREASTPLATE, Gear.CHAIN_MAIL);
 
     /** The SRD subclass each class takes at level 3. */
     private static final Map<BuildClass, String> SUBCLASS = new EnumMap<>(BuildClass.class);
@@ -60,12 +62,12 @@ public final class MartialCatalog {
     private static final Map<BuildClass, String> DEFAULT_ARMOR = new EnumMap<>(BuildClass.class);
 
     static {
-        DEFAULT_ARMOR.put(BuildClass.FIGHTER, "Chain Mail");
-        DEFAULT_ARMOR.put(BuildClass.BARBARIAN, "Chain Mail");
-        DEFAULT_ARMOR.put(BuildClass.ROGUE, "Studded Leather Armor");
-        DEFAULT_ARMOR.put(BuildClass.RANGER, "Studded Leather Armor");
-        DEFAULT_ARMOR.put(BuildClass.PALADIN, "Chain Mail");
-        DEFAULT_ARMOR.put(BuildClass.MONK, "Studded Leather Armor");
+        DEFAULT_ARMOR.put(BuildClass.FIGHTER, Gear.CHAIN_MAIL);
+        DEFAULT_ARMOR.put(BuildClass.BARBARIAN, Gear.CHAIN_MAIL);
+        DEFAULT_ARMOR.put(BuildClass.ROGUE, Gear.STUDDED_LEATHER_ARMOR);
+        DEFAULT_ARMOR.put(BuildClass.RANGER, Gear.STUDDED_LEATHER_ARMOR);
+        DEFAULT_ARMOR.put(BuildClass.PALADIN, Gear.CHAIN_MAIL);
+        DEFAULT_ARMOR.put(BuildClass.MONK, Gear.STUDDED_LEATHER_ARMOR);
     }
 
     private final int level;
@@ -77,12 +79,15 @@ public final class MartialCatalog {
     private final SpellcastingSpec paladinSpells;
     private final List<Scenario> scenarios;
 
-    private MartialCatalog(int level, List<WeaponInfo> weapons, List<ArmorInfo> armors, Map<BuildClass, ClassInfo> classes,
+    /** The weapons and armors a genome picks from. */
+    private record Armory(List<WeaponInfo> weapons, List<ArmorInfo> armors) {}
+
+    private MartialCatalog(int level, Armory armory, Map<BuildClass, ClassInfo> classes,
             Map<BuildClass, BuildProgression> progression, Map<BuildClass, CasterPackage> casterPackages,
             SpellcastingSpec paladinSpells, List<Scenario> scenarios) {
         this.level = level;
-        this.weapons = List.copyOf(weapons);
-        this.armors = List.copyOf(armors);
+        this.weapons = List.copyOf(armory.weapons());
+        this.armors = List.copyOf(armory.armors());
         this.classes = Map.copyOf(classes);
         this.progression = Map.copyOf(progression);
         this.casterPackages = Map.copyOf(casterPackages);
@@ -96,7 +101,7 @@ public final class MartialCatalog {
         List<ArmorInfo> armors = ARMOR_NAMES.stream().map(source::armor).toList();
         Map<BuildClass, ClassInfo> classes = new EnumMap<>(BuildClass.class);
         Map<BuildClass, BuildProgression> progression = new EnumMap<>(BuildClass.class);
-        for (BuildClass c : BuildClass.MARTIAL) {
+        for (BuildClass c : BuildClass.MARTIAL_CLASSES) {
             classes.put(c, source.classInfo(c.code()));
             progression.put(c, source.progression(c.code(), level));
         }
@@ -106,12 +111,12 @@ public final class MartialCatalog {
                 List.of(SpellCatalog.BLESS, SpellCatalog.CURE_WOUNDS), false);
 
         Map<BuildClass, CasterPackage> packages = new EnumMap<>(BuildClass.class);
-        for (BuildClass c : BuildClass.CASTER) {
+        for (BuildClass c : BuildClass.CASTER_CLASSES) {
             classes.put(c, source.classInfo(c.code()));
             packages.put(c, casterPackage(source, c, level));
         }
         List<Scenario> scenarios = ScenarioLibrary.load(monsters, source.xpByChallengeRating(), level);
-        return new MartialCatalog(level, weapons, armors, classes, progression, packages, paladinSpells, scenarios);
+        return new MartialCatalog(level, new Armory(weapons, armors), classes, progression, packages, paladinSpells, scenarios);
     }
 
     private static CasterPackage casterPackage(ContentSource source, BuildClass c, int level) {
@@ -132,32 +137,32 @@ public final class MartialCatalog {
                 cantrips = List.of(SpellCatalog.FIRE_BOLT, SpellCatalog.RAY_OF_FROST);
                 spells = List.of(SpellCatalog.BURNING_HANDS, SpellCatalog.SCORCHING_RAY, SpellCatalog.FIREBALL,
                         SpellCatalog.HOLD_PERSON, SpellCatalog.HYPNOTIC_PATTERN);
-                weaponName = "Dagger";
+                weaponName = Gear.DAGGER;
                 armorName = null; // no armor proficiency
             }
             case CLERIC -> {
                 ability = Ability.WIS;
                 cantrips = List.of(SpellCatalog.SACRED_FLAME);
                 spells = List.of(SpellCatalog.CURE_WOUNDS, SpellCatalog.HEALING_WORD, SpellCatalog.GUIDING_BOLT);
-                weaponName = "Mace";
-                armorName = "Scale Mail"; // medium armor + shield
+                weaponName = Gear.MACE;
+                armorName = Gear.SCALE_MAIL; // medium armor + shield
                 shield = true;
             }
             case BARD -> {
                 ability = Ability.CHA;
                 cantrips = List.of();
                 spells = List.of(SpellCatalog.BLESS, SpellCatalog.HASTE); // the buffer package
-                weaponName = "Rapier";
-                armorName = "Leather Armor";
+                weaponName = Gear.RAPIER;
+                armorName = Gear.LEATHER_ARMOR;
             }
             case SORCERER -> {
                 ability = Ability.CHA;
                 cantrips = List.of(SpellCatalog.FIRE_BOLT);
                 spells = List.of(SpellCatalog.BURNING_HANDS, SpellCatalog.SCORCHING_RAY, SpellCatalog.FIREBALL,
                         SpellCatalog.HOLD_PERSON); // a Draconic blaster/controller
-                weaponName = "Dagger";
+                weaponName = Gear.DAGGER;
                 armorName = null; // Draconic Resilience grants unarmored AC instead
-                resources.add(new ResourceSpec("sorcery", level, null, Recharge.ALL)); // Sorcery Points = level
+                resources.add(new ResourceSpec(ResourceIds.SORCERY, level, null, Recharge.FULL)); // Sorcery Points = level
                 extraHp = level; // Draconic Resilience: +1 per level
                 unarmoredAc = Ability.CHA; // 10 + Dex + Cha when unarmored
             }
@@ -165,8 +170,8 @@ public final class MartialCatalog {
                 ability = Ability.CHA;
                 cantrips = List.of(SpellCatalog.ELDRITCH_BLAST); // the workhorse, with Agonizing Blast
                 spells = List.of(SpellCatalog.HOLD_PERSON); // Pact Magic slots
-                weaponName = "Dagger";
-                armorName = "Leather Armor";
+                weaponName = Gear.DAGGER;
+                armorName = Gear.LEATHER_ARMOR;
                 shortRestSlots = true; // Pact Magic recharges on a short rest
                 features.add(DarkOnesBlessingFeature::new);
             }
@@ -174,14 +179,14 @@ public final class MartialCatalog {
                 ability = Ability.WIS;
                 cantrips = List.of(SpellCatalog.PRODUCE_FLAME);
                 spells = List.of(SpellCatalog.CURE_WOUNDS, SpellCatalog.MOONBEAM); // a versatile healer / area caster
-                weaponName = "Mace";
-                armorName = "Leather Armor"; // nonmetal light armor
+                weaponName = Gear.MACE;
+                armorName = Gear.LEATHER_ARMOR; // nonmetal light armor
                 // A representative mid-tier beast form: its HP (as temp HP), AC and bite.
                 AttackProfile bite = AttackProfile.builder("Bite", AttackKind.MELEE, 2 + CoreRules.proficiencyBonus(level),
                         Dice.of(2, 6, 2), DamageType.PIERCING).reachFt(5).build();
                 WildShapeFeature.BeastForm form = new WildShapeFeature.BeastForm(2 * level, 13, bite);
                 features.add(() -> new WildShapeFeature(form));
-                resources.add(new ResourceSpec("wild-shape", 2, Recharge.ALL, Recharge.ALL));
+                resources.add(new ResourceSpec(ResourceIds.WILD_SHAPE, 2, Recharge.FULL, Recharge.FULL));
             }
             default -> throw new IllegalArgumentException("not a caster: " + c);
         }

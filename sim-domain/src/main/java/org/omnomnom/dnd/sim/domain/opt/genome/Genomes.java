@@ -17,6 +17,7 @@ import org.omnomnom.dnd.sim.domain.content.equipment.WeaponProperty;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
 import org.omnomnom.dnd.sim.domain.core.Side;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 import org.omnomnom.dnd.sim.domain.rng.LabeledRandom;
 import org.omnomnom.dnd.sim.domain.rng.Rng;
 
@@ -30,7 +31,7 @@ public final class Genomes {
     private Genomes() {}
 
     /** The 2024 standard array, assigned to the six abilities by a permutation. */
-    public static final int[] STANDARD_ARRAY = {15, 14, 13, 12, 10, 8};
+    private static final int[] STANDARD_ARRAY = {15, 14, 13, 12, 10, 8};
 
     private static final List<FightingStyle> FIGHTING_STYLES = List.of(FightingStyle.values());
 
@@ -61,7 +62,7 @@ public final class Genomes {
     /** A random legal genome. {@code classes} restricts the class pool; null or empty means every class. */
     public static Genome randomGenome(MartialCatalog catalog, LabeledRandom random, String label, List<BuildClass> classes) {
         Rng rng = random.stream(label);
-        BuildClass classSlug = pick(classes == null || classes.isEmpty() ? BuildClass.ALL : classes, rng);
+        BuildClass classSlug = pick(classPool(classes), rng);
         List<Integer> assignment = shuffle(List.of(0, 1, 2, 3, 4, 5), rng);
         WeaponInfo weapon = pick(catalog.weapons(), rng);
         FightingStyle style = classSlug == BuildClass.FIGHTER ? pick(FIGHTING_STYLES, rng) : null;
@@ -102,16 +103,27 @@ public final class Genomes {
             twoHanded = false; // versatile: two-handed only makes sense without a shield
         }
 
-        FightingStyle style = g.classSlug() == BuildClass.FIGHTER
-                ? (g.fightingStyle() != null ? g.fightingStyle() : FightingStyle.DEFENSE)
-                : null;
+        FightingStyle style = styleFor(g);
         return new Genome(g.classSlug(), g.abilityAssignment(), g.weaponName(), armorName, shield, twoHanded, style);
+    }
+
+    /** Only fighters carry a fighting style; one without a pick defaults to Defense. */
+    private static FightingStyle styleFor(Genome g) {
+        if (g.classSlug() != BuildClass.FIGHTER) {
+            return null;
+        }
+        return g.fightingStyle() != null ? g.fightingStyle() : FightingStyle.DEFENSE;
+    }
+
+    /** The class pool a random pick draws from: the restriction if there is one, else every class. */
+    private static List<BuildClass> classPool(List<BuildClass> classes) {
+        return classes == null || classes.isEmpty() ? BuildClass.ALL_CLASSES : classes;
     }
 
     /** Mutate one gene at random, returning a repaired genome. */
     public static Genome mutate(Genome g, MartialCatalog catalog, LabeledRandom random, String label, List<BuildClass> classes) {
         Rng rng = random.stream(label);
-        List<BuildClass> pool = classes == null || classes.isEmpty() ? BuildClass.ALL : classes;
+        List<BuildClass> pool = classPool(classes);
         int choice = (int) Math.floor(rng.next() * 6);
         Genome next = switch (choice) {
             case 0 -> new Genome(pick(pool, rng), g.abilityAssignment(), g.weaponName(), g.armorName(), g.shield(), g.twoHanded(), g.fightingStyle());
@@ -151,7 +163,7 @@ public final class Genomes {
 
     /** The Monk's unarmed strike: the Martial Arts die scales with level, Dex-based (finesse). */
     static WeaponInfo monkUnarmedStrike(int level) {
-        int sides = level >= 17 ? 10 : level >= 11 ? 8 : level >= 5 ? 6 : 4;
+        int sides = Tiers.pick(level, 4, Tiers.from(5, 6), Tiers.from(11, 8), Tiers.from(17, 10));
         Set<WeaponProperty> props = EnumSet.of(WeaponProperty.FINESSE);
         return new WeaponInfo("Unarmed Strike", WeaponInfo.Category.SIMPLE, AttackKind.MELEE, 1, sides, DamageType.BLUDGEONING,
                 props, null, null, null, null);

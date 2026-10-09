@@ -31,6 +31,9 @@ class ProblemHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProblemHandler.class);
 
+    private static final String INVALID_REQUEST = "invalid-request";
+    private static final String INVALID_REQUEST_TITLE = "Invalid request";
+
     private static ResponseEntity<ProblemDetail> problem(HttpStatus status, String code, String title, String detail, List<FieldError> errors) {
         ProblemDetail p = ProblemDetail.forStatusAndDetail(status, detail);
         p.setTitle(title);
@@ -47,7 +50,7 @@ class ProblemHandler {
         List<FieldError> errors = new ArrayList<>();
         e.getBindingResult().getFieldErrors().forEach(fe -> errors.add(new FieldError(fe.getField(), fe.getDefaultMessage(), fe.getCode())));
         e.getBindingResult().getGlobalErrors().forEach(ge -> errors.add(new FieldError(ge.getObjectName(), ge.getDefaultMessage(), ge.getCode())));
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "One or more fields failed validation.", errors);
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, "One or more fields failed validation.", errors);
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -55,12 +58,12 @@ class ProblemHandler {
         List<FieldError> errors = new ArrayList<>();
         e.getParameterValidationResults().forEach(r -> r.getResolvableErrors().forEach(re -> errors.add(
                 new FieldError(r.getMethodParameter().getParameterName(), re.getDefaultMessage(), re.getCodes() == null || re.getCodes().length == 0 ? null : re.getCodes()[re.getCodes().length - 1]))));
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "A parameter failed validation.", errors);
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, "A parameter failed validation.", errors);
     }
 
     @ExceptionHandler(RequestValidationException.class)
     ResponseEntity<ProblemDetail> invalidRequest(RequestValidationException e) {
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage(), e.errors());
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, e.getMessage(), e.errors());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -71,19 +74,19 @@ class ProblemHandler {
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     ResponseEntity<ProblemDetail> missingParameter(MissingServletRequestParameterException e) {
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "Parameter '" + e.getParameterName() + "' is required.",
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, "Parameter '" + e.getParameterName() + "' is required.",
                 List.of(new FieldError(e.getParameterName(), "is required", "required")));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ResponseEntity<ProblemDetail> badParameterType(MethodArgumentTypeMismatchException e) {
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", "Parameter '" + e.getName() + "' has the wrong type.",
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, "Parameter '" + e.getName() + "' has the wrong type.",
                 List.of(new FieldError(e.getName(), "has the wrong type", "type-mismatch")));
     }
 
     @ExceptionHandler(BadRequestException.class)
     ResponseEntity<ProblemDetail> badRequest(BadRequestException e) {
-        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage(), e.errors());
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, INVALID_REQUEST_TITLE, e.getMessage(), e.errors());
     }
 
     @ExceptionHandler(UnprocessableException.class)
@@ -127,9 +130,9 @@ class ProblemHandler {
                 case METHOD_NOT_ALLOWED -> "method-not-allowed";
                 case UNSUPPORTED_MEDIA_TYPE -> "unsupported-media-type";
                 case NOT_ACCEPTABLE -> "not-acceptable";
-                default -> "invalid-request";
+                default -> INVALID_REQUEST;
             };
-            LOG.debug("client error {}: {}", status.value(), e.toString());
+            LOG.atDebug().setMessage("client error {}: {}").addArgument(status.value()).addArgument(e::toString).log();
             ResponseEntity<ProblemDetail> base = problem(status, code, status.getReasonPhrase(), er.getBody().getDetail() != null
                     ? er.getBody().getDetail() : status.getReasonPhrase(), List.of());
             return ResponseEntity.status(status).headers(er.getHeaders()).body(base.getBody());

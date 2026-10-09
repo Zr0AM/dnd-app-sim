@@ -11,8 +11,15 @@ public final class Objectives {
 
     private Objectives() {}
 
-    public static final List<String> NAMES =
-            List.of("reliability", "offense", "survival", "efficiency", "control", "support");
+    public static final String RELIABILITY = "reliability";
+    public static final String OFFENSE = "offense";
+    public static final String SURVIVAL = "survival";
+    public static final String EFFICIENCY = "efficiency";
+    public static final String CONTROL = "control";
+    public static final String SUPPORT = "support";
+
+    /** The axis names in vector order. */
+    public static final List<String> NAMES = List.of(RELIABILITY, OFFENSE, SURVIVAL, EFFICIENCY, CONTROL, SUPPORT);
 
     /**
      * Objectives of a solo result. A lone hero has no allies to heal or buff, so support is always 0 here; it carries

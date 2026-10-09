@@ -1,11 +1,13 @@
 package org.omnomnom.dnd.sim.application.execution;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.application.error.BusyException;
 import org.omnomnom.dnd.sim.application.error.UnprocessableException;
@@ -55,7 +57,7 @@ class SimulationExecutorTest {
     }
 
     @Test
-    void zeroThreadsMeansOnePerProcessor() throws Exception {
+    void zeroThreadsMeansOnePerProcessor() {
         try (SimulationExecutor exec = new SimulationExecutor(0, 4)) {
             assertThat(exec.call(() -> "ok")).isEqualTo("ok");
         }
@@ -107,18 +109,17 @@ class SimulationExecutorTest {
                 return 0;
             });
             exec.submit(() -> 0);
-            long deadline = System.currentTimeMillis() + 5000;
-            BusyException busy = null;
-            while (busy == null && System.currentTimeMillis() < deadline) {
+            AtomicReference<BusyException> busy = new AtomicReference<>();
+            await().atMost(5, TimeUnit.SECONDS).pollInterval(5, TimeUnit.MILLISECONDS).until(() -> {
                 try {
                     exec.submit(() -> 0);
-                    Thread.sleep(5);
+                    return false;
                 } catch (BusyException e) {
-                    busy = e;
+                    busy.set(e);
+                    return true;
                 }
-            }
-            assertThat(busy).isNotNull();
-            assertThat(busy.retryAfterSeconds()).isEqualTo(17);
+            });
+            assertThat(busy.get().retryAfterSeconds()).isEqualTo(17);
             release.countDown();
         }
     }

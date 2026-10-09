@@ -76,7 +76,7 @@ class ScenarioTest {
     @Test
     void levelThreeHasVariedShapesAndTheDocumentedXp() {
         List<Scenario> l3 = library.get(3);
-        assertThat(l3.stream().map(Scenario::shape).collect(Collectors.toSet())).contains("single", "swarm", "pack", "mixed");
+        assertThat(l3.stream().map(Scenario::shape).collect(Collectors.toSet())).contains(Shape.SINGLE, Shape.SWARM, Shape.PACK, Shape.MIXED);
         assertThat(l3.stream().collect(Collectors.toMap(Scenario::id, Scenario::xp))).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "l3-pair-goblins", 100,
                 "l3-single-bugbear", 200,
@@ -120,7 +120,7 @@ class ScenarioTest {
         assertThat(library.get(17)).allMatch(s -> s.id().startsWith("l17-"));
         assertThat(library.get(11)).extracting(Scenario::level).containsOnly(11);
         for (int level : new int[] {11, 17}) {
-            assertThat(library.get(level).stream().map(Scenario::shape).collect(Collectors.toSet())).contains("single");
+            assertThat(library.get(level).stream().map(Scenario::shape).collect(Collectors.toSet())).contains(Shape.SINGLE);
         }
     }
 

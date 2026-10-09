@@ -31,11 +31,12 @@ class AccessConfigTest {
 
     @Test
     void theServiceDoesNotStartOpenByForgettingAKey() {
-        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, List.of())))
+        SimProperties noKeys = props(SimProperties.SecurityMode.API_KEY, List.of());
+        SimProperties blankKeys = props(SimProperties.SecurityMode.API_KEY, java.util.Arrays.asList(" ", "", null));
+        assertThatThrownBy(() -> config.accessFilter(noKeys))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SIM_API_KEYS");
-        assertThatThrownBy(() -> config.accessFilter(props(SimProperties.SecurityMode.API_KEY, java.util.Arrays.asList(" ", "", null))))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> config.accessFilter(blankKeys)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test

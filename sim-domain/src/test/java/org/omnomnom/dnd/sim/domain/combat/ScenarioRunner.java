@@ -18,6 +18,8 @@ import org.omnomnom.dnd.sim.domain.combat.spell.DamageScaling;
 import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
+import org.omnomnom.dnd.sim.domain.content.feature.AuraOfProtectionFeature;
+import org.omnomnom.dnd.sim.domain.content.feature.HuntersMarkFeature;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.Condition;
@@ -222,27 +224,13 @@ final class ScenarioRunner {
         }
     }
 
-    private static final class HuntersMark implements Feature {
-        @Override
-        public String id() {
-            return "hunters-mark";
-        }
-
-        @Override
-        public List<ExtraDamage> onHit(OnHitContext ctx) {
-            return ctx.target().id().equals(ctx.self().markedTarget())
-                    ? List.of(new ExtraDamage(Dice.of(1, 6), DamageType.FORCE))
-                    : List.of();
-        }
-    }
-
     private static FeatureFactory featureFactory(String id) {
         return switch (id) {
             case "berserk" -> Berserk::new;
             case "reckless" -> Reckless::new;
             case "flurry" -> Flurry::new;
-            case "hunters-mark" -> HuntersMark::new;
-            case "aura-of-protection" -> () -> () -> "aura-of-protection";
+            case "hunters-mark" -> HuntersMarkFeature::new;
+            case "aura-of-protection" -> AuraOfProtectionFeature::new;
             default -> throw new IllegalArgumentException("feature " + id);
         };
     }

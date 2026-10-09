@@ -8,6 +8,7 @@ import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.CombatantSpec;
 import org.omnomnom.dnd.sim.domain.combat.FeatureFactory;
 import org.omnomnom.dnd.sim.domain.combat.Recharge;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.ResourceSpec;
 import org.omnomnom.dnd.sim.domain.content.BuildProgression;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
@@ -55,10 +56,7 @@ public final class CharacterCompiler {
         int dexMod = spec.abilities().modifier(Ability.DEX);
         int ac;
         if (spec.armor() != null) {
-            int dexPart = spec.armor().addsDex()
-                    ? (spec.armor().dexCap() != null ? Math.min(dexMod, spec.armor().dexCap()) : dexMod)
-                    : 0;
-            ac = spec.armor().baseAc() + dexPart;
+            ac = spec.armor().baseAc() + spec.armor().dexBonus(dexMod);
         } else if (spec.unarmoredDefense() == UnarmoredDefense.BARBARIAN) {
             ac = 10 + dexMod + spec.abilities().modifier(Ability.CON);
         } else if (spec.unarmoredDefense() == UnarmoredDefense.MONK) {
@@ -108,71 +106,98 @@ public final class CharacterCompiler {
         int critRange = "champion".equals(spec.subclass()) && spec.level() >= 3 ? 19 : 20;
 
         AttackKind kind = weapon.range();
+        boolean melee = kind == AttackKind.MELEE;
+        Integer reach = melee ? meleeReachFt(weapon) : null;
         return new AttackProfile(
-                weapon.name(), kind,
-                kind == AttackKind.MELEE ? (weapon.has(WeaponProperty.REACH) ? 10 : 5) : null,
-                kind == AttackKind.RANGED ? weapon.rangeNormalFt() : null,
-                kind == AttackKind.RANGED ? weapon.rangeLongFt() : null,
+                weapon.name(), kind, reach,
+                melee ? null : weapon.rangeNormalFt(),
+                melee ? null : weapon.rangeLongFt(),
                 toHit, damage, weapon.damageType(), List.of(), critRange, weapon.has(WeaponProperty.FINESSE));
+    }
+
+    private static int meleeReachFt(WeaponInfo weapon) {
+        return weapon.has(WeaponProperty.REACH) ? 10 : 5;
     }
 
     /** The features and resource pools a build has. Features are factories so each combatant owns its instances. */
     public record BuiltFeatures(List<FeatureFactory> features, List<ResourceSpec> resources) {}
 
+    /** Collects what a class grants while its features are being attached, in order. */
+    private static final class Granted {
+        final List<FeatureFactory> features = new ArrayList<>();
+        final List<ResourceSpec> resources = new ArrayList<>();
+    }
+
     /** Attach the class, subclass and level features this build has, in a fixed order (it affects roll order). */
     public static BuiltFeatures buildFeatures(BuildSpec spec) {
-        List<FeatureFactory> features = new ArrayList<>();
-        List<ResourceSpec> resources = new ArrayList<>();
-        BuildProgression p = spec.progression();
-        String slug = spec.classInfo().slug();
+        Granted granted = new Granted();
+        switch (spec.classInfo().slug()) {
+            case "barbarian" -> grantBarbarian(spec, granted);
+            case "rogue" -> grantRogue(spec, granted);
+            case "ranger" -> grantRanger(spec, granted);
+            case "paladin" -> grantPaladin(spec, granted);
+            case "monk" -> grantMonk(spec, granted);
+            default -> {
+                // the other classes' abilities come from their spellcasting, not from features built here
+            }
+        }
+        return new BuiltFeatures(granted.features, granted.resources);
+    }
 
-        if (slug.equals("barbarian")) {
-            if (p.rageUses() > 0) {
-                resources.add(new ResourceSpec("rage", p.rageUses(), Recharge.of(1), Recharge.ALL));
-                int bonus = p.rageDamageBonus();
-                features.add(() -> new RageFeature(bonus));
-            }
-            if (spec.level() >= 2) {
-                features.add(RecklessAttackFeature::new); // Reckless Attack at level 2
-            }
+    private static void grantBarbarian(BuildSpec spec, Granted granted) {
+        BuildProgression p = spec.progression();
+        if (p.rageUses() > 0) {
+            granted.resources.add(new ResourceSpec(ResourceIds.RAGE, p.rageUses(), Recharge.of(1), Recharge.FULL));
+            int bonus = p.rageDamageBonus();
+            granted.features.add(() -> new RageFeature(bonus));
         }
-        if (slug.equals("rogue") && p.sneakAttackDice() > 0) {
-            int dice = p.sneakAttackDice();
-            features.add(() -> new SneakAttackFeature(dice));
+        if (spec.level() >= 2) {
+            granted.features.add(RecklessAttackFeature::new); // Reckless Attack at level 2
         }
-        // Ranger: Favored Enemy grants free Hunter's Mark casts (uses = proficiency bonus).
-        if (slug.equals("ranger")) {
-            features.add(HuntersMarkFeature::new);
-            resources.add(new ResourceSpec("hunters-mark", CoreRules.proficiencyBonus(spec.level()), null, Recharge.ALL));
-            // Hunter subclass (level 3): Hunter's Prey - Colossus Slayer.
-            if ("hunter".equals(spec.subclass()) && spec.level() >= 3) {
-                features.add(ColossusSlayerFeature::new);
-            }
+    }
+
+    private static void grantRogue(BuildSpec spec, Granted granted) {
+        int dice = spec.progression().sneakAttackDice();
+        if (dice > 0) {
+            granted.features.add(() -> new SneakAttackFeature(dice));
         }
-        // Paladin's Divine Smite (a slot-fueled radiant rider on a melee hit) once it has slots.
-        if (slug.equals("paladin") && spec.spellcasting() != null && !spec.spellcasting().slots().isEmpty()) {
-            features.add(DivineSmiteFeature::new);
+    }
+
+    /** Favored Enemy grants free Hunter's Mark casts (uses = proficiency bonus). */
+    private static void grantRanger(BuildSpec spec, Granted granted) {
+        granted.features.add(HuntersMarkFeature::new);
+        granted.resources.add(new ResourceSpec(ResourceIds.HUNTERS_MARK, CoreRules.proficiencyBonus(spec.level()), null, Recharge.FULL));
+        // Hunter subclass (level 3): Hunter's Prey - Colossus Slayer.
+        if ("hunter".equals(spec.subclass()) && spec.level() >= 3) {
+            granted.features.add(ColossusSlayerFeature::new);
         }
-        // Paladin's Lay on Hands: a healing pool of 5 HP per level (a Bonus Action to spend).
-        if (slug.equals("paladin")) {
-            resources.add(new ResourceSpec("lay-on-hands", 5 * spec.level(), null, Recharge.ALL));
-            // Aura of Protection comes online at level 6.
-            if (spec.level() >= 6) {
-                features.add(AuraOfProtectionFeature::new);
-            }
+    }
+
+    private static void grantPaladin(BuildSpec spec, Granted granted) {
+        // Divine Smite (a slot-fueled radiant rider on a melee hit) once it has slots.
+        if (spec.spellcasting() != null && !spec.spellcasting().slots().isEmpty()) {
+            granted.features.add(DivineSmiteFeature::new);
         }
-        // Monk: Martial Arts (free bonus unarmed strike) and, from level 2, Focus Points fuelling Stunning Strike
-        // (available once the monk can make two attacks, at 5).
-        if (slug.equals("monk")) {
-            features.add(MartialArtsFeature::new);
-            if (spec.level() >= 2) {
-                resources.add(new ResourceSpec("focus", spec.level(), Recharge.ALL, Recharge.ALL));
-            }
-            if (spec.level() >= 5) {
-                features.add(StunningStrikeFeature::new);
-            }
+        // Lay on Hands: a healing pool of 5 HP per level (a Bonus Action to spend).
+        granted.resources.add(new ResourceSpec(ResourceIds.LAY_ON_HANDS, 5 * spec.level(), null, Recharge.FULL));
+        // Aura of Protection comes online at level 6.
+        if (spec.level() >= 6) {
+            granted.features.add(AuraOfProtectionFeature::new);
         }
-        return new BuiltFeatures(features, resources);
+    }
+
+    /**
+     * Martial Arts (free bonus unarmed strike) and, from level 2, Focus Points fuelling Stunning Strike (available once
+     * the monk can make two attacks, at 5).
+     */
+    private static void grantMonk(BuildSpec spec, Granted granted) {
+        granted.features.add(MartialArtsFeature::new);
+        if (spec.level() >= 2) {
+            granted.resources.add(new ResourceSpec(ResourceIds.FOCUS, spec.level(), Recharge.FULL, Recharge.FULL));
+        }
+        if (spec.level() >= 5) {
+            granted.features.add(StunningStrikeFeature::new);
+        }
     }
 
     /** Compile a build into a {@link Combatant} placed on the board. */

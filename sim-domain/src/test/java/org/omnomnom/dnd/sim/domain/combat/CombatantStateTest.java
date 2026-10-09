@@ -103,8 +103,8 @@ class CombatantStateTest {
     void resourcesRechargeByRestType() {
         Combatant c = make(b -> b.resources(List.of(
                 ResourceSpec.longRest("rage", 3),
-                new ResourceSpec("focus", 4, Recharge.ALL, Recharge.ALL),
-                new ResourceSpec("inspiration", 3, Recharge.of(1), Recharge.ALL))));
+                new ResourceSpec("focus", 4, Recharge.FULL, Recharge.FULL),
+                new ResourceSpec("inspiration", 3, Recharge.of(1), Recharge.FULL))));
         c.spendResource("rage", 2);
         c.spendResource("focus", 4);
         c.spendResource("inspiration", 3);

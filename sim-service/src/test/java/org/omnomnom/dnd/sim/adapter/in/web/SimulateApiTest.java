@@ -436,7 +436,7 @@ class SimulateApiTest {
     }
 
     @Test
-    void theCampaignSeedChoosesTheDays() throws Exception {
+    void theCampaignSeedChoosesTheDays() {
         // A fully specified genome, so the seed only affects the days.
         String genome = "{\"classSlug\":\"barbarian\",\"abilityAssignment\":[0,2,1,3,4,5],\"weaponName\":\"Greataxe\",\"armorName\":null,"
                 + "\"shield\":false,\"twoHanded\":true}";

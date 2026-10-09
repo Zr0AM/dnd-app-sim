@@ -28,6 +28,9 @@ import tools.jackson.databind.ObjectMapper;
  */
 public final class D1ReportStore implements ReportStore {
 
+    /** The column (and result field) that holds when a report was saved. */
+    private static final String SAVED_AT = "saved_at";
+
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
     private static final Pattern ID = FilesystemReportStore.ID;
 
@@ -90,7 +93,7 @@ public final class D1ReportStore implements ReportStore {
             return Optional.empty();
         }
         JsonNode row = rows.get(0);
-        return Optional.of(new Stored(mapper.readValue(row.get("body").asString(), Reports.Report.class), Instant.parse(row.get("saved_at").asString())));
+        return Optional.of(new Stored(mapper.readValue(row.get("body").asString(), Reports.Report.class), Instant.parse(row.get(SAVED_AT).asString())));
     }
 
     @Override
@@ -118,12 +121,12 @@ public final class D1ReportStore implements ReportStore {
         for (JsonNode row : rows) {
             if (items.size() == limit) {
                 JsonNode last = rows.get(limit - 1);
-                next = last.get("saved_at").asString() + "|" + last.get("id").asString();
+                next = last.get(SAVED_AT).asString() + "|" + last.get("id").asString();
                 break;
             }
             Map<String, Object> config = mapper.readValue(row.get("config").asString(), new TypeReference<Map<String, Object>>() {});
             Top top = row.path("top_description").isNull() ? null : new Top(row.get("top_description").asString(), row.get("top_score").asDouble());
-            items.add(new Summary(row.get("id").asString(), Instant.parse(row.get("saved_at").asString()), config, top));
+            items.add(new Summary(row.get("id").asString(), Instant.parse(row.get(SAVED_AT).asString()), config, top));
         }
         return new Page(items, next);
     }

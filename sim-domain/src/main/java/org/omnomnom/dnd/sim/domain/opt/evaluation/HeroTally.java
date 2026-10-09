@@ -31,7 +31,9 @@ final class HeroTally implements EventSink {
             case CombatEvent.Heal h when h.source().equals(id) -> healing += h.amount(); // Lay on Hands
             case CombatEvent.ControlDenied c when c.source().equals(id) -> denied++;
             case CombatEvent.BuffBoost b when b.source().equals(id) -> buffAssists++;
-            default -> {}
+            default -> {
+                // every other event carries nothing to tally
+            }
         }
     }
 

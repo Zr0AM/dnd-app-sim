@@ -13,7 +13,6 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.omnomnom.dnd.sim.application.error.BadRequestException;
 import org.omnomnom.dnd.sim.application.report.ReportStore;
 import org.omnomnom.dnd.sim.testsupport.TestMapper;
 import org.omnomnom.dnd.sim.testsupport.TestReports;

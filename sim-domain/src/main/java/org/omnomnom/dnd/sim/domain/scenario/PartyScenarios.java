@@ -9,6 +9,7 @@ import org.omnomnom.dnd.sim.domain.content.build.Role;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
 import org.omnomnom.dnd.sim.domain.core.Side;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 
 /**
@@ -37,27 +38,21 @@ public final class PartyScenarios {
 
     // Level 5: hordes of weak foes so allies take real damage and a healer has work to do.
     private static final List<Spec> LEVEL_5 = List.of(
-            new Spec("horde", List.of(perMember("goblin-warrior", 5))),
-            new Spec("mixed", List.of(perMember("bugbear-warrior", 2), perMember("goblin-warrior", 2))));
+            new Spec("horde", List.of(perMember(MonsterSlugs.GOBLIN_WARRIOR, 5))),
+            new Spec("mixed", List.of(perMember("bugbear-warrior", 2), perMember(MonsterSlugs.GOBLIN_WARRIOR, 2))));
 
     // Level 11: a legendary dragon boss with fixed adds, and a pack of CR-5 brutes.
     private static final List<Spec> LEVEL_11 = List.of(
-            new Spec("boss-young-dragon", List.of(fixed("young-red-dragon", 1), fixed("winter-wolf", 2))),
-            new Spec("troll-pack", List.of(perMember("troll", 1))));
+            new Spec("boss-young-dragon", List.of(fixed("young-red-dragon", 1), fixed(MonsterSlugs.WINTER_WOLF, 2))),
+            new Spec("troll-pack", List.of(perMember(MonsterSlugs.TROLL, 1))));
 
     // Level 17: an adult dragon boss and a fire-giant pack.
     private static final List<Spec> LEVEL_17 = List.of(
-            new Spec("boss-adult-dragon", List.of(fixed("adult-red-dragon", 1), fixed("troll", 2))),
-            new Spec("giant-pack", List.of(fixed("fire-giant", 1), perMember("troll", 1))));
+            new Spec("boss-adult-dragon", List.of(fixed("adult-red-dragon", 1), fixed(MonsterSlugs.TROLL, 2))),
+            new Spec("giant-pack", List.of(fixed("fire-giant", 1), perMember(MonsterSlugs.TROLL, 1))));
 
     private static List<Spec> specsForLevel(int level) {
-        if (level >= 17) {
-            return LEVEL_17;
-        }
-        if (level >= 11) {
-            return LEVEL_11;
-        }
-        return LEVEL_5;
+        return Tiers.pick(level, LEVEL_5, Tiers.from(11, LEVEL_11), Tiers.from(17, LEVEL_17));
     }
 
     /** An enemy group of a party encounter: {@code perMember} scales with party size, {@code count} is fixed. */
@@ -106,7 +101,7 @@ public final class PartyScenarios {
         boolean heroPlaced = false;
         for (int i = 0; i < template.roles().size(); i++) {
             Role role = template.roles().get(i);
-            Cell position = i < partyCells.size() ? partyCells.get(i) : partyCells.get(partyCells.size() - 1);
+            Cell position = partyCells.get(Math.min(i, partyCells.size() - 1)); // extra slots share the last cell
             // The hero takes the first slot matching its role; duplicate role slots are filled normally.
             if (role == heroSlot && !heroPlaced) {
                 hero.setPosition(position);

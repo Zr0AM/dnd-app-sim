@@ -2,6 +2,7 @@ package org.omnomnom.dnd.sim.domain.content.feature;
 
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.Feature;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 
 /**
  * Martial Arts and Flurry of Blows (Monk): one free bonus-action unarmed strike each turn and, when the monk can
@@ -20,7 +21,7 @@ public final class MartialArtsFeature implements Feature {
     @Override
     public void onTurnStart(Combatant self) {
         // Flurry if we can keep a point in reserve for Stunning Strike.
-        flurryThisTurn = self.resourceCount("focus") > 1 && self.spendResource("focus", 1);
+        flurryThisTurn = self.resourceCount(ResourceIds.FOCUS) > 1 && self.spendResource(ResourceIds.FOCUS, 1);
     }
 
     @Override

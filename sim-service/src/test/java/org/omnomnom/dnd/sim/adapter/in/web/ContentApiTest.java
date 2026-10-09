@@ -117,7 +117,7 @@ class ContentApiTest {
     }
 
     @Test
-    void weaponsArmorsMapsAndPartyTemplates() throws Exception {
+    void weaponsCarryTheirDamageAndProperties() throws Exception {
         JsonNode weapons = fetch("/api/v1/content/weapons?level=3");
         assertThat(weapons).hasSize(8);
         JsonNode longsword = null;
@@ -132,13 +132,19 @@ class ContentApiTest {
         assertThat(longsword.get("category").asString()).isEqualTo("martial");
         assertThat(longsword.get("range").asString()).isEqualTo("melee");
         assertThat(longsword.get("properties")).extracting(JsonNode::asString).contains("versatile");
+    }
 
+    @Test
+    void armorsListLightToHeavy() throws Exception {
         JsonNode armors = fetch("/api/v1/content/armors?level=3");
         assertThat(armors).hasSize(4);
         assertThat(armors.get(3).get("name").asString()).isEqualTo("Chain Mail");
         assertThat(armors.get(3).get("baseAc").asInt()).isEqualTo(16);
         assertThat(armors.get(3).get("category").asString()).isEqualTo("heavy");
+    }
 
+    @Test
+    void mapsReportTheirCapacities() throws Exception {
         JsonNode maps = fetch("/api/v1/content/maps");
         assertThat(maps).hasSize(3);
         JsonNode party = maps.get(2);
@@ -148,7 +154,10 @@ class ContentApiTest {
         assertThat(party.get("enemyCapacity").asInt()).isEqualTo(30);
         assertThat(maps.get(0).get("partyCapacity").asInt()).isEqualTo(1);
         assertThat(maps.get(0).get("enemyCapacity").asInt()).isEqualTo(6);
+    }
 
+    @Test
+    void partyTemplatesListTheirRoles() throws Exception {
         JsonNode templates = fetch("/api/v1/content/party-templates");
         assertThat(templates).hasSize(3);
         assertThat(templates.get(0).get("id").asString()).isEqualTo("R6");

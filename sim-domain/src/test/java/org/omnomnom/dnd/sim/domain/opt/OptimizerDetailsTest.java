@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.adapter.out.content.SqliteContentSource;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
+import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.content.build.FightingStyle;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.opt.campaign.Campaign;
@@ -113,7 +114,8 @@ class OptimizerDetailsTest {
 
     @Test
     void theBenchmarkIsTheSwordAndBoardChampion() {
-        assertThat(Anchor.BENCHMARK).isEqualTo(new Genome(BuildClass.FIGHTER, List.of(0, 3, 1, 4, 5, 2), "Longsword", "Chain Mail", true,
+        Genome benchmark = Anchor.BENCHMARK; // a local, so the constant is not mistaken for the expected value
+        assertThat(benchmark).isEqualTo(new Genome(BuildClass.FIGHTER, List.of(0, 3, 1, 4, 5, 2), "Longsword", "Chain Mail", true,
                 false, FightingStyle.DEFENSE));
         Combatant hero = Genomes.build(Anchor.BENCHMARK, catalog3, "hero");
         assertThat(hero.ac()).isEqualTo(16 + 2 + 1); // chain mail, shield, Defense
@@ -140,7 +142,7 @@ class OptimizerDetailsTest {
     @Test
     void casterPackagesCarryTheirClassFeatures() {
         assertThat(catalog3.casterPackageFor(BuildClass.WARLOCK).shortRestSlots()).isTrue();
-        for (BuildClass c : BuildClass.CASTER) {
+        for (BuildClass c : BuildClass.CASTER_CLASSES) {
             if (c != BuildClass.WARLOCK) {
                 assertThat(catalog3.casterPackageFor(c).shortRestSlots()).as(c.code()).isFalse();
             }
@@ -148,7 +150,7 @@ class OptimizerDetailsTest {
         assertThat(catalog3.casterPackageFor(BuildClass.SORCERER).extraHp()).isEqualTo(3);
         assertThat(catalog3.casterPackageFor(BuildClass.SORCERER).resources()).extracting(r -> r.id() + ":" + r.max()).containsExactly("sorcery:3");
         assertThat(catalog3.casterPackageFor(BuildClass.DRUID).resources()).extracting(r -> r.id() + ":" + r.max()).containsExactly("wild-shape:2");
-        assertThat(catalog3.casterPackageFor(BuildClass.WIZARD).cantrips()).extracting(s -> s.id()).containsExactly("fire-bolt", "ray-of-frost");
+        assertThat(catalog3.casterPackageFor(BuildClass.WIZARD).cantrips()).extracting(Spell::id).containsExactly("fire-bolt", "ray-of-frost");
         assertThat(catalog3.casterPackageFor(BuildClass.CLERIC).shield()).isTrue();
         assertThat(catalog3.gishSpellcastingFor(BuildClass.PALADIN)).isNotNull();
         assertThat(catalog3.gishSpellcastingFor(BuildClass.FIGHTER)).isNull();

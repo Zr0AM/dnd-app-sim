@@ -6,12 +6,16 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.core.importer.Location;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
@@ -25,6 +29,35 @@ import org.springframework.stereotype.Component;
 class ArchitectureTest {
 
     private static final String ROOT = "org.omnomnom.dnd.sim";
+
+    /**
+     * The most other project classes one class of the combat engine may use. This is a ratchet, set at what the largest
+     * class (Combatant) uses today: lower it when a class is split, never raise it. SonarCloud's "Monster Class" rule
+     * (limit 20) counts differently and stays the authority.
+     */
+    private static final int MAX_COLLABORATORS = 25;
+
+    /** Counts the distinct other classes of this project a class refers to, nested classes counted as their outer class. */
+    private static ArchCondition<JavaClass> useAtMostProjectClasses(int max) {
+        return new ArchCondition<>("use at most " + max + " other classes of this project") {
+            @Override
+            public void check(JavaClass javaClass, ConditionEvents events) {
+                String self = outermost(javaClass.getName());
+                long used = javaClass.getDirectDependenciesFromSelf().stream()
+                        .map(dependency -> outermost(dependency.getTargetClass().getName()))
+                        .filter(name -> name.startsWith(ROOT) && !name.equals(self))
+                        .distinct()
+                        .count();
+                events.add(new SimpleConditionEvent(javaClass, used <= max,
+                        javaClass.getName() + " uses " + used + " other project classes (limit " + max + ")"));
+            }
+        };
+    }
+
+    private static String outermost(String className) {
+        int nested = className.indexOf('$');
+        return nested < 0 ? className : className.substring(0, nested);
+    }
 
     /** Test fixtures are published by the library modules for each other's tests; they are not production code. */
     static final class DoNotIncludeTestFixtures implements ImportOption {
@@ -90,6 +123,15 @@ class ArchitectureTest {
             .that().resideInAPackage(ROOT + ".domain.combat..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     ROOT + ".domain.content..", ROOT + ".domain.scenario..", ROOT + ".domain.opt..", ROOT + ".domain.ai..");
+
+    /**
+     * The engine package keeps each class focused: the combat engine was once one class that used 22 others, and was split
+     * into collaborators (see {@code Encounter}). A class that needs more should be split the same way.
+     */
+    @ArchTest
+    static final ArchRule combatClassesStayFocused = classes()
+            .that().resideInAPackage(ROOT + ".domain.combat")
+            .should(useAtMostProjectClasses(MAX_COLLABORATORS));
 
     @ArchTest
     static final ArchRule contentDoesNotReachUp = noClasses()

@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
+import org.omnomnom.dnd.sim.domain.combat.Feature;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellcastingSpec;
 import org.omnomnom.dnd.sim.domain.content.BuildProgression;
 import org.omnomnom.dnd.sim.domain.content.ClassInfo;
@@ -248,22 +249,22 @@ class CharacterCompilerTest {
         BuildProgression rage = new BuildProgression(3, 2, 0, 0);
         Combatant barb = CharacterCompiler.compile(
                 BuildSpec.builder("B", BARBARIAN, 3, AbilityScores.allTens(), GREATAXE).progression(rage).build());
-        assertThat(barb.features().stream().map(f -> f.id())).containsExactly("rage", "reckless-attack");
+        assertThat(barb.features().stream().map(Feature::id)).containsExactly("rage", "reckless-attack");
         assertThat(barb.resourceCount("rage")).isEqualTo(3);
 
         Combatant rogue = CharacterCompiler.compile(BuildSpec.builder("R", ROGUE, 5, AbilityScores.allTens(), RAPIER)
                 .progression(new BuildProgression(0, 0, 3, 1)).build());
-        assertThat(rogue.features().stream().map(f -> f.id())).containsExactly("sneak-attack");
+        assertThat(rogue.features().stream().map(Feature::id)).containsExactly("sneak-attack");
 
         ClassInfo ranger = new ClassInfo("ranger", 10, List.of(Ability.STR, Ability.DEX));
         Combatant hunter = CharacterCompiler.compile(
                 BuildSpec.builder("H", ranger, 5, AbilityScores.allTens(), LONGBOW).subclass("hunter").build());
-        assertThat(hunter.features().stream().map(f -> f.id())).containsExactly("hunters-mark", "colossus-slayer");
+        assertThat(hunter.features().stream().map(Feature::id)).containsExactly("hunters-mark", "colossus-slayer");
         assertThat(hunter.resourceCount("hunters-mark")).isEqualTo(3); // proficiency bonus at level 5
 
         ClassInfo monk = new ClassInfo("monk", 8, List.of(Ability.STR, Ability.DEX));
         Combatant mk = CharacterCompiler.compile(BuildSpec.builder("M", monk, 5, AbilityScores.allTens(), RAPIER).build());
-        assertThat(mk.features().stream().map(f -> f.id())).containsExactly("martial-arts", "stunning-strike");
+        assertThat(mk.features().stream().map(Feature::id)).containsExactly("martial-arts", "stunning-strike");
         assertThat(mk.resourceCount("focus")).isEqualTo(5);
     }
 

@@ -27,7 +27,7 @@ public @interface ValidLevel {
     public final class Validator implements ConstraintValidator<ValidLevel, Integer> {
         @Override
         public boolean isValid(Integer value, ConstraintValidatorContext context) {
-            return value == null || ContentCatalogs.LEVELS.contains(value);
+            return value == null || ContentCatalogs.CHECKPOINT_LEVELS.contains(value);
         }
     }
 }

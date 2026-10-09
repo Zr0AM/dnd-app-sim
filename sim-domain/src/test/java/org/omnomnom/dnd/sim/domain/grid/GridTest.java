@@ -105,7 +105,9 @@ class GridTest {
 
     @Test
     void setTerrainOutOfBoundsThrows() {
-        assertThatThrownBy(() -> Grid.builder(5, 5).wall(c(9, 9))).isInstanceOf(IllegalArgumentException.class);
+        Grid.Builder builder = Grid.builder(5, 5);
+        Cell outside = c(9, 9);
+        assertThatThrownBy(() -> builder.wall(outside)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

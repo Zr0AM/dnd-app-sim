@@ -80,9 +80,8 @@ class Nsga2Test {
         List<double[]> points = List.of(p(1, 3), p(2, 2), p(3, 1));
         double[] d = Nsga2.crowdingDistances(points, List.of(0, 1, 2));
         assertThat(Arrays.stream(d).filter(Double::isInfinite).count()).isEqualTo(2);
-        assertThat(d[1]).isPositive().isFinite();
         // Each axis contributes (3-1)/(3-1) = 1 to the middle point.
-        assertThat(d[1]).isEqualTo(2.0);
+        assertThat(d[1]).isPositive().isFinite().isEqualTo(2.0);
     }
 
     @Test

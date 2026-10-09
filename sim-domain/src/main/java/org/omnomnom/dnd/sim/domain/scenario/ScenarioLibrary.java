@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterCatalog;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 
 /**
  * The curated library of solo-hero encounters a build is tested against: a single foe, a pack, a swarm and a mixed
@@ -18,9 +19,9 @@ public final class ScenarioLibrary {
 
     private record Group(String slug, int count) {}
 
-    private record Spec(String id, Difficulty difficulty, String shape, String mapId, List<Group> enemies) {}
+    private record Spec(String id, Difficulty difficulty, Shape shape, String mapId, List<Group> enemies) {}
 
-    private static Spec spec(String id, Difficulty d, String shape, String mapId, Group... enemies) {
+    private static Spec spec(String id, Difficulty d, Shape shape, String mapId, Group... enemies) {
         return new Spec(id, d, shape, mapId, List.of(enemies));
     }
 
@@ -30,37 +31,31 @@ public final class ScenarioLibrary {
 
     // Level 3. XP (SRD): 1/8 = 25, 1/4 = 50, 1/2 = 100, 1 = 200.
     private static final List<Spec> LEVEL_3 = List.of(
-            spec("l3-pair-goblins", Difficulty.LOW, "pack", Maps.OPEN_FIELD_ID, g("goblin-warrior", 2)), // 100 XP
-            spec("l3-single-bugbear", Difficulty.MODERATE, "single", Maps.OPEN_FIELD_ID, g("bugbear-warrior", 1)), // 200
-            spec("l3-swarm-minions", Difficulty.MODERATE, "swarm", Maps.OPEN_FIELD_ID, g("goblin-minion", 5)), // 125
-            spec("l3-mixed-hobgoblin", Difficulty.MODERATE, "mixed", Maps.CORRIDOR_CHOKEPOINT_ID,
-                    g("hobgoblin-warrior", 1), g("goblin-warrior", 2)), // 200
-            spec("l3-choke-gnolls", Difficulty.MODERATE, "pack", Maps.CORRIDOR_CHOKEPOINT_ID, g("gnoll-warrior", 2))); // 200
+            spec("l3-pair-goblins", Difficulty.LOW, Shape.PACK, Maps.OPEN_FIELD_ID, g(MonsterSlugs.GOBLIN_WARRIOR, 2)), // 100 XP
+            spec("l3-single-bugbear", Difficulty.MODERATE, Shape.SINGLE, Maps.OPEN_FIELD_ID, g("bugbear-warrior", 1)), // 200
+            spec("l3-swarm-minions", Difficulty.MODERATE, Shape.SWARM, Maps.OPEN_FIELD_ID, g("goblin-minion", 5)), // 125
+            spec("l3-mixed-hobgoblin", Difficulty.MODERATE, Shape.MIXED, Maps.CORRIDOR_CHOKEPOINT_ID,
+                    g("hobgoblin-warrior", 1), g(MonsterSlugs.GOBLIN_WARRIOR, 2)), // 200
+            spec("l3-choke-gnolls", Difficulty.MODERATE, Shape.PACK, Maps.CORRIDOR_CHOKEPOINT_ID, g("gnoll-warrior", 2))); // 200
 
     // Level 11: CR-appropriate single foes and small packs for ONE hero (party-scale hordes are the party harness's job).
     private static final List<Spec> LEVEL_11 = List.of(
-            spec("l11-single-troll", Difficulty.MODERATE, "single", Maps.OPEN_FIELD_ID, g("troll", 1)),
-            spec("l11-pack-owlbears", Difficulty.HIGH, "pack", Maps.OPEN_FIELD_ID, g("owlbear", 2)),
-            spec("l11-swarm-wolves", Difficulty.MODERATE, "swarm", Maps.CORRIDOR_CHOKEPOINT_ID, g("winter-wolf", 3)),
-            spec("l11-mixed-troll-wolf", Difficulty.HIGH, "mixed", Maps.CORRIDOR_CHOKEPOINT_ID,
-                    g("troll", 1), g("winter-wolf", 1)));
+            spec("l11-single-troll", Difficulty.MODERATE, Shape.SINGLE, Maps.OPEN_FIELD_ID, g(MonsterSlugs.TROLL, 1)),
+            spec("l11-pack-owlbears", Difficulty.HIGH, Shape.PACK, Maps.OPEN_FIELD_ID, g(MonsterSlugs.OWLBEAR, 2)),
+            spec("l11-swarm-wolves", Difficulty.MODERATE, Shape.SWARM, Maps.CORRIDOR_CHOKEPOINT_ID, g(MonsterSlugs.WINTER_WOLF, 3)),
+            spec("l11-mixed-troll-wolf", Difficulty.HIGH, Shape.MIXED, Maps.CORRIDOR_CHOKEPOINT_ID,
+                    g(MonsterSlugs.TROLL, 1), g(MonsterSlugs.WINTER_WOLF, 1)));
 
     // Level 17: CR 7-10 single foes and packs for ONE hero.
     private static final List<Spec> LEVEL_17 = List.of(
-            spec("l17-single-hezrou", Difficulty.MODERATE, "single", Maps.OPEN_FIELD_ID, g("hezrou", 1)),
-            spec("l17-elite-trex", Difficulty.HIGH, "single", Maps.OPEN_FIELD_ID, g("tyrannosaurus-rex", 1)),
-            spec("l17-pack-trolls", Difficulty.HIGH, "pack", Maps.OPEN_FIELD_ID, g("troll", 2)),
-            spec("l17-mixed-troll-owlbear", Difficulty.HIGH, "mixed", Maps.CORRIDOR_CHOKEPOINT_ID,
-                    g("troll", 1), g("owlbear", 1)));
+            spec("l17-single-hezrou", Difficulty.MODERATE, Shape.SINGLE, Maps.OPEN_FIELD_ID, g("hezrou", 1)),
+            spec("l17-elite-trex", Difficulty.HIGH, Shape.SINGLE, Maps.OPEN_FIELD_ID, g("tyrannosaurus-rex", 1)),
+            spec("l17-pack-trolls", Difficulty.HIGH, Shape.PACK, Maps.OPEN_FIELD_ID, g(MonsterSlugs.TROLL, 2)),
+            spec("l17-mixed-troll-owlbear", Difficulty.HIGH, Shape.MIXED, Maps.CORRIDOR_CHOKEPOINT_ID,
+                    g(MonsterSlugs.TROLL, 1), g(MonsterSlugs.OWLBEAR, 1)));
 
     private static List<Spec> specsForLevel(int level) {
-        if (level >= 17) {
-            return LEVEL_17;
-        }
-        if (level >= 11) {
-            return LEVEL_11;
-        }
-        return LEVEL_3;
+        return Tiers.pick(level, LEVEL_3, Tiers.from(11, LEVEL_11), Tiers.from(17, LEVEL_17));
     }
 
     /**

@@ -20,7 +20,7 @@ public record Scenario(
         String id,
         int level,
         Difficulty difficulty,
-        String shape,
+        Shape shape,
         String mapId,
         int xp,
         Grid grid,

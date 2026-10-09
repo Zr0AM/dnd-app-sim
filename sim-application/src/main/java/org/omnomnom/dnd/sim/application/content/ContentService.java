@@ -6,9 +6,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.omnomnom.dnd.sim.domain.content.equipment.ArmorInfo;
 import org.omnomnom.dnd.sim.domain.content.equipment.WeaponInfo;
 import org.omnomnom.dnd.sim.domain.content.monster.MonsterTemplate;
+import org.omnomnom.dnd.sim.domain.core.Coded;
 import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.domain.opt.genome.MartialCatalog;
 import org.omnomnom.dnd.sim.domain.opt.report.Reports;
@@ -51,7 +53,7 @@ public final class ContentService {
 
     public List<ClassView> classes(int level) {
         MartialCatalog cat = catalogs.level(level).martial();
-        return BuildClass.ALL.stream().map(c -> new ClassView(c, cat.subclassFor(c), c.isCaster() ? "caster" : "martial")).toList();
+        return BuildClass.ALL_CLASSES.stream().map(c -> new ClassView(c, cat.subclassFor(c), c.isCaster() ? "caster" : "martial")).toList();
     }
 
     public List<RoleView> roles() {
@@ -64,21 +66,27 @@ public final class ContentService {
     }
 
     public List<ScenarioView> scenarios(int level) {
-        ContentCatalogs.LevelContent content = catalogs.level(level);
-        List<ScenarioView> out = new ArrayList<>();
-        for (Scenario s : content.martial().scenarios()) {
-            Map<String, Integer> counts = new LinkedHashMap<>();
-            s.plan().forEach(t -> counts.merge(t.slug(), 1, Integer::sum));
-            out.add(new ScenarioView(s.id(), level, "solo", s.difficulty().code(), s.shape(), s.mapId(), s.xp(),
-                    counts.entrySet().stream().map(e -> new EnemyView(e.getKey(), e.getValue(), null)).toList()));
-        }
-        for (PartyScenarios.Description d : PartyScenarios.describe(level)) {
-            out.add(new ScenarioView(d.id(), level, "party", null, null, Maps.PARTY_FIELD_ID, null,
-                    d.enemies().stream()
-                            .map(g -> new EnemyView(g.monsterSlug(), g.count() > 0 ? g.count() : null, g.perMember() > 0 ? g.perMember() : null))
-                            .toList()));
-        }
-        return out;
+        Stream<ScenarioView> solo = catalogs.level(level).martial().scenarios().stream().map(s -> soloView(s, level));
+        Stream<ScenarioView> party = PartyScenarios.describe(level).stream().map(d -> partyView(d, level));
+        return Stream.concat(solo, party).toList();
+    }
+
+    private static ScenarioView soloView(Scenario s, int level) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        s.plan().forEach(t -> counts.merge(t.slug(), 1, Integer::sum));
+        List<EnemyView> enemies = counts.entrySet().stream().map(e -> new EnemyView(e.getKey(), e.getValue(), null)).toList();
+        return new ScenarioView(s.id(), level, "solo", s.difficulty().code(), s.shape().code(), s.mapId(), s.xp(), enemies);
+    }
+
+    private static ScenarioView partyView(PartyScenarios.Description d, int level) {
+        List<EnemyView> enemies = d.enemies().stream()
+                .map(g -> new EnemyView(g.monsterSlug(), positiveOrNull(g.count()), positiveOrNull(g.perMember())))
+                .toList();
+        return new ScenarioView(d.id(), level, "party", null, null, Maps.PARTY_FIELD_ID, null, enemies);
+    }
+
+    private static Integer positiveOrNull(int n) {
+        return n > 0 ? n : null;
     }
 
     /**
@@ -119,7 +127,7 @@ public final class ContentService {
 
     public List<PartyTemplateView> partyTemplates() {
         return PartyTemplate.ALL.stream()
-                .map(t -> new PartyTemplateView(t.id(), t.roles().stream().map(r -> r.code()).toList(), t.flex().code(), t.weight()))
+                .map(t -> new PartyTemplateView(t.id(), t.roles().stream().map(Coded::code).toList(), t.flex().code(), t.weight()))
                 .toList();
     }
 

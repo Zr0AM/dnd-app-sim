@@ -19,7 +19,7 @@ import org.omnomnom.dnd.sim.domain.opt.genome.MartialCatalog;
 public final class ContentCatalogs {
 
     /** The checkpoint levels content is authored for. */
-    public static final List<Integer> LEVELS = List.of(3, 5, 11, 17);
+    public static final List<Integer> CHECKPOINT_LEVELS = List.of(3, 5, 11, 17);
 
     /** The catalogs for one hero level. */
     public record LevelContent(int level, MartialCatalog martial, Map<Role, Fillers.Filler> fillers, PartyEvaluator.Harness partyHarness) {}
@@ -38,7 +38,7 @@ public final class ContentCatalogs {
         MonsterCatalog monsters = MonsterCatalog.load(source);
         Map<Double, Integer> xp = source.xpByChallengeRating();
         Map<Integer, LevelContent> levels = new LinkedHashMap<>();
-        for (int level : LEVELS) {
+        for (int level : CHECKPOINT_LEVELS) {
             Map<Role, Fillers.Filler> fillers = Fillers.load(source, level);
             levels.put(level, new LevelContent(level, MartialCatalog.load(source, monsters, level), fillers,
                     PartyEvaluator.Harness.load(fillers, monsters, level)));
@@ -58,7 +58,7 @@ public final class ContentCatalogs {
     public LevelContent level(int level) {
         LevelContent c = levels.get(level);
         if (c == null) {
-            throw new UnprocessableException("unsupported-level", "level must be one of " + LEVELS, "level");
+            throw new UnprocessableException("unsupported-level", "level must be one of " + CHECKPOINT_LEVELS, "level");
         }
         return c;
     }

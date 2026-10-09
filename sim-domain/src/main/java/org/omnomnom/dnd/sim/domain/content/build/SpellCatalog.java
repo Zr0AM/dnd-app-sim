@@ -9,6 +9,7 @@ import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
 
 /**
@@ -33,7 +34,7 @@ public final class SpellCatalog {
      */
     public static final Spell ELDRITCH_BLAST = new Spell("eldritch-blast", "Eldritch Blast", 0, CastingTime.ACTION, 120, false,
             SpellKind.AttackDamage.of((slot, level) -> Dice.of(1, 10), DamageType.FORCE)
-                    .withBeams(level -> level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1)
+                    .withBeams(SpellCatalog::eldritchBeams)
                     .withAddSpellMod(true));
 
     public static final Spell SACRED_FLAME = new Spell("sacred-flame", "Sacred Flame", 0, CastingTime.ACTION, 60, false,
@@ -121,6 +122,11 @@ public final class SpellCatalog {
     }
 
     private SpellCatalog() {}
+
+    /** Eldritch Blast beams by character level: 1, then 2 / 3 / 4 from levels 5 / 11 / 17. */
+    private static int eldritchBeams(int level) {
+        return Tiers.pick(level, 1, Tiers.from(5, 2), Tiers.from(11, 3), Tiers.from(17, 4));
+    }
 
     /** Every catalog spell, keyed by id, in declaration order. */
     public static Map<String, Spell> all() {

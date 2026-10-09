@@ -4,6 +4,7 @@ import org.omnomnom.dnd.sim.domain.combat.ActiveForm;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.Feature;
+import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 
 /**
  * Wild Shape (Druid). At the start of a turn while it has a use, the druid assumes a beast form: it gains the form's
@@ -34,7 +35,7 @@ public final class WildShapeFeature implements Feature {
         if (self.tempHp() > 0) {
             return; // still in a form with HP to spare
         }
-        if (self.spendResource("wild-shape", 1)) {
+        if (self.spendResource(ResourceIds.WILD_SHAPE, 1)) {
             self.grantTempHp(form.hp());
             self.enterForm(new ActiveForm(form.ac(), form.attack()));
         }

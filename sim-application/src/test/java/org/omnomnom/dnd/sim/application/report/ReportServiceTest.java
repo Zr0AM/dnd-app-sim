@@ -62,10 +62,10 @@ class ReportServiceTest {
     @Test
     void savingReplacesTheStoredReportOnlyWhenAsked() {
         Reports.Report unsaved = service.rescore("0123abcd", "tank", null, false);
-        assertThat(unsaved.weights().get("survival")).isEqualTo(3.0);
-        assertThat(service.get("0123abcd").weights().get("survival")).isEqualTo(1.0);
+        assertThat(unsaved.weights()).containsEntry("survival", 3.0);
+        assertThat(service.get("0123abcd").weights()).containsEntry("survival", 1.0);
         service.rescore("0123abcd", "tank", null, true);
-        assertThat(service.get("0123abcd").weights().get("survival")).isEqualTo(3.0);
+        assertThat(service.get("0123abcd").weights()).containsEntry("survival", 3.0);
         service.rescore("0123abcd", "equal", null, true);
         assertThat(service.get("0123abcd").weights()).isEqualTo(Reports.equalWeights());
     }

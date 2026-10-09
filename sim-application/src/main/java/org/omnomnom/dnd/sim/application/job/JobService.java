@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import org.omnomnom.dnd.sim.application.content.ContentCatalogs;
 import org.omnomnom.dnd.sim.application.error.BusyException;
@@ -17,6 +18,7 @@ import org.omnomnom.dnd.sim.application.evaluation.EvaluationService;
 import org.omnomnom.dnd.sim.application.execution.SimLimits;
 import org.omnomnom.dnd.sim.application.execution.SimulationExecutor;
 import org.omnomnom.dnd.sim.application.report.ReportStore;
+import org.omnomnom.dnd.sim.domain.core.Tiers;
 import org.omnomnom.dnd.sim.domain.opt.campaign.Campaign;
 import org.omnomnom.dnd.sim.domain.opt.genome.BuildClass;
 import org.omnomnom.dnd.sim.domain.opt.report.Reports;
@@ -35,6 +37,12 @@ import org.slf4j.LoggerFactory;
 public final class JobService {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
+
+    /** The progress stage reported while a campaign (adventuring-day) pass runs. */
+    private static final String STAGE_CAMPAIGN = "campaign";
+
+    /** The run-configuration key that records whether the campaign pass was asked for. */
+    private static final String CONFIG_CAMPAIGN = "campaign";
 
     /** Effort presets: population, generations, evaluation runs per scenario, mutation rate. */
     record Effort(int populationSize, int generations, int evalRuns, double mutationRate) {}
@@ -149,6 +157,15 @@ public final class JobService {
             finish(JobView.Status.CANCELLED);
         }
 
+        /** Fail the job unless it already ended; true if it did. The backstop for a job that ended without being settled. */
+        synchronized boolean failUnlessFinished(JobView.Problem problem) {
+            if (status.finished()) {
+                return false;
+            }
+            fail(problem);
+            return true;
+        }
+
         private void finish(JobView.Status end) {
             if (!status.finished()) {
                 status = end;
@@ -206,7 +223,7 @@ public final class JobService {
         ga.put("evalRuns", effort.evalRuns());
         ga.put("mutationRate", effort.mutationRate());
         config.put("ga", ga);
-        config.put("campaign", cmd.campaign());
+        config.put(CONFIG_CAMPAIGN, cmd.campaign());
         config.put("seed", seed);
 
         Job job = new Job(JobView.Kind.OPTIMIZE, seed, warnings);
@@ -233,9 +250,9 @@ public final class JobService {
             Map<String, Double> weights = role.equals("equal") ? Reports.equalWeights() : RolePresets.weights(role);
             Reports.Report report = Reports.build(result, config, cmd.level(), weights, 20);
             if (cmd.campaign()) {
-                job.progress("campaign", 0, 1);
+                job.progress(STAGE_CAMPAIGN, 0, 1);
                 report = Campaign.annotate(report, level.martial(), settings.campaignDays(), Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, seed);
-                job.progress("campaign", 1, 1);
+                job.progress(STAGE_CAMPAIGN, 1, 1);
             }
             if (job.cancelRequested()) {
                 throw new Nsga2.CancelledException();
@@ -261,13 +278,13 @@ public final class JobService {
 
         Job job = new Job(JobView.Kind.CAMPAIGN, daySeed, List.of());
         return submit(job, () -> {
-            job.progress("campaign", 0, 1);
+            job.progress(STAGE_CAMPAIGN, 0, 1);
             Reports.Report annotated = Campaign.annotate(report, content.martial(), simulatedDays, Campaign.DEFAULT_SHORT_REST_HEAL_FRACTION, daySeed);
             if (job.cancelRequested()) {
                 throw new Nsga2.CancelledException();
             }
             store.save(annotated);
-            job.progress("campaign", 1, 1);
+            job.progress(STAGE_CAMPAIGN, 1, 1);
             return annotated.runKey();
         });
     }
@@ -284,7 +301,7 @@ public final class JobService {
                 throw new UnprocessableException("unknown-preset", "preset must be quick, standard or thorough", "preset");
             }
         } else {
-            base = PRESETS.get(level >= 11 ? "thorough" : "standard");
+            base = PRESETS.get(Tiers.pick(level, "standard", Tiers.from(11, "thorough")));
         }
         if (ga == null) {
             return base;
@@ -296,30 +313,14 @@ public final class JobService {
                 ga.mutationRate() != null ? ga.mutationRate() : base.mutationRate());
     }
 
-    private JobView submit(Job job, java.util.concurrent.Callable<String> work) {
+    private JobView submit(Job job, Callable<String> work) {
         synchronized (this) {
             jobs.put(job.id, job);
             forgetOldFinishedJobs();
         }
         Future<?> future;
         try {
-            future = executor.submit(() -> {
-                if (!job.start()) {
-                    return null; // cancelled while queued
-                }
-                try {
-                    job.succeed(work.call());
-                } catch (Nsga2.CancelledException e) {
-                    job.cancelled();
-                } catch (Throwable t) {
-                    LOG.error("job {} failed", job.id, t);
-                    String detail = settings.exposeErrorDetail()
-                            ? (t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage())
-                            : "The job could not be completed; the details are in the service log (job " + job.id + ").";
-                    job.fail(new JobView.Problem("urn:dnd-app-sim:problem:job-failed", "Job failed", 500, detail, "job-failed"));
-                }
-                return null;
-            });
+            future = executor.submit(() -> run(job, work));
         } catch (BusyException e) {
             synchronized (this) {
                 jobs.remove(job.id);
@@ -330,6 +331,44 @@ public final class JobService {
             job.future = future;
         }
         return job.view();
+    }
+
+    /** Run a job's work on an executor thread and settle the job whichever way it ends. */
+    private Void run(Job job, Callable<String> work) {
+        if (!job.start()) {
+            return null; // cancelled while queued
+        }
+        try {
+            job.succeed(work.call());
+        } catch (Nsga2.CancelledException e) {
+            job.cancelled();
+        } catch (Exception e) {
+            LOG.error("job {} failed", job.id, e);
+            job.fail(failure(job, detailFor(job, e)));
+        } finally {
+            // An Error (out of memory, a stack overflow) is not caught above and ends the thread's task; the job must
+            // still reach a final state rather than stay RUNNING forever.
+            if (job.failUnlessFinished(failure(job, genericDetail(job)))) {
+                LOG.error("job {} ended without being settled; it was failed", job.id);
+            }
+        }
+        return null;
+    }
+
+    private JobView.Problem failure(Job job, String detail) {
+        return new JobView.Problem("urn:dnd-app-sim:problem:job-failed", "Job failed", 500, detail, "job-failed");
+    }
+
+    /** The detail a failed job reports: the exception's message if the operator allows it, else a generic note. */
+    private String detailFor(Job job, Exception e) {
+        if (!settings.exposeErrorDetail()) {
+            return genericDetail(job);
+        }
+        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+    }
+
+    private static String genericDetail(Job job) {
+        return "The job could not be completed; the details are in the service log (job " + job.id + ").";
     }
 
     private void forgetOldFinishedJobs() {
