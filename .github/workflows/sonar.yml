@@ -1,0 +1,45 @@
+name: SonarQube
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Build and analyze with SonarQube
+        if: env.SONAR_TOKEN != ''
+        run: ./gradlew build sonar --info -Dsonar.qualitygate.wait=true
+
+      - name: Build without SonarQube (Fork PR Fallback)
+        if: env.SONAR_TOKEN == ''
+        run: |
+          echo "::warning::SONAR_TOKEN unavailable (fork PR). Running standard build without Sonar."
+          ./gradlew build --info

@@ -1,1 +1,14 @@
 // The modules are configured by the convention plugins in buildSrc; see settings.gradle for the layout.
+
+plugins {
+    id 'org.sonarqube' version '7.5.0.8588'
+}
+
+sonar {
+    properties {
+        property 'sonar.projectKey', 'Zr0AM_dnd-app-sim'
+        property 'sonar.organization', 'zr0am'
+        property 'sonar.host.url', 'https://sonarcloud.io'
+        property 'sonar.coverage.jacoco.xmlReportPaths', "${rootDir}/sim-service/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml"
+    }
+}

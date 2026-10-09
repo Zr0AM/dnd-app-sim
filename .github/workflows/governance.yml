@@ -1,0 +1,67 @@
+name: PR Governance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks Scan
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  openapi-lint:
+    name: OpenAPI Contract Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint OpenAPI Spec
+        run: |
+          npm install --global --ignore-scripts @stoplight/spectral-cli@6.17.0
+          spectral lint docs/api/openapi.yaml --fail-severity=error
+
+  pr-governance-gate:
+    name: PR Governance Gate
+    needs: [dependency-review, secret-scan, openapi-lint]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify All Governance Checks Passed
+        run: |
+          if [ "${{ needs.dependency-review.result }}" != "success" ] || \
+             [ "${{ needs.secret-scan.result }}" != "success" ] || \
+             [ "${{ needs.openapi-lint.result }}" != "success" ]; then
+            echo "::error::One or more governance checks failed."
+            exit 1
+          fi
+          echo "All governance checks passed successfully."
