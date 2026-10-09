@@ -1,0 +1,72 @@
+version: 2
+updates:
+  - package-ecosystem: 'gradle'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    # Wait a week before proposing a new release, so a compromised or broken publish is usually
+    # caught and pulled first. Security updates ignore the cooldown.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    # A dependency joins the first group it matches, so specific groups come before catch-alls
+    groups:
+      # All security fixes in one PR, instead of one PR per vulnerable package
+      security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+
+      # Spring Boot and springdoc-openapi track each other and must update together
+      spring:
+        patterns:
+          - 'org.springframework.boot:*'
+          - 'org.springframework:*'
+          - 'org.springdoc:*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Spring majors kept separate: they involve major framework baseline migrations and shouldn't block patch updates
+      spring-major:
+        patterns:
+          - 'org.springframework.boot:*'
+          - 'org.springframework:*'
+          - 'org.springdoc:*'
+        update-types:
+          - 'major'
+
+      # Jackson databind and annotations should stay aligned across Jackson core coordinates
+      jackson:
+        patterns:
+          - 'tools.jackson.*'
+          - 'tools.jackson.core:*'
+          - 'com.fasterxml.jackson.*'
+          - 'com.fasterxml.jackson.core:*'
+
+      # Test frameworks and analysis suites (JUnit 5, AssertJ, ArchUnit)
+      testing:
+        patterns:
+          - 'org.junit.*'
+          - 'org.junit.jupiter:*'
+          - 'org.junit.platform:*'
+          - 'org.assertj:*'
+          - 'com.tngtech.archunit:*'
+
+      # Everything else that's low-risk in one weekly PR; other majors still arrive individually
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - '*'
