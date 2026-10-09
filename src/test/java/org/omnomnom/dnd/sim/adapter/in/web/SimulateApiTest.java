@@ -2,6 +2,7 @@ package org.omnomnom.dnd.sim.adapter.in.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -397,5 +398,40 @@ class SimulateApiTest {
                     .andExpect(jsonPath("$.errors[0].field").value(probe[1]))
                     .andExpect(jsonPath("$.errors[0].code").value(probe[2]));
         }
+    }
+
+    // ---- adversarial review fixes ----------------------------------------------------------------
+
+    @Test
+    void springsOwnClientErrorsKeepTheirStatus() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/nope"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("not-found"))
+                .andExpect(jsonPath("$.status").value(404));
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/simulate/encounter"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("method-not-allowed"))
+                .andExpect(header().string("Allow", org.hamcrest.Matchers.containsString("POST")));
+        mvc.perform(MockMvcRequestBuilders.post("/api/v1/simulate/encounter").contentType(MediaType.TEXT_PLAIN).content("x"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.code").value("unsupported-media-type"));
+    }
+
+    @Test
+    void partyIdsMayNotImpersonateAnEnemy() throws Exception {
+        send("/api/v1/simulate/encounter",
+                "{\"level\":3,\"party\":[{\"type\":\"filler\",\"id\":\"enemy-0\",\"role\":\"tank\"}]," + GOBLINS + ",\"seed\":1}")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("reserved-id"))
+                .andExpect(jsonPath("$.errors[0].field").value("party[0].id"));
+        send("/api/v1/simulate/encounter",
+                "{\"level\":3,\"party\":[{\"type\":\"build\",\"id\":\"enemy-x\",\"genome\":{\"classSlug\":\"fighter\"}}]," + GOBLINS + "}")
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("reserved-id"));
+        // An id that merely contains the word is fine.
+        send("/api/v1/simulate/encounter",
+                "{\"level\":3,\"party\":[{\"type\":\"filler\",\"id\":\"my-enemy-0\",\"role\":\"tank\"}]," + GOBLINS + ",\"seed\":1}")
+                .andExpect(status().isOk());
     }
 }

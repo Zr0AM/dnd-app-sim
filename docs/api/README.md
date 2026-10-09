@@ -123,8 +123,10 @@ security scheme yet.
 - **Status codes**: `400` covers anything the schema forbids (types, bounds, enums, `exactly one of enemies or scenarioId`,
   a build without a genome); `422` covers well-formed requests that cannot be honored. The 422 `code` values in use are
   `unsupported-level`, `unknown-monster`, `monster-has-no-attacks`, `over-capacity`, `unknown-scenario`, `unknown-map`,
-  `map-mismatch`, `duplicate-id`, `invalid-log-run`, `unknown-weapon`, `unknown-armor`, `invalid-ability-assignment`
-  and `unknown-role`. The 400 codes are `invalid-request` (with `errors[]`) and `malformed-json`.
+  `map-mismatch`, `duplicate-id`, `reserved-id` (a party id starting with `enemy-`), `invalid-log-run`, `unknown-weapon`, `unknown-armor`, `invalid-ability-assignment`
+  and `unknown-role`. The 400 codes are `invalid-request` (with `errors[]`) and `malformed-json`. Spring's own client errors keep
+  their status as problems: `404 not-found`, `405 method-not-allowed` (with `Allow`), `415 unsupported-media-type`,
+  `406 not-acceptable`; only genuinely unexpected failures are `500 internal-error`, with details kept in the log.
 - **`seed` on `eval` and `campaign`** only completes an under-specified genome (as the CLI's per-seed random genome did).
   The evaluators' own seeds depend on the scenario and run index alone (common random numbers), so the numbers for a
   fully specified genome do not depend on `seed`. The effective genome is echoed; sending it back reproduces the result.

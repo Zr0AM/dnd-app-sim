@@ -18,12 +18,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class SimulationExecutor implements AutoCloseable {
 
     private final ThreadPoolExecutor pool;
+    private final int busyRetryAfterSeconds;
 
     /**
      * @param threads worker threads; zero or less means the number of available processors
      * @param queueCapacity tasks that may wait for a free worker
      */
     public SimulationExecutor(int threads, int queueCapacity) {
+        this(threads, queueCapacity, 5);
+    }
+
+    /**
+     * @param busyRetryAfterSeconds the {@code Retry-After} a caller is given when the queue is full
+     */
+    public SimulationExecutor(int threads, int queueCapacity, int busyRetryAfterSeconds) {
+        this.busyRetryAfterSeconds = Math.max(1, busyRetryAfterSeconds);
         int n = threads > 0 ? threads : Runtime.getRuntime().availableProcessors();
         AtomicInteger counter = new AtomicInteger();
         ThreadFactory factory = r -> {
@@ -39,7 +48,7 @@ public final class SimulationExecutor implements AutoCloseable {
         try {
             return pool.submit(task);
         } catch (RejectedExecutionException e) {
-            throw new BusyException(5);
+            throw new BusyException(busyRetryAfterSeconds);
         }
     }
 

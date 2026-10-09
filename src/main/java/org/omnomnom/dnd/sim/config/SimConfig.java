@@ -32,7 +32,8 @@ class SimConfig {
 
     @Bean(destroyMethod = "close")
     SimulationExecutor simulationExecutor(SimProperties props) {
-        return new SimulationExecutor(props.executor().threads(), props.executor().queueCapacity());
+        return new SimulationExecutor(props.executor().threads(), props.executor().queueCapacity(),
+                (int) props.executor().busyRetryAfter().toSeconds());
     }
 
     @Bean
