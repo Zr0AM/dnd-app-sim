@@ -1,19 +1,14 @@
 package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.function.Function;
 import org.omnomnom.dnd.sim.domain.combat.event.CombatEvent;
 import org.omnomnom.dnd.sim.domain.combat.event.EventSink;
-import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
-import org.omnomnom.dnd.sim.domain.core.Ability;
-import org.omnomnom.dnd.sim.domain.core.Condition;
 import org.omnomnom.dnd.sim.domain.core.Picks;
 import org.omnomnom.dnd.sim.domain.core.Side;
-import org.omnomnom.dnd.sim.domain.dice.Advantage;
-import org.omnomnom.dnd.sim.domain.dice.Dice;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.Grid;
 import org.omnomnom.dnd.sim.domain.rng.LabeledRandom;
@@ -37,11 +32,7 @@ public final class Encounter {
 
     private final List<Combatant> combatants;
     private final FightContext ctx;
-    private final Rolls rolls;
-    private final DamageApplier applier;
-    private final WeaponAttackResolver weapons;
-    private final MovementResolver movement;
-    private final SpellResolver spells;
+    private final TurnActions.Resolvers resolvers;
     private final Function<Combatant, TurnPolicy> policyFor;
     private int round;
     private List<Combatant> order = List.of();
@@ -49,11 +40,7 @@ public final class Encounter {
     private Encounter(Builder b) {
         this.combatants = new ArrayList<>(b.combatants);
         this.ctx = new FightContext(b.grid, combatants, b.rng, b.sink);
-        this.rolls = new Rolls(ctx);
-        this.applier = new DamageApplier(ctx, rolls);
-        this.weapons = new WeaponAttackResolver(ctx, rolls, applier);
-        this.movement = new MovementResolver(ctx, weapons);
-        this.spells = new SpellResolver(ctx, rolls, applier);
+        this.resolvers = TurnActions.Resolvers.create(ctx);
         this.policyFor = b.policyFor;
     }
 
@@ -106,10 +93,6 @@ public final class Encounter {
         return round;
     }
 
-    private void log(CombatEvent event) {
-        ctx.log(event);
-    }
-
     /** The fight is over when at most one side still has a conscious combatant. */
     public boolean isOver() {
         return !ctx.roster().anyConscious(Side.PARTY) || !ctx.roster().anyConscious(Side.ENEMY);
@@ -130,31 +113,9 @@ public final class Encounter {
      * surprise rule). Ordered high to low; ties break by Dex modifier, then party before enemy, then id.
      */
     public List<Combatant> rollInitiative() {
-        record Scored(Combatant c, int total) {}
-        List<Scored> scored = new ArrayList<>();
-        for (Combatant c : combatants) {
-            Advantage adv = Advantage.NORMAL;
-            if (c.hasCondition(Condition.INVISIBLE)) {
-                adv = Advantage.ADVANTAGE;
-            }
-            if (c.hasCondition(Condition.INCAPACITATED)) {
-                adv = Advantage.DISADVANTAGE;
-            }
-            int total = Dice.rollD20(ctx.rng().stream("initiative:" + c.id()), adv) + c.abilityMod(Ability.DEX);
-            scored.add(new Scored(c, total));
-        }
-        scored.sort(Comparator.<Scored>comparingInt(s -> -s.total())
-                .thenComparingInt(s -> -s.c().abilityMod(Ability.DEX))
-                .thenComparingInt(s -> s.c().side() == Side.PARTY ? 0 : 1)
-                .thenComparing(s -> s.c().id()));
-        List<Combatant> ordered = new ArrayList<>();
-        List<CombatEvent.Initiative.Entry> entries = new ArrayList<>();
-        for (Scored s : scored) {
-            ordered.add(s.c());
-            entries.add(new CombatEvent.Initiative.Entry(s.c().id(), s.total()));
-        }
-        this.order = ordered;
-        log(new CombatEvent.Initiative(entries));
+        Initiative.Result rolled = Initiative.roll(combatants, ctx.rng());
+        this.order = rolled.order();
+        ctx.log(rolled.event());
         return order;
     }
 
@@ -164,59 +125,66 @@ public final class Encounter {
             rollInitiative();
         }
         round += 1;
-        log(new CombatEvent.Round(round));
-
+        ctx.log(new CombatEvent.Round(round));
         for (Combatant c : order) {
             if (isOver()) {
                 break;
             }
-            if (c.dead()) {
-                continue;
+            if (!c.dead()) {
+                takeTurn(c);
             }
-
-            // A boss refreshes its legendary actions at the start of its own turn.
-            if (c.legendaryMax() > 0) {
-                c.refreshLegendary();
-            }
-
-            // Start of turn: a dying creature rolls a death save and does nothing else.
-            if (c.isDying()) {
-                if (!c.stable()) {
-                    DeathSaveOutcome out = c.rollDeathSave(ctx.rng().stream("death:" + c.id()));
-                    log(new CombatEvent.DeathSave(c.id(), out.d20(), out.success()));
-                    if (out.died()) {
-                        log(new CombatEvent.Death(c.id()));
-                    }
-                }
-                takeLegendaryActions(c);
-                continue;
-            }
-
-            if (!Conditions.canAct(c)) {
-                // The creature's turn is denied; attribute it to whoever controls it.
-                for (String source : new java.util.LinkedHashSet<>(c.controlSources())) {
-                    log(new CombatEvent.ControlDenied(c.id(), source));
-                }
-                endOfTurn(c);
-                takeLegendaryActions(c);
-                continue;
-            }
-
-            // Start-of-turn feature hooks (reset per-turn state, auto-activate Rage, ...).
-            for (Feature f : c.features()) {
-                f.onTurnStart(c);
-            }
-
-            log(new CombatEvent.Turn(c.id(), round));
-            int extraAttackActions = c.hasExtraAttackAction() ? 1 : 0;
-            for (Feature f : c.features()) {
-                extraAttackActions += f.bonusAttackActions(c);
-            }
-            TurnResources resources = new TurnResources(Conditions.effectiveSpeedFt(c), extraAttackActions);
-            policyFor.apply(c).act(new Api(c, resources));
-            endOfTurn(c);
-            takeLegendaryActions(c);
         }
+    }
+
+    private void takeTurn(Combatant c) {
+        // A boss refreshes its legendary actions at the start of its own turn.
+        if (c.legendaryMax() > 0) {
+            c.refreshLegendary();
+        }
+        if (c.isDying()) {
+            // Start of turn: a dying creature rolls a death save and does nothing else.
+            rollDeathSave(c);
+        } else {
+            if (Conditions.canAct(c)) {
+                act(c);
+            } else {
+                denyTurn(c);
+            }
+            endOfTurn(c);
+        }
+        takeLegendaryActions(c);
+    }
+
+    private void rollDeathSave(Combatant c) {
+        if (c.stable()) {
+            return;
+        }
+        DeathSaveOutcome out = c.rollDeathSave(ctx.rng().stream("death:" + c.id()));
+        ctx.log(new CombatEvent.DeathSave(c.id(), out.d20(), out.success()));
+        if (out.died()) {
+            ctx.log(new CombatEvent.Death(c.id()));
+        }
+    }
+
+    /** The creature's turn is denied; attribute it to whoever controls it. */
+    private void denyTurn(Combatant c) {
+        new LinkedHashSet<>(c.controlSources()).forEach(source -> ctx.log(new CombatEvent.ControlDenied(c.id(), source)));
+    }
+
+    /** A normal turn: start-of-turn feature hooks, then the creature's policy acts with fresh turn resources. */
+    private void act(Combatant c) {
+        // Start-of-turn feature hooks (reset per-turn state, auto-activate Rage, ...).
+        for (Feature f : c.features()) {
+            f.onTurnStart(c);
+        }
+
+        ctx.log(new CombatEvent.Turn(c.id(), round));
+        int extraAttackActions = c.hasExtraAttackAction() ? 1 : 0;
+        for (Feature f : c.features()) {
+            extraAttackActions += f.bonusAttackActions(c);
+        }
+        TurnResources resources = new TurnResources(Conditions.effectiveSpeedFt(c), extraAttackActions);
+        policyFor.apply(c).act(new TurnActions(c, resources, resolvers));
     }
 
     /** End-of-turn upkeep: tick timed conditions (repeat saves, durations) and buffs. */
@@ -232,43 +200,35 @@ public final class Encounter {
      */
     private void takeLegendaryActions(Combatant justActed) {
         for (Combatant boss : combatants) {
-            if (boss == justActed || !boss.isConscious() || boss.legendaryRemaining() <= 0) {
-                continue;
+            if (boss != justActed && boss.isConscious() && boss.legendaryRemaining() > 0) {
+                legendaryAttack(boss);
             }
-            AttackProfile weapon = bestAttack(boss);
-            if (weapon == null) {
-                continue;
-            }
-            int reach;
-            if (weapon.kind() == AttackKind.MELEE) {
-                reach = weapon.reachFtOrDefault();
-            } else if (weapon.rangeLongFt() != null) {
-                reach = weapon.rangeLongFt();
-            } else if (weapon.rangeFt() != null) {
-                reach = weapon.rangeFt();
-            } else {
-                reach = 5;
-            }
-            Combatant target = null;
-            int best = Integer.MAX_VALUE;
-            for (Combatant t : combatants) {
-                if (t.side() != boss.side() && t.isConscious()) {
-                    int d = distanceFt(boss, t);
-                    if (d < best) {
-                        best = d;
-                        target = t;
-                    }
-                }
-            }
-            if (target == null || best > reach) {
-                continue;
-            }
-            if (!boss.spendLegendary()) {
-                continue;
-            }
-            int dealt = weapons.resolve(boss, target, weapon, WeaponAttackResolver.Source.OPPORTUNITY).orElse(0);
-            log(new CombatEvent.Legendary(boss.id(), target.id(), dealt));
         }
+    }
+
+    private void legendaryAttack(Combatant boss) {
+        AttackProfile weapon = bestAttack(boss);
+        if (weapon == null) {
+            return;
+        }
+        Optional<Combatant> nearest = Picks.firstMax(ctx.roster().consciousOpponents(boss), t -> -ctx.distanceFt(boss, t));
+        if (nearest.isEmpty() || ctx.distanceFt(boss, nearest.get()) > reachFt(weapon) || !boss.spendLegendary()) {
+            return;
+        }
+        Combatant target = nearest.get();
+        int dealt = resolvers.weapons().resolve(boss, target, weapon, WeaponAttackResolver.Source.OPPORTUNITY).orElse(0);
+        ctx.log(new CombatEvent.Legendary(boss.id(), target.id(), dealt));
+    }
+
+    /** How far a weapon reaches: its melee reach, else its longest stated range, else the standard 5 ft. */
+    private static int reachFt(AttackProfile weapon) {
+        if (weapon.kind() == AttackKind.MELEE) {
+            return weapon.reachFtOrDefault();
+        }
+        if (weapon.rangeLongFt() != null) {
+            return weapon.rangeLongFt();
+        }
+        return weapon.rangeFt() != null ? weapon.rangeFt() : AttackProfile.DEFAULT_REACH_FT;
     }
 
     /** Run the fight to a conclusion (or the round cap). */
@@ -280,153 +240,13 @@ public final class Encounter {
             runRound();
         }
         Side winner = winner();
-        log(new CombatEvent.End(round, winner));
+        ctx.log(new CombatEvent.End(round, winner));
         return new RunResult(round, winner);
     }
 
     public RunResult run() {
         return run(DEFAULT_MAX_ROUNDS);
     }
-
-    private int distanceFt(Combatant a, Combatant b) {
-        return ctx.distanceFt(a, b);
-    }
-
-    // ---- the policy-facing API -----------------------------------------------------------------
-
-    private final class Api implements TurnApi {
-        private final Combatant self;
-        private final TurnResources resources;
-
-        Api(Combatant self, TurnResources resources) {
-            this.self = self;
-            this.resources = resources;
-        }
-
-        @Override
-        public Combatant self() {
-            return self;
-        }
-
-        @Override
-        public TurnResources resources() {
-            return resources;
-        }
-
-        @Override
-        public List<Combatant> enemies() {
-            return ctx.roster().consciousOpponents(self);
-        }
-
-        @Override
-        public List<Combatant> allies() {
-            return ctx.roster().consciousAllies(self);
-        }
-
-        @Override
-        public List<Combatant> allAllies() {
-            return ctx.roster().livingAllies(self);
-        }
-
-        @Override
-        public boolean moveTo(Cell dest) {
-            return movement.moveTo(self, dest, resources);
-        }
-
-        @Override
-        public OptionalInt attack(Combatant target, AttackProfile profile) {
-            return Encounter.this.attack(self, target, profile, resources);
-        }
-
-        @Override
-        public OptionalInt castSpell(Spell spell, Combatant target, Integer slotLevel, boolean quickened) {
-            return spells.cast(self, spell, target, slotLevel, resources, quickened);
-        }
-
-        @Override
-        public OptionalInt layOnHands(Combatant target) {
-            return Encounter.this.layOnHands(self, target, resources);
-        }
-
-        @Override
-        public boolean markTarget(Combatant target) {
-            return Encounter.this.markTarget(self, target, resources);
-        }
-    }
-
-    /**
-     * Place Hunter's Mark (Ranger): a Bonus Action that marks an enemy and starts concentration, spending one of the
-     * ranger's free uses (Favored Enemy). The Hunter's Mark feature then adds its damage to hits on the target.
-     */
-    private boolean markTarget(Combatant self, Combatant target, TurnResources resources) {
-        if (!resources.bonus || target.side() == self.side()) {
-            return false;
-        }
-        if (self.resourceCount(ResourceIds.HUNTERS_MARK) <= 0) {
-            return false;
-        }
-        self.spendResource(ResourceIds.HUNTERS_MARK, 1);
-        self.setMarkedTarget(target.id());
-        self.setConcentratingOn(ResourceIds.HUNTERS_MARK);
-        resources.bonus = false;
-        log(new CombatEvent.Marked(self.id(), target.id()));
-        return true;
-    }
-
-    /** Lay on Hands: a Bonus Action that heals {@code target} from the 'lay-on-hands' pool. */
-    private OptionalInt layOnHands(Combatant self, Combatant target, TurnResources resources) {
-        if (!resources.bonus) {
-            return OptionalInt.empty();
-        }
-        int pool = self.resourceCount(ResourceIds.LAY_ON_HANDS);
-        if (pool <= 0 || !target.isAlive()) {
-            return OptionalInt.empty();
-        }
-        int missing = Math.max(1, target.maxHp() - target.hp());
-        int draw = Math.min(pool, missing);
-        int healed = target.heal(draw);
-        self.spendResource(ResourceIds.LAY_ON_HANDS, draw);
-        resources.bonus = false;
-        log(new CombatEvent.Heal(self.id(), target.id(), healed));
-        return OptionalInt.of(healed);
-    }
-
-    // ---- weapon attacks ------------------------------------------------------------------------
-
-    private OptionalInt attack(Combatant self, Combatant target, AttackProfile profile, TurnResources resources) {
-        if (!target.isConscious()) {
-            return OptionalInt.empty();
-        }
-        // The first attack spends the Attack action and grants the Extra Attack(s); further attacks in the same
-        // action draw from attacksRemaining. Once both are spent, a Haste-style extra action can fund one more single
-        // weapon attack.
-        boolean usingAction = resources.action;
-        boolean usingExtra = !usingAction && resources.attacksRemaining <= 0 && resources.extraAttackActions > 0;
-        if (!usingAction && resources.attacksRemaining <= 0 && !usingExtra) {
-            return OptionalInt.empty();
-        }
-
-        OptionalInt dmg = weapons.resolve(self, target, profile, WeaponAttackResolver.Source.ACTION);
-        if (dmg.isEmpty()) {
-            return dmg;
-        }
-
-        if (usingAction) {
-            resources.action = false;
-            resources.attacksRemaining = self.extraAttacks();
-        } else if (usingExtra) {
-            resources.extraAttackActions -= 1; // one attack only, no Extra Attack chain
-            String source = self.buffSourceFor("haste");
-            if (source != null) {
-                log(new CombatEvent.BuffBoost(source, "haste", self.id(), 1));
-            }
-        } else {
-            resources.attacksRemaining -= 1;
-        }
-        return dmg;
-    }
-
-    // ---- helpers -------------------------------------------------------------------------------
 
     /**
      * Paladin Aura of Protection: the bonus a saving creature gets from nearby allied paladins' auras - the best
