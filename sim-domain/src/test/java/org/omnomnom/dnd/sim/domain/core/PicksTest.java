@@ -23,6 +23,13 @@ class PicksTest {
     }
 
     @Test
+    void firstMinPicksTheLowestAndTheFirstOfTies() {
+        List<Item> items = List.of(new Item("a", 3), new Item("b", 1), new Item("c", 1), new Item("d", 2));
+        assertThat(Picks.firstMin(items, Item::score)).map(Item::name).contains("b");
+        assertThat(Picks.firstMin(List.<Item>of(), Item::score)).isEmpty();
+    }
+
+    @Test
     void anEmptyInputPicksNothing() {
         assertThat(Picks.firstMax(List.<Item>of(), Item::score)).isEmpty();
     }

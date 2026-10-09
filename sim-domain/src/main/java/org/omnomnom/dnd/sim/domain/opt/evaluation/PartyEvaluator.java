@@ -52,68 +52,65 @@ public final class PartyEvaluator {
 
     public static PartyEvalResult evaluate(
             Function<String, Combatant> heroFactory, Harness harness, Role heroRole, List<PartyTemplate> templates, int runsPerScenario) {
-        List<Double> wins = new ArrayList<>();
-        List<Double> damage = new ArrayList<>();
-        List<Double> healing = new ArrayList<>();
-        List<Double> assists = new ArrayList<>();
-        List<Double> denied = new ArrayList<>();
-        List<Double> heroHp = new ArrayList<>();
-        List<Double> roundsEffective = new ArrayList<>();
-        List<Double> alliesAlive = new ArrayList<>();
-
+        List<Run> runs = new ArrayList<>();
         for (PartyTemplate template : templates) {
-            List<PartyScenario> scenarios = harness.scenariosByPartySize().getOrDefault(template.roles().size(), List.of());
-            for (PartyScenario scenario : scenarios) {
+            for (PartyScenario scenario : harness.scenariosByPartySize().getOrDefault(template.roles().size(), List.of())) {
                 for (int i = 0; i < runsPerScenario; i++) {
-                    LabeledRandom rng = new LabeledRandom(Seeds.seedFrom("party", template.id(), scenario.id(), i));
-                    Combatant hero = heroFactory.apply(SoloEvaluator.HERO_ID);
-                    List<Combatant> party = PartyScenarios.assemble(harness.fillers(), template, hero, heroRole, scenario.partyCells());
-                    List<Combatant> all = new ArrayList<>(party);
-                    all.addAll(scenario.spawnEnemies());
-                    HeroTally tally = new HeroTally(SoloEvaluator.HERO_ID);
-                    Encounter.RunResult res = Encounter.builder(scenario.grid(), all, rng)
-                            .policyFor(c -> TacticalPolicy.DEFAULT)
-                            .sink(tally)
-                            .build()
-                            .run(ROUND_CAP);
-                    boolean won = res.winner() == Side.PARTY;
-                    wins.add(won ? 1.0 : 0.0);
-                    damage.add(tally.damage());
-                    healing.add(tally.healing());
-                    assists.add((double) tally.buffAssists());
-                    denied.add((double) tally.actionsDenied());
-                    heroHp.add(hero.isConscious() ? (double) hero.hp() / hero.maxHp() : 0);
-                    roundsEffective.add(won ? (double) res.rounds() : ROUND_CAP);
-                    int allies = 0;
-                    int alive = 0;
-                    for (Combatant c : party) {
-                        if (c != hero) {
-                            allies++;
-                            if (c.isAlive()) {
-                                alive++;
-                            }
-                        }
-                    }
-                    alliesAlive.add(allies > 0 ? (double) alive / allies : 1.0);
+                    runs.add(fight(heroFactory, harness, heroRole, template, scenario, i));
                 }
             }
         }
+        return summarize(runs);
+    }
 
-        int runs = wins.size();
-        int winCount = (int) wins.stream().mapToDouble(Double::doubleValue).sum();
-        double avgHealing = Stats.mean(healing);
-        double avgAssists = Stats.mean(assists);
+    /** What one fight contributes to the evaluation, attributed to the hero. */
+    private record Run(
+            boolean won, double damage, double healing, double assists, double denied, double heroHp, double roundsEffective,
+            double alliesAlive) {}
+
+    private static Run fight(
+            Function<String, Combatant> heroFactory, Harness harness, Role heroRole, PartyTemplate template, PartyScenario scenario,
+            int runIndex) {
+        LabeledRandom rng = new LabeledRandom(Seeds.seedFrom("party", template.id(), scenario.id(), runIndex));
+        Combatant hero = heroFactory.apply(SoloEvaluator.HERO_ID);
+        List<Combatant> party = PartyScenarios.assemble(harness.fillers(), template, hero, heroRole, scenario.partyCells());
+        List<Combatant> all = new ArrayList<>(party);
+        all.addAll(scenario.spawnEnemies());
+        HeroTally tally = new HeroTally(SoloEvaluator.HERO_ID);
+        Encounter.RunResult res = Encounter.builder(scenario.grid(), all, rng)
+                .policyFor(c -> TacticalPolicy.DEFAULT)
+                .sink(tally)
+                .build()
+                .run(ROUND_CAP);
+        boolean won = res.winner() == Side.PARTY;
+        double heroHp = hero.isConscious() ? (double) hero.hp() / hero.maxHp() : 0;
+        return new Run(won, tally.damage(), tally.healing(), tally.buffAssists(), tally.actionsDenied(), heroHp,
+                won ? res.rounds() : ROUND_CAP, fractionOfAlliesAlive(party, hero));
+    }
+
+    /** The share of the hero's allies still alive; 1 when it has none. */
+    private static double fractionOfAlliesAlive(List<Combatant> party, Combatant hero) {
+        long allies = party.stream().filter(c -> c != hero).count();
+        long alive = party.stream().filter(c -> c != hero && c.isAlive()).count();
+        return allies > 0 ? (double) alive / allies : 1.0;
+    }
+
+    private static PartyEvalResult summarize(List<Run> runs) {
+        int count = runs.size();
+        int winCount = (int) runs.stream().filter(Run::won).count();
+        double avgHealing = Stats.mean(Samples.column(runs, Run::healing));
+        double avgAssists = Stats.mean(Samples.column(runs, Run::assists));
         return new PartyEvalResult(
-                runs > 0 ? (double) winCount / runs : 0,
-                Stats.mean(damage),
+                count > 0 ? (double) winCount / count : 0,
+                Stats.mean(Samples.column(runs, Run::damage)),
                 avgHealing,
                 avgAssists,
                 avgHealing + avgAssists,
-                Stats.mean(denied),
-                Stats.mean(heroHp),
-                Stats.mean(roundsEffective),
-                Stats.mean(alliesAlive),
-                runs,
-                Stats.wilsonInterval(winCount, runs));
+                Stats.mean(Samples.column(runs, Run::denied)),
+                Stats.mean(Samples.column(runs, Run::heroHp)),
+                Stats.mean(Samples.column(runs, Run::roundsEffective)),
+                Stats.mean(Samples.column(runs, Run::alliesAlive)),
+                count,
+                Stats.wilsonInterval(winCount, count));
     }
 }

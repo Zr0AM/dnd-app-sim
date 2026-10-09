@@ -2,11 +2,12 @@ package org.omnomnom.dnd.sim.domain.opt.report;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.AbilityScores;
 import org.omnomnom.dnd.sim.domain.core.FloatOrder;
@@ -67,13 +68,10 @@ public final class Reports {
         AbilityScores ab = Genomes.abilitiesFrom(g.abilityAssignment());
         List<Ability> order = new ArrayList<>(List.of(Ability.values()));
         order.sort((a, b) -> Integer.compare(ab.get(b), ab.get(a))); // stable: ties keep str..cha order
-        StringBuilder top = new StringBuilder();
-        for (int i = 0; i < 2; i++) {
-            if (i > 0) {
-                top.append(", ");
-            }
-            top.append(order.get(i).code().toUpperCase(java.util.Locale.ROOT)).append(' ').append(ab.get(order.get(i)));
-        }
+        String top = order.stream()
+                .limit(2)
+                .map(a -> a.code().toUpperCase(Locale.ROOT) + ' ' + ab.get(a))
+                .collect(Collectors.joining(", "));
         List<String> gear = new ArrayList<>();
         gear.add(g.twoHanded() ? g.weaponName() + " (2H)" : g.weaponName());
         if (g.shield()) {
@@ -92,11 +90,7 @@ public final class Reports {
 
     /** The equal-weight default over the objectives. */
     public static Map<String, Double> equalWeights() {
-        Map<String, Double> w = new LinkedHashMap<>();
-        for (String name : Objectives.NAMES) {
-            w.put(name, 1.0);
-        }
-        return w;
+        return Objectives.NAMES.stream().collect(Collectors.toMap(name -> name, name -> 1.0, (a, b) -> a, LinkedHashMap::new));
     }
 
     /**
@@ -109,15 +103,11 @@ public final class Reports {
         for (int i = 0; i < Objectives.NAMES.size(); i++) {
             String name = Objectives.NAMES.get(i);
             double w = weights.getOrDefault(name, 0.0);
-            if (w == 0) {
-                continue;
+            double[] bound = bounds.get(name); // none when the objective has no bounds in this report; it is skipped
+            if (w != 0 && bound != null) {
+                sum += w * normalize(objectives[i], bound[0], bound[1]);
+                total += w;
             }
-            double[] bound = bounds.get(name);
-            if (bound == null) {
-                continue; // objective has no bounds in this report; skip
-            }
-            sum += w * normalize(objectives[i], bound[0], bound[1]);
-            total += w;
         }
         return total > 0 ? sum / total : 0;
     }
@@ -129,55 +119,50 @@ public final class Reports {
     /** Build the report from an NSGA-II result. */
     public static Report build(Nsga2.Result result, Map<String, Object> config, int level, Map<String, Double> weights, int leaderboardSize) {
         List<Nsga2.Individual> pop = result.population();
-
-        Map<String, double[]> bounds = new LinkedHashMap<>();
-        for (int i = 0; i < Objectives.NAMES.size(); i++) {
-            double min = Double.POSITIVE_INFINITY;
-            double max = Double.NEGATIVE_INFINITY;
-            for (Nsga2.Individual ind : pop) {
-                min = Math.min(min, ind.objective(i));
-                max = Math.max(max, ind.objective(i));
-            }
-            bounds.put(Objectives.NAMES.get(i), new double[] {min, max});
-        }
-
-        java.util.function.Function<Nsga2.Individual, Entry> toEntry = ind -> {
-            Map<String, Double> objectives = new LinkedHashMap<>();
-            for (int i = 0; i < Objectives.NAMES.size(); i++) {
-                objectives.put(Objectives.NAMES.get(i), ind.objective(i));
-            }
-            EvalResult r = ind.result();
-            return new Entry(
-                    Genomes.key(ind.genome()),
-                    ind.rank(),
-                    ind.genome(),
-                    describe(ind.genome(), level),
-                    new Metrics(r.winRate(), r.avgDamageDealt(), r.avgHpFracRetained(), r.avgRounds(), r.runs()),
-                    objectives,
-                    weightedScore(ind.objectives(), bounds, weights),
-                    null);
-        };
+        Map<String, double[]> bounds = objectiveBounds(pop);
+        Function<Nsga2.Individual, Entry> toEntry = ind -> entryOf(ind, level, bounds, weights);
         Comparator<Entry> byScore = FloatOrder.descendingBy(Entry::weightedScore);
 
-        // De-duplicate by genome key for the leaderboard (the population can repeat elites).
-        Set<String> seen = new HashSet<>();
-        List<Entry> leaderboard = new ArrayList<>();
-        for (Nsga2.Individual ind : pop) {
-            Entry e = toEntry.apply(ind);
-            if (seen.add(e.key())) {
-                leaderboard.add(e);
-            }
-        }
-        leaderboard.sort(byScore);
-        List<Entry> board = List.copyOf(leaderboard.subList(0, Math.min(leaderboardSize, leaderboard.size())));
-
-        List<Entry> front = new ArrayList<>();
-        for (Nsga2.Individual ind : result.front()) {
-            front.add(toEntry.apply(ind));
-        }
-        front.sort(byScore);
+        // De-duplicate by genome key for the leaderboard (the population can repeat elites); the first occurrence wins.
+        List<Entry> board = pop.stream()
+                .map(toEntry)
+                .collect(Collectors.toMap(Entry::key, Function.identity(), (first, repeat) -> first, LinkedHashMap::new))
+                .values().stream()
+                .sorted(byScore)
+                .limit(leaderboardSize)
+                .toList();
+        List<Entry> front = result.front().stream().map(toEntry).sorted(byScore).toList();
 
         return new Report(VERSION, runKey(canonicalJson(config)), config, Objectives.NAMES, bounds, weights, List.copyOf(front), board);
+    }
+
+    /** Each objective's lowest and highest value across the population. */
+    private static Map<String, double[]> objectiveBounds(List<Nsga2.Individual> pop) {
+        Map<String, double[]> bounds = new LinkedHashMap<>();
+        for (int i = 0; i < Objectives.NAMES.size(); i++) {
+            int objective = i;
+            double min = pop.stream().mapToDouble(ind -> ind.objective(objective)).min().orElse(Double.POSITIVE_INFINITY);
+            double max = pop.stream().mapToDouble(ind -> ind.objective(objective)).max().orElse(Double.NEGATIVE_INFINITY);
+            bounds.put(Objectives.NAMES.get(i), new double[] {min, max});
+        }
+        return bounds;
+    }
+
+    private static Entry entryOf(Nsga2.Individual ind, int level, Map<String, double[]> bounds, Map<String, Double> weights) {
+        Map<String, Double> objectives = new LinkedHashMap<>();
+        for (int i = 0; i < Objectives.NAMES.size(); i++) {
+            objectives.put(Objectives.NAMES.get(i), ind.objective(i));
+        }
+        EvalResult r = ind.result();
+        return new Entry(
+                Genomes.key(ind.genome()),
+                ind.rank(),
+                ind.genome(),
+                describe(ind.genome(), level),
+                new Metrics(r.winRate(), r.avgDamageDealt(), r.avgHpFracRetained(), r.avgRounds(), r.runs()),
+                objectives,
+                weightedScore(ind.objectives(), bounds, weights),
+                null);
     }
 
     /**
@@ -199,39 +184,39 @@ public final class Reports {
         return sb.toString();
     }
 
-    @SuppressWarnings("unchecked")
     private static void appendJson(StringBuilder sb, Object v) {
-        if (v == null) {
-            sb.append("null");
-        } else if (v instanceof Map<?, ?> m) {
-            sb.append('{');
-            boolean first = true;
-            for (Map.Entry<String, Object> e : ((Map<String, Object>) m).entrySet()) {
-                if (!first) {
-                    sb.append(',');
-                }
-                first = false;
-                appendString(sb, e.getKey());
-                sb.append(':');
-                appendJson(sb, e.getValue());
-            }
-            sb.append('}');
-        } else if (v instanceof List<?> l) {
-            sb.append('[');
-            for (int i = 0; i < l.size(); i++) {
-                if (i > 0) {
-                    sb.append(',');
-                }
-                appendJson(sb, l.get(i));
-            }
-            sb.append(']');
-        } else if (v instanceof String s) {
-            appendString(sb, s);
-        } else if (v instanceof Double d && d == Math.rint(d) && !d.isInfinite()) {
-            sb.append(d.longValue());
-        } else {
-            sb.append(v);
+        switch (v) {
+            case null -> sb.append("null");
+            case Map<?, ?> m -> appendMap(sb, m);
+            case List<?> l -> appendList(sb, l);
+            case String s -> appendString(sb, s);
+            case Double d when d == Math.rint(d) && !d.isInfinite() -> sb.append(d.longValue()); // whole numbers print without a fraction
+            default -> sb.append(v);
         }
+    }
+
+    private static void appendMap(StringBuilder sb, Map<?, ?> map) {
+        sb.append('{');
+        String separator = "";
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+            sb.append(separator);
+            separator = ",";
+            appendString(sb, (String) e.getKey());
+            sb.append(':');
+            appendJson(sb, e.getValue());
+        }
+        sb.append('}');
+    }
+
+    private static void appendList(StringBuilder sb, List<?> list) {
+        sb.append('[');
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            appendJson(sb, list.get(i));
+        }
+        sb.append(']');
     }
 
     private static void appendString(StringBuilder sb, String s) {
@@ -249,20 +234,19 @@ public final class Reports {
 
     /** Re-rank an existing report under new weights without re-simulating. */
     public static Report rescore(Report report, Map<String, Double> weights) {
-        java.util.function.UnaryOperator<List<Entry>> rescoreAll = entries -> {
-            List<Entry> out = new ArrayList<>();
-            for (Entry e : entries) {
-                double[] vec = new double[report.objectiveNames().size()];
-                for (int i = 0; i < vec.length; i++) {
-                    vec[i] = e.objectives().get(report.objectiveNames().get(i));
-                }
-                out.add(new Entry(e.key(), e.rank(), e.genome(), e.description(), e.metrics(), e.objectives(),
-                        weightedScore(vec, report.objectiveBounds(), weights), e.campaignDayWinRate()));
-            }
-            out.sort(FloatOrder.descendingBy(Entry::weightedScore));
-            return List.copyOf(out);
-        };
         return new Report(report.version(), report.runKey(), report.config(), report.objectiveNames(), report.objectiveBounds(),
-                weights, rescoreAll.apply(report.paretoFront()), rescoreAll.apply(report.leaderboard()));
+                weights, rescored(report, report.paretoFront(), weights), rescored(report, report.leaderboard(), weights));
+    }
+
+    /** The entries with scores recomputed under {@code weights}, best first. */
+    private static List<Entry> rescored(Report report, List<Entry> entries, Map<String, Double> weights) {
+        return entries.stream()
+                .map(e -> {
+                    double[] vector = report.objectiveNames().stream().mapToDouble(name -> e.objectives().get(name)).toArray();
+                    return new Entry(e.key(), e.rank(), e.genome(), e.description(), e.metrics(), e.objectives(),
+                            weightedScore(vector, report.objectiveBounds(), weights), e.campaignDayWinRate());
+                })
+                .sorted(FloatOrder.descendingBy(Entry::weightedScore))
+                .toList();
     }
 }

@@ -9,5 +9,8 @@ public final class FeatureIds {
     /** Paladin Aura of Protection: allies near the paladin add its Charisma modifier to saving throws. */
     public static final String AURA_OF_PROTECTION = "aura-of-protection";
 
+    /** Ranger Hunter's Mark: the feature that adds damage to hits on the marked target. */
+    public static final String HUNTERS_MARK = "hunters-mark";
+
     private FeatureIds() {}
 }

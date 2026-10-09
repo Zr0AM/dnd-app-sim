@@ -2,15 +2,20 @@ package org.omnomnom.dnd.sim.domain.ai;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.ToDoubleFunction;
+import java.util.stream.Stream;
 import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
+import org.omnomnom.dnd.sim.domain.combat.FeatureIds;
 import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.TurnApi;
 import org.omnomnom.dnd.sim.domain.combat.TurnPolicy;
 import org.omnomnom.dnd.sim.domain.combat.spell.Spell;
 import org.omnomnom.dnd.sim.domain.combat.spell.SpellKind;
+import org.omnomnom.dnd.sim.domain.core.Picks;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
 import org.omnomnom.dnd.sim.domain.grid.GridMath;
 
@@ -33,7 +38,8 @@ public final class TacticalPolicy {
     private static final double SLOT_PENALTY = 1.5;
     /** Rounds a control effect is assumed to keep a target locked, for valuation. */
     private static final double ROUNDS_DENIED = 2;
-    /** Sorcery Points a Quickened Spell costs (mirrors the engine's quicken cost). */
+    /** An ally below this fraction of its HP is worth a heal. */
+    private static final double BADLY_HURT_FRACTION = 0.4;
 
     /** The default shared policy. */
     public static final TurnPolicy DEFAULT = create(TacticsWeights.DEFAULT);
@@ -58,13 +64,7 @@ public final class TacticalPolicy {
 
     /** The build's best weapon by average damage (its primary), honoring a Wild Shape form; null if it has none. */
     public static AttackProfile primaryWeapon(Combatant c) {
-        AttackProfile best = null;
-        for (AttackProfile w : c.activeAttacks()) {
-            if (best == null || weaponAverageDamage(w) > weaponAverageDamage(best)) {
-                best = w;
-            }
-        }
-        return best;
+        return Picks.firstMax(c.activeAttacks(), TacticalPolicy::weaponAverageDamage).orElse(null);
     }
 
     /** A crude estimate of a creature's damage output per turn, to gauge threat. */
@@ -150,97 +150,90 @@ public final class TacticalPolicy {
      */
     private static double spellExpectedDamage(
             Combatant self, Spell spell, int slotLevel, Combatant target, List<Combatant> enemies) {
-        SpellKind kind = spell.kind();
-        if (kind instanceof SpellKind.AttackDamage ad) {
-            int rays = ad.beams() != null
-                    ? ad.beams().applyAsInt(self.level())
-                    : Spell.raysAt(ad, slotLevel, Math.max(1, spell.level()));
-            int bonus = ad.addSpellMod() && self.spellAbility() != null ? self.abilityMod(self.spellAbility()) : 0;
-            double dmg = rays * (ad.damage().at(slotLevel, self.level()).mean() + bonus) * ASSUMED_HIT;
-            return Math.min(dmg, target.hp());
+        return switch (spell.kind()) {
+            case SpellKind.AttackDamage ad -> attackDamageValue(self, spell, ad, slotLevel, target);
+            case SpellKind.Control ctl -> controlSpellValue(ctl, target, enemies);
+            case SpellKind.SaveDamage sd -> saveDamageValue(self, sd, slotLevel, target, enemies);
+            case SpellKind.Heal heal -> 0; // healing and buffs are valued by their own steps
+            case SpellKind.Buff buff -> 0;
+        };
+    }
+
+    private static double attackDamageValue(Combatant self, Spell spell, SpellKind.AttackDamage ad, int slotLevel, Combatant target) {
+        int rays = ad.beams() != null
+                ? ad.beams().applyAsInt(self.level())
+                : Spell.raysAt(ad, slotLevel, Math.max(1, spell.level()));
+        int bonus = ad.addSpellMod() && self.spellAbility() != null ? self.abilityMod(self.spellAbility()) : 0;
+        double dmg = rays * (ad.damage().at(slotLevel, self.level()).mean() + bonus) * ASSUMED_HIT;
+        return Math.min(dmg, target.hp());
+    }
+
+    /**
+     * Value control as damage prevented: a locked enemy denies ~its own output for the rounds it stays locked, weighted
+     * by the chance it fails the save.
+     */
+    private static double controlSpellValue(SpellKind.Control ctl, Combatant target, List<Combatant> enemies) {
+        if (ctl.aoeRadiusFt() == null) {
+            return controlValue(target);
         }
-        if (kind instanceof SpellKind.Control ctl) {
-            // Value control as damage prevented: a locked enemy denies ~its own output for the rounds it stays
-            // locked, weighted by the chance it fails the save.
-            if (ctl.aoeRadiusFt() == null) {
-                return controlValue(target);
-            }
-            int radius = ctl.aoeRadiusFt();
-            List<Combatant> caught = within(enemies, target.position(), radius);
-            double sum = 0;
-            for (Combatant e : caught.isEmpty() ? List.of(target) : caught) {
-                sum += controlValue(e);
-            }
-            return sum;
-        }
-        if (!(kind instanceof SpellKind.SaveDamage sd)) {
-            return 0; // heal and other non-damage kinds
-        }
-        // Save-damage: expected damage per target after the save, capped per target's HP.
-        double perTarget = sd.damage().at(slotLevel, self.level()).mean()
-                * (ASSUMED_SAVE_FAIL + (1 - ASSUMED_SAVE_FAIL) * (sd.onSuccess() == SpellKind.OnSuccess.HALF ? 0.5 : 0));
+        return sum(caughtOrTarget(enemies, target.position(), ctl.aoeRadiusFt(), target), TacticalPolicy::controlValue);
+    }
+
+    /** Save-damage: expected damage per target after the save, capped per target's HP. */
+    private static double saveDamageValue(Combatant self, SpellKind.SaveDamage sd, int slotLevel, Combatant target, List<Combatant> enemies) {
+        double halfOnSuccess = sd.onSuccess() == SpellKind.OnSuccess.HALF ? 0.5 : 0;
+        double perTarget = sd.damage().at(slotLevel, self.level()).mean() * (ASSUMED_SAVE_FAIL + (1 - ASSUMED_SAVE_FAIL) * halfOnSuccess);
         if (sd.aoeRadiusFt() == null) {
             return Math.min(perTarget, target.hp());
         }
         Cell origin = sd.selfOrigin() ? self.position() : target.position();
-        List<Combatant> caught = within(enemies, origin, sd.aoeRadiusFt());
-        double sum = 0;
-        for (Combatant e : caught.isEmpty() ? List.of(target) : caught) {
-            sum += Math.min(perTarget, e.hp());
-        }
-        return sum;
+        return sum(caughtOrTarget(enemies, origin, sd.aoeRadiusFt(), target), e -> Math.min(perTarget, e.hp()));
+    }
+
+    /** Left-to-right sum, so the floating-point result matches an accumulating loop exactly. */
+    private static double sum(List<Combatant> combatants, ToDoubleFunction<Combatant> value) {
+        return combatants.stream().mapToDouble(value).reduce(0, Double::sum);
     }
 
     private static double controlValue(Combatant t) {
         return threatOf(t) * ROUNDS_DENIED * ASSUMED_SAVE_FAIL;
     }
 
-    private static List<Combatant> within(List<Combatant> enemies, Cell origin, int radiusFt) {
-        List<Combatant> out = new ArrayList<>();
-        for (Combatant e : enemies) {
-            if (GridMath.distanceFt(origin, e.position()) <= radiusFt) {
-                out.add(e);
-            }
-        }
-        return out;
+    /** The enemies within the radius of {@code origin}, or just {@code target} if there are none. */
+    private static List<Combatant> caughtOrTarget(List<Combatant> enemies, Cell origin, int radiusFt, Combatant target) {
+        List<Combatant> caught = enemies.stream().filter(e -> GridMath.distanceFt(origin, e.position()) <= radiusFt).toList();
+        return caught.isEmpty() ? List.of(target) : caught;
+    }
+
+    /** The spells of one kind the combatant knows, in the order it knows them. */
+    private static <K extends SpellKind> List<Spell> spellsOfKind(Combatant c, Class<K> kind) {
+        return c.spells().stream().filter(s -> kind.isInstance(s.kind())).toList();
     }
 
     /**
      * The best offensive spell to cast, or null. Damage spells are valued against {@code damageTarget} (the
      * wounded/best kill target); control spells against {@code controlTarget} (the most dangerous enemy, who is who
-     * you want to lock down).
+     * you want to lock down). The first of equally valuable choices wins.
      */
     private static SpellChoice bestSpell(
             Combatant self, Combatant damageTarget, Combatant controlTarget, List<Combatant> enemies) {
-        SpellChoice best = null;
-        for (Spell cantrip : self.cantrips()) {
-            best = consider(best, self, cantrip, 0, damageTarget, controlTarget, enemies);
-        }
-        for (Spell spell : self.spells()) {
-            // Healing and buffs are handled by their own steps (tryHeal / tryBuff).
-            if (spell.kind() instanceof SpellKind.Heal || spell.kind() instanceof SpellKind.Buff) {
-                continue;
-            }
-            // Consider every affordable slot level, so a damage spell upcasts into a higher slot when the extra dice
-            // (capped at the target's HP) beat the slot's cost.
-            for (int slot : self.availableSlotLevels()) {
-                if (slot >= spell.level()) {
-                    best = consider(best, self, spell, slot, damageTarget, controlTarget, enemies);
-                }
-            }
-        }
-        return best;
+        Stream<SpellChoice> cantrips = self.cantrips().stream()
+                .map(cantrip -> choice(self, cantrip, 0, damageTarget, controlTarget, enemies));
+        // Healing and buffs are handled by their own steps (tryHeal / tryBuff). Consider every affordable slot level,
+        // so a damage spell upcasts into a higher slot when the extra dice (capped at the target's HP) beat the slot's cost.
+        Stream<SpellChoice> leveled = self.spells().stream()
+                .filter(spell -> !(spell.kind() instanceof SpellKind.Heal || spell.kind() instanceof SpellKind.Buff))
+                .flatMap(spell -> self.availableSlotLevels().stream()
+                        .filter(slot -> slot >= spell.level())
+                        .map(slot -> choice(self, spell, slot, damageTarget, controlTarget, enemies)));
+        return Picks.firstMax(Stream.concat(cantrips, leveled).toList(), SpellChoice::ev).orElse(null);
     }
 
-    private static SpellChoice consider(
-            SpellChoice best, Combatant self, Spell spell, int slotLevel, Combatant damageTarget,
-            Combatant controlTarget, List<Combatant> enemies) {
+    private static SpellChoice choice(
+            Combatant self, Spell spell, int slotLevel, Combatant damageTarget, Combatant controlTarget, List<Combatant> enemies) {
         Combatant target = spell.kind() instanceof SpellKind.Control ? controlTarget : damageTarget;
         double ev = spellExpectedDamage(self, spell, slotLevel, target, enemies) - slotLevel * SLOT_PENALTY;
-        if (best == null || ev > best.ev()) {
-            return new SpellChoice(spell, slotLevel, ev, spell.rangeFt(), target);
-        }
-        return best;
+        return new SpellChoice(spell, slotLevel, ev, spell.rangeFt(), target);
     }
 
     // ---- healing, buffs and class riders -------------------------------------------------------
@@ -248,33 +241,20 @@ public final class TacticalPolicy {
     /** An ally worth healing this turn: a downed ally first, else a badly wounded one (lowest HP fraction first). */
     private static Combatant pickHealTarget(TurnApi api) {
         List<Combatant> allies = api.allAllies();
-        for (Combatant a : allies) {
-            if (a.isDying()) {
-                return a;
-            }
-        }
-        Combatant best = null;
-        double bestFrac = 0;
-        for (Combatant a : allies) {
-            if (!a.isConscious()) {
-                continue;
-            }
-            double frac = (double) a.hp() / a.maxHp();
-            if (frac < 0.4 && (best == null || frac < bestFrac)) {
-                best = a;
-                bestFrac = frac;
-            }
-        }
-        return best;
+        return allies.stream()
+                .filter(Combatant::isDying)
+                .findFirst()
+                .orElseGet(() -> Picks.firstMin(
+                        allies.stream().filter(a -> a.isConscious() && hpFraction(a) < BADLY_HURT_FRACTION).toList(),
+                        TacticalPolicy::hpFraction).orElse(null));
+    }
+
+    private static double hpFraction(Combatant c) {
+        return (double) c.hp() / c.maxHp();
     }
 
     private static Integer firstSlotAtLeast(Combatant c, int level) {
-        for (int l : c.availableSlotLevels()) {
-            if (l >= level) {
-                return l;
-            }
-        }
-        return null;
+        return c.availableSlotLevels().stream().filter(l -> l >= level).findFirst().orElse(null);
     }
 
     /**
@@ -282,45 +262,36 @@ public final class TacticalPolicy {
      * downed ally so the caster can still act; returns true if the whole turn's action was spent healing.
      */
     private static boolean tryHeal(TurnApi api) {
-        List<Spell> healSpells = new ArrayList<>();
-        for (Spell s : api.self().spells()) {
-            if (s.kind() instanceof SpellKind.Heal) {
-                healSpells.add(s);
-            }
-        }
+        List<Spell> healSpells = spellsOfKind(api.self(), SpellKind.Heal.class);
         if (healSpells.isEmpty()) {
             return false;
         }
         Combatant target = pickHealTarget(api);
-        if (target == null) {
-            return false;
-        }
         Integer slot = firstSlotAtLeast(api.self(), 1);
-        if (slot == null) {
+        if (target == null || slot == null) {
             return false;
         }
 
-        Spell bonusHeal = null;
-        Spell actionHeal = null;
-        for (Spell s : healSpells) {
-            if (s.action() == Spell.CastingTime.BONUS && bonusHeal == null) {
-                bonusHeal = s;
-            }
-            if (s.action() == Spell.CastingTime.ACTION && actionHeal == null) {
-                actionHeal = s;
-            }
-        }
+        Optional<Spell> bonusHeal = firstCastAt(healSpells, Spell.CastingTime.BONUS);
+        Optional<Spell> actionHeal = firstCastAt(healSpells, Spell.CastingTime.ACTION);
         // Prefer a bonus-action heal to revive while keeping the action for offense.
-        if (target.isDying() && bonusHeal != null && api.resources().bonus()) {
-            api.castSpell(bonusHeal, target, slot, false);
+        if (target.isDying() && bonusHeal.isPresent() && api.resources().bonus()) {
+            api.castSpell(bonusHeal.get(), target, slot, false);
             return false; // action still free
         }
-        Spell spell = actionHeal != null ? actionHeal : bonusHeal;
+        Spell spell = actionHeal.or(() -> bonusHeal).orElseThrow();
         api.castSpell(spell, target, slot, false);
         return spell.action() == Spell.CastingTime.ACTION;
     }
 
+    private static Optional<Spell> firstCastAt(List<Spell> spells, Spell.CastingTime time) {
+        return spells.stream().filter(s -> s.action() == time).findFirst();
+    }
+
     private record BuffValue(double value, List<Combatant> targets) {}
+
+    /** A buff the caster has chosen to cast: the spell, who to aim it at, and its estimated value. */
+    private record BuffPlan(Spell spell, Combatant target, double value) {}
 
     /**
      * Estimated value of casting {@code spell} (a buff) now, with the allies it would cover. Allies are ranked by
@@ -336,17 +307,24 @@ public final class TacticalPolicy {
         List<Combatant> ranked = sorted.size() > kind.maxTargets() ? sorted.subList(0, kind.maxTargets()) : sorted;
         double value = 0;
         for (Combatant a : ranked) {
-            if (kind.extraAttackAction()) {
-                value += 0.5 * threatOf(a); // roughly one extra attack
-            }
-            if (kind.attackBonusDice() != null) {
-                value += 0.12 * threatOf(a); // +~2.5 to hit is about +12% of output
-            }
-            if (kind.acBonus() != 0) {
-                value += 0.5 * kind.acBonus();
-            }
+            value = withBuffBenefit(value, kind, a);
         }
         return new BuffValue(value, ranked);
+    }
+
+    /** {@code value} plus what the buff is worth to one ally; the terms are added one by one, in order. */
+    private static double withBuffBenefit(double value, SpellKind.Buff kind, Combatant ally) {
+        double total = value;
+        if (kind.extraAttackAction()) {
+            total += 0.5 * threatOf(ally); // roughly one extra attack
+        }
+        if (kind.attackBonusDice() != null) {
+            total += 0.12 * threatOf(ally); // +~2.5 to hit is about +12% of output
+        }
+        if (kind.acBonus() != 0) {
+            total += 0.5 * kind.acBonus();
+        }
+        return total;
     }
 
     /**
@@ -359,87 +337,49 @@ public final class TacticalPolicy {
         if (self.concentratingOn() != null || !api.resources().action()) {
             return false;
         }
-        List<Spell> buffSpells = new ArrayList<>();
-        for (Spell s : self.spells()) {
-            if (s.kind() instanceof SpellKind.Buff) {
-                buffSpells.add(s);
-            }
-        }
-        if (buffSpells.isEmpty()) {
-            return false;
-        }
-
         // Allies that actually attack are worth buffing.
-        List<Combatant> combatants = new ArrayList<>();
-        for (Combatant a : api.allies()) {
-            if (threatOf(a) > 0) {
-                combatants.add(a);
-            }
-        }
-        if (combatants.isEmpty()) {
+        List<Combatant> combatants = api.allies().stream().filter(a -> threatOf(a) > 0).toList();
+        List<Spell> affordable = spellsOfKind(self, SpellKind.Buff.class).stream()
+                .filter(s -> firstSlotAtLeast(self, s.level()) != null)
+                .toList();
+        if (combatants.isEmpty() || affordable.isEmpty()) {
             return false;
         }
 
-        // Rank affordable buffs by value against the allies currently in range, else by value against the strongest
-        // ally we could approach.
-        List<Spell> affordable = new ArrayList<>();
-        for (Spell s : buffSpells) {
-            if (firstSlotAtLeast(self, s.level()) != null) {
-                affordable.add(s);
-            }
-        }
-        if (affordable.isEmpty()) {
+        Optional<BuffPlan> plan = bestBuffInRange(self, combatants, affordable).or(() -> approachForBuff(api, combatants, affordable));
+        if (plan.isEmpty()) {
             return false;
         }
+        Spell spell = plan.get().spell();
+        var cast = api.castSpell(spell, plan.get().target(), firstSlotAtLeast(self, spell.level()), false);
+        return cast.isPresent() && spell.action() == Spell.CastingTime.ACTION;
+    }
 
-        Spell chosenSpell = null;
-        Combatant chosenTarget = null;
-        double bestValue = 0;
-        for (Spell s : affordable) {
-            BuffValue bv = buffValue(s, inRangeOf(self, combatants, s));
-            if (!bv.targets().isEmpty() && bv.value() > bestValue) {
-                bestValue = bv.value();
-                chosenSpell = s;
-                chosenTarget = bv.targets().get(0);
-            }
-        }
+    /** Rank affordable buffs by value against the allies currently in range; the first of equal values wins. */
+    private static Optional<BuffPlan> bestBuffInRange(Combatant self, List<Combatant> combatants, List<Spell> affordable) {
+        List<BuffPlan> plans = affordable.stream()
+                .map(s -> planFor(s, buffValue(s, inRangeOf(self, combatants, s))))
+                .flatMap(Optional::stream)
+                .filter(p -> p.value() > 0)
+                .toList();
+        return Picks.firstMax(plans, BuffPlan::value);
+    }
 
-        // Nobody in range: approach the strongest ally for the best affordable buff, then retry.
-        if (chosenSpell == null) {
-            Combatant strongest = null;
-            for (Combatant c : combatants) {
-                if (strongest == null || threatOf(c) > threatOf(strongest)) {
-                    strongest = c;
-                }
-            }
-            Spell spell = affordable.get(0);
-            for (Spell s : affordable) {
-                if (s.level() > spell.level()) {
-                    spell = s;
-                }
-            }
-            approach(api, strongest, spell.rangeFt());
-            BuffValue bv = buffValue(spell, inRangeOf(self, combatants, spell));
-            if (bv.targets().isEmpty()) {
-                return false;
-            }
-            chosenSpell = spell;
-            chosenTarget = bv.targets().get(0);
-        }
+    /** Nobody in range: approach the strongest ally for the highest-level affordable buff, then retry. */
+    private static Optional<BuffPlan> approachForBuff(TurnApi api, List<Combatant> combatants, List<Spell> affordable) {
+        Combatant strongest = Picks.firstMax(combatants, TacticalPolicy::threatOf).orElseThrow();
+        Spell spell = Picks.firstMax(affordable, Spell::level).orElseThrow();
+        approach(api, strongest, spell.rangeFt());
+        return planFor(spell, buffValue(spell, inRangeOf(api.self(), combatants, spell)));
+    }
 
-        Integer slot = firstSlotAtLeast(self, chosenSpell.level());
-        var r = api.castSpell(chosenSpell, chosenTarget, slot, false);
-        return r.isPresent() && chosenSpell.action() == Spell.CastingTime.ACTION;
+    /** The plan to cast {@code spell} at the allies' best-ranked member, or empty if it would cover nobody. */
+    private static Optional<BuffPlan> planFor(Spell spell, BuffValue value) {
+        return value.targets().isEmpty() ? Optional.empty() : Optional.of(new BuffPlan(spell, value.targets().get(0), value.value()));
     }
 
     private static List<Combatant> inRangeOf(Combatant self, List<Combatant> allies, Spell s) {
-        List<Combatant> out = new ArrayList<>();
-        for (Combatant a : allies) {
-            if (GridMath.distanceFt(self.position(), a.position()) <= s.rangeFt()) {
-                out.add(a);
-            }
-        }
-        return out;
+        return allies.stream().filter(a -> GridMath.distanceFt(self.position(), a.position()) <= s.rangeFt()).toList();
     }
 
     /**
@@ -452,20 +392,11 @@ public final class TacticalPolicy {
         if (!api.resources().bonus() || self.resourceCount(ResourceIds.SORCERY) < ResourceIds.QUICKENED_SPELL_COST) {
             return;
         }
-        Spell cantrip = null;
-        for (Spell c : self.cantrips()) {
-            if (c.kind() instanceof SpellKind.AttackDamage || c.kind() instanceof SpellKind.SaveDamage) {
-                cantrip = c;
-                break;
-            }
-        }
-        if (cantrip == null) {
-            return;
-        }
-        if (GridMath.distanceFt(self.position(), damageTarget.position()) > cantrip.rangeFt()) {
-            return;
-        }
-        api.castSpell(cantrip, damageTarget, 0, true);
+        self.cantrips().stream()
+                .filter(c -> c.kind() instanceof SpellKind.AttackDamage || c.kind() instanceof SpellKind.SaveDamage)
+                .findFirst()
+                .filter(cantrip -> GridMath.distanceFt(self.position(), damageTarget.position()) <= cantrip.rangeFt())
+                .ifPresent(cantrip -> api.castSpell(cantrip, damageTarget, 0, true));
     }
 
     /**
@@ -491,7 +422,7 @@ public final class TacticalPolicy {
         if (self.concentratingOn() != null || !api.resources().bonus()) {
             return;
         }
-        if (self.features().stream().noneMatch(f -> f.id().equals("hunters-mark"))) {
+        if (self.features().stream().noneMatch(f -> f.id().equals(FeatureIds.HUNTERS_MARK))) {
             return;
         }
         if (self.resourceCount(ResourceIds.HUNTERS_MARK) <= 0) {
@@ -503,14 +434,10 @@ public final class TacticalPolicy {
     // ---- the turn ------------------------------------------------------------------------------
 
     private static void act(TurnApi api, TacticsWeights weights) {
-        // Lay on Hands first: a free bonus-action top-up that keeps the action open.
+        // Lay on Hands first: a free bonus-action top-up that keeps the action open. Healing then takes priority when an
+        // ally is down or badly hurt, and after that establishing a buff (Bless/Haste) if we are not concentrating.
         tryLayOnHands(api);
-        // Healing takes priority when an ally is down or badly hurt.
-        if (tryHeal(api)) {
-            return;
-        }
-        // Then establish a buff (Bless/Haste) if we have one and aren't concentrating.
-        if (tryBuff(api)) {
+        if (tryHeal(api) || tryBuff(api)) {
             return;
         }
 
@@ -519,51 +446,50 @@ public final class TacticalPolicy {
             return;
         }
 
-        // The damage target (best to kill) and the control target (most dangerous).
-        Combatant damageTarget = enemies.get(0);
-        for (Combatant e : enemies) {
-            if (scoreTarget(api.self(), e, weights) > scoreTarget(api.self(), damageTarget, weights)) {
-                damageTarget = e;
-            }
-        }
-        Combatant controlTarget = enemies.get(0);
-        for (Combatant e : enemies) {
-            if (threatOf(e) > threatOf(controlTarget)) {
-                controlTarget = e;
-            }
-        }
+        // The damage target (best to kill) and the control target (most dangerous); the first of equals wins.
+        Combatant damageTarget = Picks.firstMax(enemies, e -> scoreTarget(api.self(), e, weights)).orElseThrow();
+        Combatant controlTarget = Picks.firstMax(enemies, TacticalPolicy::threatOf).orElseThrow();
 
         // Hunter's Mark on the kill target (bonus action), before attacking.
         tryMark(api, damageTarget);
+        castOrAttack(api, weights, enemies, damageTarget, controlTarget);
 
+        // Sorcerer Metamagic: a quickened cantrip as a bonus action, after the action.
+        tryQuickenedCantrip(api, damageTarget);
+    }
+
+    /** Cast if a spell beats the weapon; otherwise make weapon attacks. */
+    private static void castOrAttack(
+            TurnApi api, TacticsWeights weights, List<Combatant> enemies, Combatant damageTarget, Combatant controlTarget) {
         AttackProfile weapon = primaryWeapon(api.self());
         double weaponEv = weapon != null
                 ? weaponAverageDamage(weapon) * (1 + api.self().extraAttacks()) * weights.assumedHitChance()
                 : -1;
         SpellChoice spell = bestSpell(api.self(), damageTarget, controlTarget, enemies);
 
-        // Cast if a spell beats the weapon; otherwise make weapon attacks.
         if (spell != null && spell.ev() > weaponEv) {
             approach(api, spell.target(), spell.rangeFt());
             if (GridMath.distanceFt(api.self().position(), spell.target().position()) <= spell.rangeFt()) {
                 api.castSpell(spell.spell(), spell.target(), spell.slotLevel(), false);
             }
         } else if (weapon != null) {
-            int rangeFt = weaponRangeFt(weapon);
-            approach(api, damageTarget, rangeFt);
-            if (GridMath.distanceFt(api.self().position(), damageTarget.position()) <= rangeFt) {
-                // Drain the Attack action, its Extra Attacks, then any buff-granted extra attack action (Haste), so a
-                // hasted striker actually uses the extra swing.
-                var dmg = api.attack(damageTarget, weapon);
-                while (dmg.isPresent()
-                        && damageTarget.isConscious()
-                        && (api.resources().attacksRemaining() > 0 || api.resources().extraAttackActions() > 0)) {
-                    dmg = api.attack(damageTarget, weapon);
-                }
-            }
+            attackWithWeapon(api, weapon, damageTarget);
         }
+    }
 
-        // Sorcerer Metamagic: a quickened cantrip as a bonus action, after the action.
-        tryQuickenedCantrip(api, damageTarget);
+    private static void attackWithWeapon(TurnApi api, AttackProfile weapon, Combatant target) {
+        int rangeFt = weaponRangeFt(weapon);
+        approach(api, target, rangeFt);
+        if (GridMath.distanceFt(api.self().position(), target.position()) > rangeFt) {
+            return;
+        }
+        // Drain the Attack action, its Extra Attacks, then any buff-granted extra attack action (Haste), so a hasted
+        // striker actually uses the extra swing.
+        var dmg = api.attack(target, weapon);
+        while (dmg.isPresent()
+                && target.isConscious()
+                && (api.resources().attacksRemaining() > 0 || api.resources().extraAttackActions() > 0)) {
+            dmg = api.attack(target, weapon);
+        }
     }
 }

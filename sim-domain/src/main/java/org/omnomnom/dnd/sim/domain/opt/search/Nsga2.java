@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.stream.IntStream;
 import org.omnomnom.dnd.sim.domain.core.FloatOrder;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.EvalResult;
 import org.omnomnom.dnd.sim.domain.opt.evaluation.Objectives;
@@ -94,34 +95,36 @@ public final class Nsga2 {
      * the extremes are preserved.
      */
     public static double[] crowdingDistances(List<double[]> points, List<Integer> frontIndices) {
-        int m = frontIndices.size();
-        double[] distance = new double[m];
-        if (m == 0) {
+        double[] distance = new double[frontIndices.size()];
+        if (distance.length == 0) {
             return distance;
         }
         int numObjectives = points.get(frontIndices.get(0)).length;
         for (int obj = 0; obj < numObjectives; obj++) {
-            final int o = obj;
-            List<Integer> order = new ArrayList<>();
-            for (int k = 0; k < m; k++) {
-                order.add(k);
-            }
-            order.sort((a, b) -> FloatOrder.compare(points.get(frontIndices.get(a))[o], points.get(frontIndices.get(b))[o]));
-            distance[order.get(0)] = Double.POSITIVE_INFINITY;
-            distance[order.get(m - 1)] = Double.POSITIVE_INFINITY;
-            double min = points.get(frontIndices.get(order.get(0)))[obj];
-            double max = points.get(frontIndices.get(order.get(m - 1)))[obj];
-            double span = max - min;
-            if (span == 0) {
-                continue;
-            }
-            for (int k = 1; k < m - 1; k++) {
-                double prev = points.get(frontIndices.get(order.get(k - 1)))[obj];
-                double nextV = points.get(frontIndices.get(order.get(k + 1)))[obj];
-                distance[order.get(k)] += (nextV - prev) / span;
-            }
+            int objective = obj;
+            accumulateCrowding(distance, frontIndices.stream().mapToDouble(i -> points.get(i)[objective]).toArray());
         }
         return distance;
+    }
+
+    /**
+     * Add one objective's contribution: the two extremes get infinity, and each point between them gains the gap between
+     * its neighbours in objective order, relative to the objective's span.
+     *
+     * @param values the objective's value for each front member, aligned with {@code distance}
+     */
+    private static void accumulateCrowding(double[] distance, double[] values) {
+        int m = values.length;
+        List<Integer> order = IntStream.range(0, m).boxed().sorted((a, b) -> FloatOrder.compare(values[a], values[b])).toList();
+        distance[order.get(0)] = Double.POSITIVE_INFINITY;
+        distance[order.get(m - 1)] = Double.POSITIVE_INFINITY;
+        double span = values[order.get(m - 1)] - values[order.get(0)];
+        if (span == 0) {
+            return;
+        }
+        for (int k = 1; k < m - 1; k++) {
+            distance[order.get(k)] += (values[order.get(k + 1)] - values[order.get(k - 1)]) / span;
+        }
     }
 
     /** One evaluated genome. Rank and crowding are assigned by the sort and change as the population evolves. */
@@ -242,10 +245,7 @@ public final class Nsga2 {
 
     /** Assign rank (front index) and crowding distance to every individual in place. */
     private static List<List<Integer>> assignRanksAndCrowding(List<Individual> pop) {
-        List<double[]> points = new ArrayList<>();
-        for (Individual ind : pop) {
-            points.add(ind.objectives);
-        }
+        List<double[]> points = pop.stream().map(ind -> ind.objectives).toList();
         List<List<Integer>> fronts = fastNonDominatedSort(points);
         for (int rank = 0; rank < fronts.size(); rank++) {
             List<Integer> front = fronts.get(rank);
@@ -273,23 +273,31 @@ public final class Nsga2 {
         return crowdedBetter(a, b) ? a : b;
     }
 
+    /** Evaluates genomes against the scenario library, caching by genome key (evaluation is a pure function of the genome). */
+    private static final class Assessor {
+        private final MartialCatalog catalog;
+        private final int runsPerScenario;
+        private final Map<String, EvalResult> cache = new HashMap<>();
+
+        Assessor(MartialCatalog catalog, int runsPerScenario) {
+            this.catalog = catalog;
+            this.runsPerScenario = runsPerScenario;
+        }
+
+        Individual assess(Genome genome) {
+            EvalResult result = cache.computeIfAbsent(Genomes.key(genome),
+                    key -> SoloEvaluator.evaluate(id -> Genomes.build(genome, catalog, id), catalog.scenarios(), runsPerScenario));
+            return new Individual(genome, result, Objectives.of(result));
+        }
+    }
+
     /** Run NSGA-II over the genome and return the Pareto front. */
     public static Result run(MartialCatalog catalog, LabeledRandom random, Options opts) {
-        int populationSize = opts.populationSize();
-        Map<String, EvalResult> cache = new HashMap<>();
-        java.util.function.Function<Genome, Individual> assess = genome -> {
-            String key = Genomes.key(genome);
-            EvalResult result = cache.get(key);
-            if (result == null) {
-                result = SoloEvaluator.evaluate(id -> Genomes.build(genome, catalog, id), catalog.scenarios(), opts.evalRunsPerScenario());
-                cache.put(key, result);
-            }
-            return new Individual(genome, result, Objectives.of(result));
-        };
+        Assessor assessor = new Assessor(catalog, opts.evalRunsPerScenario());
 
         List<Individual> population = new ArrayList<>();
-        for (int i = 0; i < populationSize; i++) {
-            population.add(assess.apply(Genomes.randomGenome(catalog, random, "init:" + i, opts.classes())));
+        for (int i = 0; i < opts.populationSize(); i++) {
+            population.add(assessor.assess(Genomes.randomGenome(catalog, random, "init:" + i, opts.classes())));
         }
         assignRanksAndCrowding(population);
         opts.progress().onInitialPopulation();
@@ -298,52 +306,60 @@ public final class Nsga2 {
             if (opts.cancelled().getAsBoolean()) {
                 throw new CancelledException();
             }
-            Rng genRng = random.stream("gen:" + gen);
-            // Offspring via crowded tournament selection + crossover + mutation.
-            List<Individual> offspring = new ArrayList<>();
-            for (int c = 0; c < populationSize; c++) {
-                Individual a = tournament(population, genRng);
-                Individual b = tournament(population, genRng);
-                Genome child = Genomes.crossover(a.genome, b.genome, catalog, random, "gen:" + gen + ":x:" + c);
-                if (genRng.next() < opts.mutationRate()) {
-                    child = Genomes.mutate(child, catalog, random, "gen:" + gen + ":m:" + c, opts.classes());
-                }
-                offspring.add(assess.apply(child));
-            }
-
-            // Combine parents and offspring, re-rank, and fill the next generation by front, breaking the
-            // overflowing front by crowding distance.
-            List<Individual> combined = new ArrayList<>(population);
-            combined.addAll(offspring);
-            List<List<Integer>> fronts = assignRanksAndCrowding(combined);
-            List<Individual> next = new ArrayList<>();
-            for (List<Integer> front : fronts) {
-                if (next.size() + front.size() <= populationSize) {
-                    for (int idx : front) {
-                        next.add(combined.get(idx));
-                    }
-                } else {
-                    int remaining = populationSize - next.size();
-                    List<Integer> sorted = new ArrayList<>(front);
-                    sorted.sort(FloatOrder.descendingBy(i -> combined.get(i).crowding));
-                    for (int k = 0; k < remaining; k++) {
-                        next.add(combined.get(sorted.get(k)));
-                    }
-                    break;
-                }
-            }
-            population = next;
-            assignRanksAndCrowding(population);
+            List<Individual> offspring = breed(population, catalog, random, opts, assessor, gen);
+            population = nextGeneration(population, offspring, opts.populationSize());
             opts.progress().onGeneration(gen + 1, opts.generations());
         }
 
-        List<Individual> front = new ArrayList<>();
-        for (Individual ind : population) {
-            if (ind.rank == 0) {
-                front.add(ind);
+        List<Individual> front = population.stream()
+                .filter(ind -> ind.rank == 0)
+                .sorted(FloatOrder.descendingBy(ind -> ind.crowding))
+                .toList();
+        return new Result(front, Collections.unmodifiableList(population), opts.generations());
+    }
+
+    /** One generation of offspring via crowded tournament selection + crossover + mutation. */
+    private static List<Individual> breed(
+            List<Individual> population, MartialCatalog catalog, LabeledRandom random, Options opts, Assessor assessor, int gen) {
+        Rng genRng = random.stream("gen:" + gen);
+        List<Individual> offspring = new ArrayList<>();
+        for (int c = 0; c < opts.populationSize(); c++) {
+            Individual a = tournament(population, genRng);
+            Individual b = tournament(population, genRng);
+            Genome child = Genomes.crossover(a.genome, b.genome, catalog, random, "gen:" + gen + ":x:" + c);
+            if (genRng.next() < opts.mutationRate()) {
+                child = Genomes.mutate(child, catalog, random, "gen:" + gen + ":m:" + c, opts.classes());
             }
+            offspring.add(assessor.assess(child));
         }
-        front.sort(FloatOrder.descendingBy(ind -> ind.crowding));
-        return new Result(Collections.unmodifiableList(front), Collections.unmodifiableList(population), opts.generations());
+        return offspring;
+    }
+
+    /**
+     * Combine parents and offspring, re-rank, and fill the next generation by front, breaking the overflowing front by
+     * crowding distance.
+     */
+    private static List<Individual> nextGeneration(List<Individual> population, List<Individual> offspring, int size) {
+        List<Individual> combined = new ArrayList<>(population);
+        combined.addAll(offspring);
+        List<Individual> next = new ArrayList<>();
+        for (List<Integer> front : assignRanksAndCrowding(combined)) {
+            if (next.size() + front.size() > size) {
+                next.addAll(leastCrowded(front, combined, size - next.size()));
+                break;
+            }
+            front.forEach(idx -> next.add(combined.get(idx)));
+        }
+        assignRanksAndCrowding(next);
+        return next;
+    }
+
+    /** The {@code count} individuals of a front with the greatest crowding distance (the most spread out). */
+    private static List<Individual> leastCrowded(List<Integer> front, List<Individual> combined, int count) {
+        return front.stream()
+                .sorted(FloatOrder.descendingBy(idx -> combined.get(idx).crowding))
+                .limit(count)
+                .map(combined::get)
+                .toList();
     }
 }

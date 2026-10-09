@@ -37,48 +37,45 @@ public final class SoloEvaluator {
      * @param runsPerScenario total runs are this times the scenario count
      */
     public static EvalResult evaluate(Function<String, Combatant> heroFactory, List<Scenario> scenarios, int runsPerScenario) {
-        List<Double> wins = new ArrayList<>();
-        List<Double> hpOnWin = new ArrayList<>();
-        List<Double> hpRetained = new ArrayList<>();
-        List<Double> damage = new ArrayList<>();
-        List<Double> rounds = new ArrayList<>();
-        List<Double> roundsEffective = new ArrayList<>();
-        List<Double> denied = new ArrayList<>();
-
+        List<Run> runs = new ArrayList<>();
         for (Scenario scenario : scenarios) {
             for (int i = 0; i < runsPerScenario; i++) {
-                // CRN: the seed depends only on the scenario id and run index.
-                LabeledRandom rng = new LabeledRandom(Seeds.seedFrom(scenario.id(), i));
-                Combatant hero = heroFactory.apply(HERO_ID);
-                hero.setPosition(scenario.heroStart());
-                List<Combatant> all = new ArrayList<>();
-                all.add(hero);
-                all.addAll(scenario.spawnEnemies());
-                HeroTally tally = new HeroTally(HERO_ID);
-                Encounter.RunResult res = Encounter.builder(scenario.grid(), all, rng)
-                        .policyFor(c -> TacticalPolicy.DEFAULT)
-                        .sink(tally)
-                        .build()
-                        .run(ROUND_CAP);
-                double retained = hero.isConscious() ? (double) hero.hp() / hero.maxHp() : 0;
-                boolean won = res.winner() == Side.PARTY && hero.isConscious();
-                wins.add(won ? 1.0 : 0.0);
-                hpRetained.add(retained);
-                damage.add(tally.damage());
-                rounds.add((double) res.rounds());
-                roundsEffective.add(won ? (double) res.rounds() : ROUND_CAP);
-                denied.add((double) tally.actionsDenied());
-                if (won) {
-                    hpOnWin.add(retained);
-                }
+                runs.add(fight(heroFactory, scenario, i));
             }
         }
+        return summarize(runs);
+    }
 
-        int runs = wins.size();
-        int winCount = (int) wins.stream().mapToDouble(Double::doubleValue).sum();
-        double winRate = runs > 0 ? (double) winCount / runs : 0;
-        double avgHpFracOnWin = Stats.mean(hpOnWin);
-        double avgRounds = Stats.mean(rounds);
+    /** What one fight contributes to the evaluation. */
+    private record Run(boolean won, double hpRetained, double damage, double rounds, double roundsEffective, double denied) {}
+
+    private static Run fight(Function<String, Combatant> heroFactory, Scenario scenario, int runIndex) {
+        // CRN: the seed depends only on the scenario id and run index.
+        LabeledRandom rng = new LabeledRandom(Seeds.seedFrom(scenario.id(), runIndex));
+        Combatant hero = heroFactory.apply(HERO_ID);
+        hero.setPosition(scenario.heroStart());
+        List<Combatant> all = new ArrayList<>();
+        all.add(hero);
+        all.addAll(scenario.spawnEnemies());
+        HeroTally tally = new HeroTally(HERO_ID);
+        Encounter.RunResult res = Encounter.builder(scenario.grid(), all, rng)
+                .policyFor(c -> TacticalPolicy.DEFAULT)
+                .sink(tally)
+                .build()
+                .run(ROUND_CAP);
+        double retained = hero.isConscious() ? (double) hero.hp() / hero.maxHp() : 0;
+        boolean won = res.winner() == Side.PARTY && hero.isConscious();
+        return new Run(won, retained, tally.damage(), res.rounds(), won ? res.rounds() : ROUND_CAP, tally.actionsDenied());
+    }
+
+    private static EvalResult summarize(List<Run> runs) {
+        int count = runs.size();
+        int winCount = (int) runs.stream().filter(Run::won).count();
+        double winRate = count > 0 ? (double) winCount / count : 0;
+        double avgHpFracOnWin = Stats.mean(Samples.column(runs.stream().filter(Run::won).toList(), Run::hpRetained));
+        double avgRounds = Stats.mean(Samples.column(runs, Run::rounds));
+        List<Double> hpRetained = Samples.column(runs, Run::hpRetained);
+        List<Double> damage = Samples.column(runs, Run::damage);
         // Win rate dominates; surviving HP breaks ties; faster is a small bonus.
         double fitness = winRate * 100 + avgHpFracOnWin * 10 - avgRounds * 0.1;
         return new EvalResult(
@@ -88,9 +85,9 @@ public final class SoloEvaluator {
                 Stats.mean(hpRetained),
                 Stats.mean(damage),
                 avgRounds,
-                Stats.mean(roundsEffective),
-                Stats.mean(denied),
-                runs,
-                new EvalResult.Confidence(Stats.wilsonInterval(winCount, runs), Stats.meanInterval(damage), Stats.meanInterval(hpRetained)));
+                Stats.mean(Samples.column(runs, Run::roundsEffective)),
+                Stats.mean(Samples.column(runs, Run::denied)),
+                count,
+                new EvalResult.Confidence(Stats.wilsonInterval(winCount, count), Stats.meanInterval(damage), Stats.meanInterval(hpRetained)));
     }
 }
