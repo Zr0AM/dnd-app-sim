@@ -73,7 +73,7 @@ Notes:
 
 Because parity is statistical, a vendored Node script runs fixed scenarios in the TypeScript sim at high
 N and writes win rates, damage means and confidence intervals to JSON committed under
-`src/test/resources/reference/`. Java tests run the same scenarios with a **pinned seed** (so they are
+`sim-domain/src/test/resources/reference/` (the seed-catalog snapshot `content.json` in `sim-content`). Java tests run the same scenarios with a **pinned seed** (so they are
 deterministic, not flaky) and assert agreement within the combined confidence intervals. Pin and verify
 each seed once when the test is written; a failure then means the port diverged, not bad luck.
 

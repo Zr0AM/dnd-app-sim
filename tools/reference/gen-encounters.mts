@@ -1,5 +1,5 @@
-// Runs the shared scenarios (src/test/resources/reference/scenarios.json) through the ORIGINAL TypeScript
-// engine and writes the resulting event logs and final states to src/test/resources/reference/encounters.json.
+// Runs the shared scenarios (sim-domain/src/test/resources/reference/scenarios.json) through the ORIGINAL TypeScript
+// engine and writes the resulting event logs and final states to sim-domain/src/test/resources/reference/encounters.json.
 // The Java EncounterParityTest builds the same scenarios and must reproduce this output exactly.
 //
 //   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types tools/reference/gen-encounters.mts
@@ -45,7 +45,7 @@ const spellsModule = await load('content/spells.ts');
 const { DarkOnesBlessingFeature, WildShapeFeature } = await load('content/martial-features.ts');
 const { proficiencyBonus } = await load('core/types.ts');
 
-const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
+const root = resolve(import.meta.dirname, '../../sim-domain/src/test/resources/reference');
 const input = JSON.parse(readFileSync(join(root, 'scenarios.json'), 'utf8'));
 
 const D = (a: number[]) => dice(a[0], a[1], a[2] ?? 0);

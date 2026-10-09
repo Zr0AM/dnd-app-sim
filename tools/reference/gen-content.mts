@@ -79,7 +79,7 @@ const out = {
   slots,
   xp,
 };
-const dest = resolve(import.meta.dirname, '../../src/test/resources/reference/content.json');
+const dest = resolve(import.meta.dirname, '../../sim-content/src/test/resources/reference/content.json');
 writeFileSync(dest, JSON.stringify(out, null, 0) + '\n');
 console.log('monsters', out.monsterCount, 'with attacks', out.monsterWithAttacks, '| weapons', weapons.length, 'armors', armors.length);
 console.log('wrote', dest);

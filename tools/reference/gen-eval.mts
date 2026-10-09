@@ -1,5 +1,5 @@
 // Runs the ORIGINAL TypeScript solo evaluator (opt/evaluate.ts) and party evaluator (opt/party-evaluate.ts) over the
-// caster heroes in src/test/resources/reference/eval-input.json and writes their results to eval-expected.json.
+// caster heroes in sim-domain/src/test/resources/reference/eval-input.json and writes their results to eval-expected.json.
 // EvaluatorParityTest builds the same heroes through the Java content layer and must reproduce the numbers.
 //
 //   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types --import ./tools/reference/register-ts.mjs \
@@ -19,7 +19,7 @@ const { loadMartialCatalog } = await load('opt/catalog.ts');
 const { evaluate } = await load('opt/evaluate.ts');
 const { evaluatePartyBuild, loadPartyHarness } = await load('opt/party-evaluate.ts');
 
-const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
+const root = resolve(import.meta.dirname, '../../sim-domain/src/test/resources/reference');
 const input = JSON.parse(readFileSync(join(root, 'eval-input.json'), 'utf8'));
 const db = buildSeedDatabase();
 

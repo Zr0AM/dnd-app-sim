@@ -1,0 +1,16 @@
+plugins {
+    id 'sim.library-conventions'
+}
+
+description = 'Outbound adapter: report stores on the filesystem and in Cloudflare D1.'
+
+dependencies {
+    api project(':sim-application')
+    implementation libs.jackson.databind
+    implementation libs.slf4j.api
+
+    testImplementation testFixtures(project(':sim-domain'))
+    testImplementation testFixtures(project(':sim-json'))
+    // The fake D1 server answers queries from an in-memory SQLite database, as D1 itself is SQLite.
+    testRuntimeOnly libs.sqlite.jdbc
+}

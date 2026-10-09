@@ -1,5 +1,5 @@
 // Runs the ORIGINAL TypeScript optimizer pieces (genome operators, buildFromGenome through the solo evaluator, NSGA-II,
-// reports, campaign, anchor) and writes their results to src/test/resources/reference/opt-expected.json.
+// reports, campaign, anchor) and writes their results to sim-domain/src/test/resources/reference/opt-expected.json.
 // OptimizerParityTest reproduces them in Java and must agree draw for draw.
 //
 //   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types --import ./tools/reference/register-ts.mjs \
@@ -23,7 +23,7 @@ const campaign = await load('opt/campaign.ts');
 const anchor = await load('opt/anchor.ts');
 const roles = await load('opt/roles.ts');
 
-const root = resolve(import.meta.dirname, '../../src/test/resources/reference');
+const root = resolve(import.meta.dirname, '../../sim-domain/src/test/resources/reference');
 const db = buildSeedDatabase();
 const catalogs = new Map<number, any>();
 const catalogFor = (level: number) => {

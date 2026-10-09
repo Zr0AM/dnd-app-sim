@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generates the shared reference scenarios consumed by BOTH engines:
 
-    src/test/resources/reference/scenarios.json    hand-written fights (spells, features, 9 scenarios)
-    src/test/resources/reference/sweep.json.gz     300 seeded small fights, all driven by the tactical AI
+    sim-domain/src/test/resources/reference/scenarios.json    hand-written fights (spells, features, 9 scenarios)
+    sim-domain/src/test/resources/reference/sweep.json.gz     300 seeded small fights, all driven by the tactical AI
 
 Run from anywhere:  python3 tools/reference/gen-scenarios.py
 Then regenerate the TypeScript expectations (see docs/porting.md). The output is deterministic: the sweep uses a
@@ -12,7 +12,7 @@ import gzip
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-REF = ROOT / "src/test/resources/reference"
+REF = ROOT / "sim-domain/src/test/resources/reference"
 import json
 
 def atk(name, kind, bonus, dmg, dtype, **kw):

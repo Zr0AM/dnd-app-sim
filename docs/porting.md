@@ -13,7 +13,8 @@ tracked automatically; diff `sim/` and `docs/sim/` against it before each phase.
 - Parity target is statistical equivalence, not bit-exact. Determinism within Java (same seed, same output)
   and label-addressed RNG streams (common random numbers) are still required.
 - Hexagonal layout: `domain` (pure Java) / `application` (use cases, ports) / `adapter.in.web` / `adapter.out`, with
-  Spring wiring in `config`. Each layer is split into feature subpackages; `ArchitectureTest` keeps the layers
+  Spring wiring in `config`. Each layer is a Gradle module (`sim-domain`, `sim-application`, `sim-content`,
+  `sim-json`, `sim-reports`, `sim-service`; see the README), so the build itself keeps Spring and Jackson out of the core. Each layer is split into feature subpackages; `ArchitectureTest` keeps the layers
   pointing inward and the subpackages of `domain`, `application` and `adapter.in.web` free of cycles.
 - Every collaborator is a Spring bean declared in `config` (the simulation thread pool, the clock, job settings and
   limits, the report store and its D1 client and HTTP client, the access filter, rate limiter and interceptor);
@@ -74,7 +75,7 @@ Each PR targets the previous PR's branch; merge bottom-up.
 ## Reference values from the TypeScript sim
 
 Scripts under `tools/reference/` run the original TypeScript (Node 22 with `--experimental-transform-types`, no
-install needed) and write expected output into `src/test/resources/reference/`. Regenerate after changing the
+install needed) and write expected output into `sim-domain/src/test/resources/reference/` (the seed-catalog snapshot `content.json` in `sim-content`). Regenerate after changing the
 baseline SHA or the scenarios:
 
 ```bash
@@ -134,7 +135,7 @@ together.
 `SqliteContentSourceTest` compares: a SHA-256 of **every one of the 341 compiled monster templates**, three readable
 templates, every weapon (38) and armor (13), the 12 classes, and class progression and spell slots for every class at
 levels 1-19. The seeds are copied, not rebuilt: `scripts/sync-seeds.sh` pins the upstream commit in
-`src/main/resources/db/SOURCE`.
+`sim-content/src/main/resources/db/SOURCE`.
 
 Known upstream quirk carried over: flat-damage weapons (the Blowgun) have no dice in the seeds and upstream ignores
 their `damageFlat`, so they deal only the ability modifier; the Java port behaves the same (0 dice).

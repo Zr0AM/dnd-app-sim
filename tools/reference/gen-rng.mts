@@ -1,4 +1,4 @@
-// Generates src/test/resources/reference/rng.json from the TypeScript sim, so the Java
+// Generates sim-domain/src/test/resources/reference/rng.json from the TypeScript sim, so the Java
 // RNG/dice port can be checked against real output of the original implementation.
 //
 //   DND_APP_DIR=/path/to/dnd-app node --experimental-transform-types tools/reference/gen-rng.mts
@@ -62,6 +62,6 @@ const out = {
     eightD6Plus2: { label: 'test', rolls: dice8d6 },
   },
 };
-const dest = resolve(import.meta.dirname, '../../src/test/resources/reference/rng.json');
+const dest = resolve(import.meta.dirname, '../../sim-domain/src/test/resources/reference/rng.json');
 writeFileSync(dest, JSON.stringify(out, null, 2) + '\n');
 console.log('wrote', dest);

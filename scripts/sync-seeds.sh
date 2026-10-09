@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Copies the SQLite schema and seed data from a Zr0AM/dnd-app checkout into src/main/resources/db and records the
+# Copies the SQLite schema and seed data from a Zr0AM/dnd-app checkout into sim-content/src/main/resources/db and records the
 # source commit and checksums. Seeds are copied (not a submodule) so Gradle needs no cross-repo access.
 #
 #   DND_APP_DIR=/path/to/dnd-app scripts/sync-seeds.sh
 set -euo pipefail
 
 SRC="${DND_APP_DIR:?set DND_APP_DIR to a dnd-app checkout}/docs/db"
-DEST="$(cd "$(dirname "$0")/.." && pwd)/src/main/resources/db"
+DEST="$(cd "$(dirname "$0")/.." && pwd)/sim-content/src/main/resources/db"
 
 [ -f "$SRC/schema-draft.sql" ] || { echo "no schema-draft.sql under $SRC" >&2; exit 1; }
 mkdir -p "$DEST/seed"
