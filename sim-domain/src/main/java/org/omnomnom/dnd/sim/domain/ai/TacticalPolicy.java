@@ -9,7 +9,6 @@ import org.omnomnom.dnd.sim.domain.combat.AttackKind;
 import org.omnomnom.dnd.sim.domain.combat.AttackProfile;
 import org.omnomnom.dnd.sim.domain.combat.Combatant;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
-import org.omnomnom.dnd.sim.domain.combat.FeatureIds;
 import org.omnomnom.dnd.sim.domain.combat.ResourceIds;
 import org.omnomnom.dnd.sim.domain.combat.TurnApi;
 import org.omnomnom.dnd.sim.domain.combat.TurnPolicy;
@@ -415,14 +414,12 @@ public final class TacticalPolicy {
 
     /**
      * Hunter's Mark (Ranger): place the mark on the kill target as a Bonus Action when the ranger has a free use and
-     * isn't already concentrating, so its hits carry the extra damage.
+     * isn't already concentrating, so its hits carry the extra damage. The free-use pool is the capability: content
+     * grants it only alongside the feature that makes the mark deal damage.
      */
     private static void tryMark(TurnApi api, Combatant damageTarget) {
         Combatant self = api.self();
         if (self.concentratingOn() != null || !api.resources().bonus()) {
-            return;
-        }
-        if (self.features().stream().noneMatch(f -> f.id().equals(FeatureIds.HUNTERS_MARK))) {
             return;
         }
         if (self.resourceCount(ResourceIds.HUNTERS_MARK) <= 0) {

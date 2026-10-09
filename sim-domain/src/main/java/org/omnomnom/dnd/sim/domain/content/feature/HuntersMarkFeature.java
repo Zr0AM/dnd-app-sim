@@ -3,7 +3,6 @@ package org.omnomnom.dnd.sim.domain.content.feature;
 import java.util.List;
 import org.omnomnom.dnd.sim.domain.combat.ExtraDamage;
 import org.omnomnom.dnd.sim.domain.combat.Feature;
-import org.omnomnom.dnd.sim.domain.combat.FeatureIds;
 import org.omnomnom.dnd.sim.domain.combat.OnHitContext;
 import org.omnomnom.dnd.sim.domain.core.DamageType;
 import org.omnomnom.dnd.sim.domain.dice.Dice;
@@ -18,7 +17,7 @@ public final class HuntersMarkFeature implements Feature {
 
     @Override
     public String id() {
-        return FeatureIds.HUNTERS_MARK;
+        return "hunters-mark";
     }
 
     @Override

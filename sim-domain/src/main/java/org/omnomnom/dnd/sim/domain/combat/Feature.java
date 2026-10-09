@@ -55,4 +55,13 @@ public interface Feature {
     default boolean resistsDamage(Combatant self, DamageType type) {
         return false;
     }
+
+    /**
+     * The saving-throw bonus this feature grants {@code saver}, an ally of the owner standing {@code distanceFt}
+     * away (Aura of Protection). Side, consciousness, the non-stacking best-of and the never-below-0 floor are engine
+     * rules handled by the caller; the feature answers only its own range and amount. Must be side-effect-free.
+     */
+    default int allySaveBonus(Combatant self, Combatant saver, int distanceFt) {
+        return 0;
+    }
 }

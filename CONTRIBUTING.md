@@ -68,7 +68,9 @@ Before writing a loop, a ternary ladder or a string constant, look for the helpe
 - `FloatOrder` (`domain.core`): compare or sort doubles (`descendingBy`); never `a - b` comparators.
 - `Picks.firstMax` / `firstMin` (`domain.core`): the best candidate, the first of ties winning. Seeded results depend on tie order.
 - `Tiers.pick` (`domain.core`): a value that steps up with level, instead of `level >= 17 ? ... : level >= 11 ? ...`.
-- `ResourceIds`, `FeatureIds`, `Gear`, `Objectives` and `MonsterSlugs`: named ids and equipment names, not string literals.
+- `ResourceIds`, `Gear`, `Objectives` and `MonsterSlugs`: named ids and equipment names, not string literals. The
+  engine must not look a feature up by id - a class ability answers through its `Feature` hook (`allySaveBonus`,
+  `resistsDamage`, ...) or a resource pool, so adding one never means editing `Roster` or `TacticalPolicy`.
 - `Stats` and the per-run `record` pattern in `SoloEvaluator` / `PartyEvaluator`: collect one record per run, then summarize,
   rather than parallel lists. When summing doubles, keep a left-to-right fold (`reduce(0, Double::sum)`): `DoubleStream.sum()`
   uses compensated summation and can differ in the last bits, which the parity tests would catch.

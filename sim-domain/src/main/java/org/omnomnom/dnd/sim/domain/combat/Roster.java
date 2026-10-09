@@ -2,7 +2,6 @@ package org.omnomnom.dnd.sim.domain.combat;
 
 import java.util.List;
 import java.util.function.Consumer;
-import org.omnomnom.dnd.sim.domain.core.Ability;
 import org.omnomnom.dnd.sim.domain.core.Condition;
 import org.omnomnom.dnd.sim.domain.core.Side;
 import org.omnomnom.dnd.sim.domain.grid.Cell;
@@ -15,7 +14,6 @@ import org.omnomnom.dnd.sim.domain.grid.GridMath;
 final class Roster {
 
     private static final int ADJACENT_FT = 5;
-    private static final int AURA_RANGE_FT = 10;
 
     private final List<Combatant> combatants;
     private final int cellFt;
@@ -55,21 +53,22 @@ final class Roster {
     }
 
     /**
-     * Paladin Aura of Protection: the bonus a saving creature gets from nearby allied paladins' auras - the best
-     * (non-stacking) Charisma modifier among conscious aura-bearing allies within 10 ft of {@code target}, never below 0.
+     * The bonus a saving creature gets from allied auras (Aura of Protection): the best - non-stacking, never below
+     * 0 - of what every conscious ally's features grant at the target's distance. Which features answer and how far
+     * they reach is theirs to decide; the engine only keeps the same-side, conscious and best-of rules.
      */
     int auraSaveBonus(Combatant target) {
-        int best = combatants.stream()
-                .filter(p -> p.side() == target.side() && p.isConscious() && hasAura(p)
-                        && GridMath.distanceFt(p.position(), target.position(), cellFt) <= AURA_RANGE_FT)
-                .mapToInt(p -> p.abilityMod(Ability.CHA))
-                .max()
-                .orElse(0);
-        return Math.max(0, best);
-    }
-
-    private static boolean hasAura(Combatant c) {
-        return c.features().stream().anyMatch(f -> f.id().equals(FeatureIds.AURA_OF_PROTECTION));
+        int best = 0;
+        for (Combatant p : combatants) {
+            if (p.side() != target.side() || !p.isConscious()) {
+                continue;
+            }
+            int distanceFt = GridMath.distanceFt(p.position(), target.position(), cellFt);
+            for (Feature f : p.features()) {
+                best = Math.max(best, f.allySaveBonus(p, target, distanceFt));
+            }
+        }
+        return best;
     }
 
     /** Visit every combatant in list order. */

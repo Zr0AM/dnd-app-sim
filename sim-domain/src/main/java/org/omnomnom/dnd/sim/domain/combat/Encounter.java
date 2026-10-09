@@ -249,8 +249,8 @@ public final class Encounter {
     }
 
     /**
-     * Paladin Aura of Protection: the bonus a saving creature gets from nearby allied paladins' auras - the best
-     * (non-stacking) Charisma modifier among conscious aura-bearing allies within 10 ft of {@code target}. Pure.
+     * The bonus a saving creature gets from allied auras such as Aura of Protection - the best (non-stacking,
+     * never below 0) save bonus any conscious ally's features grant at {@code target}'s distance. Pure.
      */
     public static int auraSaveBonus(List<Combatant> combatants, Combatant target, int cellFt) {
         return new Roster(combatants, cellFt).auraSaveBonus(target);
