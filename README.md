@@ -61,7 +61,17 @@ instance (jobs and rate-limit buckets are in memory) and returns `404` for every
 timeout before the container sleeps and the readiness wait are constants in `worker/src/index.ts`; Durable
 Object-managed containers do not take them from `wrangler.jsonc`. Keep `INSTANCE` and `sim.executor.threads` in step.
 
-One-time setup, from `worker/`:
+`.github/workflows/deploy.yml` runs `./gradlew check` and the Worker tests on pull requests. On pushes to `main` it finds
+the `dnd-app-sim` D1 database (creating it on the first deploy), runs `wrangler deploy` with the Worker secrets
+`CF_ACCOUNT_ID`, `CF_D1_DATABASE_ID`, `CF_API_TOKEN` and `SIM_API_KEYS`, then runs `worker/scripts/smoke-test.sh` against
+the deployed hostname (health, a keyed encounter, and an optimize report saved to D1 and read back). It needs these
+repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`: Workers Scripts, Containers, Durable Objects and D1 Edit. The container reuses it for D1.
+- `CLOUDFLARE_ACCOUNT_ID`
+- `SIM_API_KEYS`: comma-separated API keys clients send as `X-API-Key` or `Authorization: Bearer`.
+
+The `sim_report` table is created on first use. To deploy by hand from `worker/` instead:
 
 ```bash
 npm ci
@@ -71,8 +81,5 @@ npx wrangler secret put CF_D1_DATABASE_ID                # the ID from d1 create
 npx wrangler secret put CF_API_TOKEN                     # a token with D1 Edit on the account
 npx wrangler secret put SIM_API_KEYS                     # comma-separated keys
 npx wrangler deploy                                      # builds and pushes the image, deploys the Worker
+SIM_API_KEY=<key> scripts/smoke-test.sh https://dnd-app-sim.<subdomain>.workers.dev
 ```
-
-The `sim_report` table is created on first use. `.github/workflows/deploy.yml` runs `./gradlew check` and the Worker tests
-on pull requests and `wrangler deploy` on pushes to `main`, using the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-repository secrets.

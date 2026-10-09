@@ -48,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
+    env:
+      D1_DATABASE: dnd-app-sim
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -64,10 +66,48 @@ jobs:
         working-directory: worker
         run: npm ci
 
-      # Builds the repository-root Dockerfile, pushes the image to the Cloudflare registry and deploys the Worker.
+      # Finds the production D1 database by name, creating it on the first deploy. sim_report is created on first use.
+      - name: Provision D1
+        id: d1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          id="$(curl -fsS -H "$auth" "$api?name=$D1_DATABASE" | jq -r --arg n "$D1_DATABASE" '.result[] | select(.name == $n) | .uuid')"
+          if [ -z "$id" ]; then
+            id="$(curl -fsS -X POST -H "$auth" -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg n "$D1_DATABASE" '{name: $n}')" "$api" | jq -r '.result.uuid')"
+            echo "Created D1 database $D1_DATABASE"
+          fi
+          [ -n "$id" ] && [ "$id" != null ] || { echo "::error::Could not find or create D1 database $D1_DATABASE"; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      # Builds the repository-root Dockerfile, pushes the image to the Cloudflare registry and deploys the Worker with its
+      # secrets, which the Worker hands to the container as environment variables.
       - name: wrangler deploy
+        id: deploy
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy
+          SIM_API_KEYS: ${{ secrets.SIM_API_KEYS }}
+          CF_D1_DATABASE_ID: ${{ steps.d1.outputs.id }}
+        run: |
+          [ -n "$SIM_API_KEYS" ] || { echo "::error::Set the SIM_API_KEYS repository secret (comma-separated API keys)"; exit 1; }
+          secrets="$RUNNER_TEMP/worker-secrets.json"
+          trap 'rm -f "$secrets"' EXIT
+          jq -n --arg account "$CLOUDFLARE_ACCOUNT_ID" --arg db "$CF_D1_DATABASE_ID" --arg token "$CLOUDFLARE_API_TOKEN" \
+            --arg keys "$SIM_API_KEYS" \
+            '{CF_ACCOUNT_ID: $account, CF_D1_DATABASE_ID: $db, CF_API_TOKEN: $token, SIM_API_KEYS: $keys}' > "$secrets"
+          npx wrangler deploy --secrets-file "$secrets" | tee "$RUNNER_TEMP/deploy.log"
+          url="$(grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/deploy.log" | head -n 1)"
+          [ -n "$url" ] || { echo "::error::wrangler deploy printed no workers.dev URL"; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        working-directory: worker
+        env:
+          SIM_API_KEYS: ${{ secrets.SIM_API_KEYS }}
+        run: SIM_API_KEY="${SIM_API_KEYS%%,*}" scripts/smoke-test.sh "${{ steps.deploy.outputs.url }}"
