@@ -1,5 +1,5 @@
 [versions]
-spring-boot = "4.1.1"
+spring-boot = "4.1.2"
 springdoc = "3.1.1"
 sqlite-jdbc = "3.53.4.0"
 archunit = "1.5.1"
